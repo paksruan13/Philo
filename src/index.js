@@ -327,7 +327,7 @@ app.get('/photos', async(req, res) => {
 //Stripe API
 
 app.post('/create-checkout-session', express.json(), async(req, res) => {
-  const{teamId, userId, amount} = req.body;
+  const{teamId, userId, amount, shirtSize} = req.body;
   try{
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -340,7 +340,7 @@ app.post('/create-checkout-session', express.json(), async(req, res) => {
         },
         quantity: 1,
       }],
-      metadata: {teamId, userId},
+      metadata: {teamId, userId, shirtSize: shirtSize || ''},
       success_url: "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "http://localhost:3000/cancel"
     });
@@ -481,7 +481,7 @@ async function emitLeaderboardUpdate() { //live leaderboard update
 //webhook 
 async function handleCompletedPayment(session){
   try{
-    const {teamId, userId} = session.metadata || {};
+    const {teamId, userId, shirtSize} = session.metadata || {};
     const amount = session.amount_total / 100;
     if(!teamId){
       console.error('No teamId in session metadata');
@@ -493,10 +493,21 @@ async function handleCompletedPayment(session){
         currency: session.currency,
         stripeSessionId: session.id,
         user: userId ? { connect: { id: userId } } : undefined,
-        team: { connect: { id: teamId } },
+        team: { connect: { id: teamId }, }
       },
     });
     console.log('Donation saved:', donation.id);
+
+    if (shirtSize && shirtSize !== '') {
+      await prisma.shirtSale.create({
+        data: {
+          quantity: 1,
+          shirtSize,
+          team: { connect: { id: teamId } }
+        }
+      });
+      console.log(`Shirt sale recorded for size ${shirtSize}`);
+    }
 
     await emitLeaderboardUpdate();
     
