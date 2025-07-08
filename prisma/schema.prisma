@@ -66,6 +66,7 @@ model Photo {
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   uploadedAt DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model ShirtSale {
@@ -119,7 +120,7 @@ model ActivitySubmission {
   reviewedById   String?
   reviewedBy     User?        @relation("ReviewedSubmissions", fields: [reviewedById], references: [id])
   reviewNotes    String?
-  created        DateTime     @default(now())
+  createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reviewedAt     DateTime?
 }
