@@ -156,11 +156,54 @@ const updateAdminTeam = async (req, res) => {
   }
 };
 
+const getMyTeamDashboard = async (req, res) => {
+  try{
+    const userId = req.user.id;
+    const dashboardData = await teamService.getDashboardData(userId);
+    res.json(dashboardData);
+  } catch (err) {
+    console.error('Error fetching team dashboard:', err);
+
+    if(err.message === 'User is not assigned to any team') {
+      return res.status(404).json({ error: 'You are not assigned to any team' });
+    }
+
+    if(err.message === 'Team not found') {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    res.status(500).json({ error: 'Failed to fetch team dashboard' });
+  }
+};
+
+const getMyTeamActivities = async ( req, res ) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamId: true }
+    });
+
+    if(!user?.teamId) {
+      return res.status(404).json({ error: 'You are not assigned to any team' });
+    }
+
+    const activities = await teamService.getActivitiesWithSubmissionStatus(user.teamId, userId);
+    res.json(activities);
+  } catch (err) {
+    console.error('Error fetching team activities:', err);
+    res.status(500).json({ error: 'Failed to fetch team activities' });
+  }
+}
+
 module.exports = {
   getAllTeams,
   getTeamScore,
   createTeam,
   assignCoach,
   updateAdminTeam,
-  getAdminTeams
+  getAdminTeams,
+  getMyTeamDashboard,
+  getMyTeamActivities
 };
