@@ -10,26 +10,50 @@ const Donations = () => {
   const [shirtSize, setShirtSize] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [inventory, setInventory] = useState([]);
 
   useEffect(() => {
+    // Fetch teams
     fetch("http://localhost:4243/teams")
       .then((res) => res.json())
       .then((data) => setTeams(data))
       .catch((err) => console.error("Error fetching teams:", err));
+
+    // Fetch shirt inventory
+    fetch("http://localhost:4243/inventory/shirts")
+      .then((res) => res.json())
+      .then((data) => setInventory(data))
+      .catch((err) => console.error("Error fetching inventory:", err));
   }, []);
 
   useEffect(() => {
-    // Optional: load coach message from API
+    // Load coach message
     fetch("http://localhost:4243/message")
       .then((res) => res.json())
       .then((data) => setCoachMessage(data.message))
       .catch(() => setCoachMessage("Support your team! Proceeds go to team travel and supplies."));
   }, []);
 
+  const getInventoryForSize = (size) => {
+    const item = inventory.find(inv => inv.size === size);
+    return item ? (item.quantity - item.reserved) : 0;
+  };
+
+  const isShirtAvailable = (size) => {
+    return getInventoryForSize(size) > 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    // Check inventory before proceeding
+    if (shirtSize && !isShirtAvailable(shirtSize)) {
+      setError(`Sorry, size ${shirtSize} is currently out of stock`);
+      setLoading(false);
+      return;
+    }
   
     try {
       const userRes = await fetch("http://localhost:4243/users", {
@@ -53,7 +77,7 @@ const Donations = () => {
       });
   
       const session = await sessionRes.json();
-      if (!session.url) throw new Error("Checkout session failed");
+      if (!session.url) throw new Error(session.error || "Checkout session failed");
   
       window.location.href = session.url;
     } catch (err) {
@@ -82,7 +106,6 @@ const Donations = () => {
           </button>
         </div>
 
-
         {/* Bundle Option */}
         <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center justify-between">
           <img
@@ -109,74 +132,111 @@ const Donations = () => {
         </button>
       </div>
 
+      {/* Donation Form */}
       <div className="bg-white rounded-xl shadow p-6 max-w-3xl mx-auto space-y-4">
-  <h3 className="text-2xl font-bold text-center mb-4">Donate + Optionally Buy a Shirt</h3>
-  
-  <select
-    value={teamId}
-    onChange={(e) => setTeamId(e.target.value)}
-    className="w-full p-2 border rounded"
-    required
-  >
-    <option value="">Select Your Team</option>
-    {teams.map((team) => (
-      <option key={team.id} value={team.id}>
-        {team.name}
-      </option>
-    ))}
-  </select>
+        <h3 className="text-2xl font-bold text-center mb-4">Donate + Optionally Buy a Shirt</h3>
+        
+        <select
+          value={teamId}
+          onChange={(e) => setTeamId(e.target.value)}
+          className="w-full p-2 border rounded"
+          required
+        >
+          <option value="">Select Your Team</option>
+          {teams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.name}
+            </option>
+          ))}
+        </select>
 
-  <input
-    type="text"
-    placeholder="Full Name"
-    className="w-full p-2 border rounded"
-    value={userName}
-    onChange={(e) => setUserName(e.target.value)}
-    required
-  />
+        <input
+          type="text"
+          placeholder="Full Name"
+          className="w-full p-2 border rounded"
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+          required
+        />
 
-  <input
-    type="email"
-    placeholder="Email Address"
-    className="w-full p-2 border rounded"
-    value={userEmail}
-    onChange={(e) => setUserEmail(e.target.value)}
-    required
-  />
+        <input
+          type="email"
+          placeholder="Email Address"
+          className="w-full p-2 border rounded"
+          value={userEmail}
+          onChange={(e) => setUserEmail(e.target.value)}
+          required
+        />
 
-  <input
-    type="number"
-    placeholder="Donation Amount (USD)"
-    min="1"
-    className="w-full p-2 border rounded"
-    value={amount}
-    onChange={(e) => setAmount(e.target.value)}
-    required
-  />
+        <input
+          type="number"
+          placeholder="Donation Amount (USD)"
+          min="1"
+          className="w-full p-2 border rounded"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+        />
 
-  <label className="block font-medium text-sm">Select Shirt Size (Optional)</label>
-  <select
-    value={shirtSize}
-    onChange={(e) => setShirtSize(e.target.value)}
-    className="w-full p-2 border rounded"
-  >
-    <option value="">-- No Shirt --</option>
-    <option value="S">Small</option>
-    <option value="M">Medium</option>
-    <option value="L">Large</option>
-    <option value="XL">X-Large</option>
-  </select>
+        <div>
+          <label className="block font-medium text-sm mb-2">Select Shirt Size (Optional)</label>
+          <select
+            value={shirtSize}
+            onChange={(e) => setShirtSize(e.target.value)}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">-- No Shirt --</option>
+            {['S', 'M', 'L', 'XL'].map(size => {
+              const available = getInventoryForSize(size);
+              const isAvailable = available > 0;
+              return (
+                <option 
+                  key={size} 
+                  value={size}
+                  disabled={!isAvailable}
+                >
+                  {size} {isAvailable ? `(${available} left)` : '(Out of Stock)'}
+                </option>
+              );
+            })}
+          </select>
+          
+          {/* Inventory Status Display */}
+          <div className="mt-2 text-sm text-gray-600">
+            <div className="grid grid-cols-4 gap-2">
+              {['S', 'M', 'L', 'XL'].map(size => {
+                const available = getInventoryForSize(size);
+                const isAvailable = available > 0;
+                return (
+                  <div 
+                    key={size}
+                    className={`p-2 rounded text-center ${
+                      isAvailable 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    <div className="font-semibold">{size}</div>
+                    <div className="text-xs">
+                      {isAvailable ? `${available} left` : 'Out of Stock'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-  {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-red-500 text-sm">{error}</p>}
 
-  <button
-    onClick={handleSubmit}
-    disabled={loading}
-    className="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700"
-  >
-    {loading ? "Processing..." : "Donate + Checkout with Stripe"}
-  </button>
-</div>
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700 disabled:bg-gray-400"
+        >
+          {loading ? "Processing..." : "Donate + Checkout with Stripe"}
+        </button>
+      </div>
     </div>
   );
 };
