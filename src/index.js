@@ -281,6 +281,246 @@ app.get('/sales', async(req, res) => {
   }
 })
 
+// Inventory API
+// Get current inventory
+app.get('/inventory/shirts', async (req, res) => {
+  try {
+    const inventory = await prisma.shirtInventory.findMany({
+      orderBy: { size: 'asc' }
+    });
+    res.json(inventory);
+  } catch (err) {
+    console.error('Error fetching shirt inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update inventory (admin only)
+app.put('/inventory/shirts/:size', authenticationToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { size } = req.params;
+    const { quantity } = req.body;
+
+    const inventory = await prisma.shirtInventory.upsert({
+      where: { size },
+      update: { quantity },
+      create: { size, quantity },
+    });
+
+    res.json(inventory);
+  } catch (err) {
+    console.error('Error updating inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add inventory (when receiving new stock)
+app.post('/inventory/shirts/restock', authenticationToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { size, quantity } = req.body;
+
+    const inventory = await prisma.shirtInventory.upsert({
+      where: { size },
+      update: { 
+        quantity: {
+          increment: quantity
+        }
+      },
+      create: { size, quantity },
+    });
+
+    res.json({
+      message: `Added ${quantity} shirts of size ${size}`,
+      inventory
+    });
+  } catch (err) {
+    console.error('Error restocking inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check if shirt size is available
+app.get('/inventory/shirts/:size/available', async (req, res) => {
+  try {
+    const { size } = req.params;
+    const { quantity = 1 } = req.query;
+
+    const inventory = await prisma.shirtInventory.findUnique({
+      where: { size }
+    });
+
+    const available = inventory ? (inventory.quantity - inventory.reserved) >= parseInt(quantity) : false;
+    
+    res.json({
+      size,
+      available,
+      inStock: inventory?.quantity || 0,
+      reserved: inventory?.reserved || 0,
+      requestedQuantity: parseInt(quantity)
+    });
+  } catch (err) {
+    console.error('Error checking availability:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reserve shirt inventory (when creating checkout session)
+async function reserveShirtInventory(size, quantity = 1) {
+  if (!size) return true; // No shirt requested
+
+  try {
+    const inventory = await prisma.shirtInventory.findUnique({
+      where: { size }
+    });
+
+    if (!inventory || (inventory.quantity - inventory.reserved) < quantity) {
+      throw new Error(`Insufficient inventory for size ${size}`);
+    }
+
+    await prisma.shirtInventory.update({
+      where: { size },
+      data: {
+        reserved: {
+          increment: quantity
+        }
+      }
+    });
+
+    return true;
+  } catch (err) {
+    console.error('Error reserving inventory:', err);
+    throw err;
+  }
+}
+
+// Release reserved inventory (on payment failure or cancellation)
+async function releaseShirtInventory(size, quantity = 1) {
+  if (!size) return;
+
+  try {
+    await prisma.shirtInventory.update({
+      where: { size },
+      data: {
+        reserved: {
+          decrement: quantity
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error releasing inventory:', err);
+  }
+}
+
+// Complete shirt sale (on successful payment)
+async function completeShirtSale(size, quantity = 1) {
+  if (!size) return;
+
+  try {
+    await prisma.shirtInventory.update({
+      where: { size },
+      data: {
+        quantity: {
+          decrement: quantity
+        },
+        reserved: {
+          decrement: quantity
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error completing shirt sale:', err);
+    throw err;
+  }
+}
+
+// Get current inventory
+app.get('/inventory/shirts', async (req, res) => {
+  try {
+    const inventory = await prisma.shirtInventory.findMany({
+      orderBy: { size: 'asc' }
+    });
+    res.json(inventory);
+  } catch (err) {
+    console.error('Error fetching shirt inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update inventory (admin only)
+app.put('/inventory/shirts/:size', authenticationToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { size } = req.params;
+    const { quantity } = req.body;
+
+    console.log(`Updating inventory for size ${size} to quantity ${quantity}`);
+
+    const inventory = await prisma.shirtInventory.upsert({
+      where: { size },
+      update: { quantity },
+      create: { size, quantity, reserved: 0 },
+    });
+
+    console.log('Inventory updated:', inventory);
+    res.json(inventory);
+  } catch (err) {
+    console.error('Error updating inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add inventory (when receiving new stock)
+app.post('/inventory/shirts/restock', authenticationToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { size, quantity } = req.body;
+
+    console.log(`Restocking size ${size} with ${quantity} shirts`);
+
+    const inventory = await prisma.shirtInventory.upsert({
+      where: { size },
+      update: { 
+        quantity: {
+          increment: quantity
+        }
+      },
+      create: { size, quantity, reserved: 0 },
+    });
+
+    console.log('Inventory restocked:', inventory);
+    res.json({
+      message: `Added ${quantity} shirts of size ${size}`,
+      inventory
+    });
+  } catch (err) {
+    console.error('Error restocking inventory:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check if shirt size is available
+app.get('/inventory/shirts/:size/available', async (req, res) => {
+  try {
+    const { size } = req.params;
+    const { quantity = 1 } = req.query;
+
+    const inventory = await prisma.shirtInventory.findUnique({
+      where: { size }
+    });
+
+    const available = inventory ? (inventory.quantity - inventory.reserved) >= parseInt(quantity) : false;
+    
+    res.json({
+      size,
+      available,
+      inStock: inventory?.quantity || 0,
+      reserved: inventory?.reserved || 0,
+      requestedQuantity: parseInt(quantity)
+    });
+  } catch (err) {
+    console.error('Error checking availability:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 //Photos API
 app.post('/photos', upload.single('file'), async(req, res) => {
   const {teamId} = req.body;
@@ -326,28 +566,58 @@ app.get('/photos', async(req, res) => {
 
 //Stripe API
 
-app.post('/create-checkout-session', express.json(), async(req, res) => {
-  const{teamId, userId, amount, shirtSize} = req.body;
-  try{
+app.post('/create-checkout-session', express.json(), async (req, res) => {
+  const { teamId, userId, amount, shirtSize } = req.body;
+  
+  try {
+    // NEW: Check shirt inventory if a shirt is requested
+    if (shirtSize) {
+      const inventory = await prisma.shirtInventory.findUnique({
+        where: { size: shirtSize }
+      });
+      
+      const available = inventory ? (inventory.quantity - inventory.reserved) >= 1 : false;
+      
+      if (!available) {
+        return res.status(400).json({
+          error: `Sorry, size ${shirtSize} is currently out of stock`
+        });
+      }
+
+      // NEW: Reserve the shirt
+      await reserveShirtInventory(shirtSize, 1);
+    }
+
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: [{
         price_data: {
           currency: 'usd',
-          product_data: {name: 'Donation'},
+          product_data: { 
+            name: shirtSize ? `Donation + ${shirtSize} Shirt` : 'Donation'
+          },
           unit_amount: Math.round(amount * 100),
         },
         quantity: 1,
       }],
-      metadata: {teamId, userId, shirtSize: shirtSize || ''},
+      metadata: { teamId, userId, shirtSize: shirtSize || '' },
       success_url: "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "http://localhost:3000/cancel"
+      cancel_url: "http://localhost:3000/cancel",
+      // NEW: Add expiration time to release reserved inventory
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes
     });
-    res.json({url: session.url});
-  } catch(err) {
+
+    res.json({ url: session.url });
+  } catch (err) {
     console.error('Error creating checkout session:', err);
-    res.status(500).json({error: err.message});
+    
+    // NEW: Release reserved inventory on error
+    if (shirtSize) {
+      await releaseShirtInventory(shirtSize, 1);
+    }
+    
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -479,26 +749,34 @@ async function emitLeaderboardUpdate() { //live leaderboard update
 }
 
 //webhook 
-async function handleCompletedPayment(session){
-  try{
-    const {teamId, userId, shirtSize} = session.metadata || {};
+async function handleCompletedPayment(session) {
+  try {
+    const { teamId, userId, shirtSize } = session.metadata || {};
     const amount = session.amount_total / 100;
-    if(!teamId){
+    
+    if (!teamId) {
       console.error('No teamId in session metadata');
       return;
     }
+
+    // Create donation record (same as before)
     const donation = await prisma.donation.create({
       data: {
         amount,
         currency: session.currency,
         stripeSessionId: session.id,
         user: userId ? { connect: { id: userId } } : undefined,
-        team: { connect: { id: teamId }, }
+        team: { connect: { id: teamId } }
       },
     });
     console.log('Donation saved:', donation.id);
 
+    // NEW: Handle shirt sale and inventory
     if (shirtSize && shirtSize !== '') {
+      // Complete the shirt sale (reduces inventory and reserved count)
+      await completeShirtSale(shirtSize, 1);
+      
+      // Record the sale (same as before)
       await prisma.shirtSale.create({
         data: {
           quantity: 1,
@@ -506,16 +784,34 @@ async function handleCompletedPayment(session){
           team: { connect: { id: teamId } }
         }
       });
-      console.log(`Shirt sale recorded for size ${shirtSize}`);
+      console.log(`Shirt sale completed for size ${shirtSize}`);
     }
 
     await emitLeaderboardUpdate();
     
-  } catch(err) {
+  } catch (err) {
     console.error('Error handling completed payment:', err);
   }
 }
 
+app.post('/handle-session-expired', express.json(), async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    
+    // Get session details from Stripe
+    const session = await stripeClient.checkout.sessions.retrieve(sessionId);
+    
+    if (session.status === 'expired' && session.metadata.shirtSize) {
+      await releaseShirtInventory(session.metadata.shirtSize, 1);
+      console.log(`Released reserved inventory for expired session: ${sessionId}`);
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error handling expired session:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/photos/pending', async (req, res) => {
   try {
