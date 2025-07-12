@@ -211,6 +211,7 @@ app.get('/teams/:id/members', async (req, res) => {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
       orderBy: {
           createdAt: 'asc'
@@ -1234,6 +1235,208 @@ app.get('/admin/users', async (req, res) => {
   } catch (error) {
     res.status(500).json({error: 'Failed to fetch users'});
   }
+});
+
+// Get announcements for a team
+app.get('/teams/:teamId/announcements', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        teamId: teamId,
+        isActive: true
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10 // Limit to 10 most recent announcements
+    });
+    
+    res.json(announcements);
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+// Create announcement (coach only)
+app.post('/teams/:teamId/announcements', authenticationToken, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { title, content } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+    
+    // Verify user is coach of this team
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { coachId: true }
+    });
+    
+    if (!team || team.coachId !== req.user.id) {
+      return res.status(403).json({ error: 'Only the team coach can create announcements' });
+    }
+    
+    const announcement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        teamId,
+        createdById: req.user.id
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+    
+    // Emit real-time update
+    io.to(`team-${teamId}`).emit('new-announcement', announcement);
+    
+    res.status(201).json(announcement);
+  } catch (error) {
+    console.error('Error creating announcement:', error);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+// Delete announcement (coach only)
+app.delete('/announcements/:id', authenticationToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const announcement = await prisma.announcement.findUnique({
+      where: { id },
+      include: { team: true }
+    });
+    
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+    
+    // Verify user is coach of this team
+    if (announcement.team.coachId !== req.user.id) {
+      return res.status(403).json({ error: 'Only the team coach can delete announcements' });
+    }
+    
+    await prisma.announcement.update({
+      where: { id },
+      data: { isActive: false }
+    });
+    
+    // Emit real-time update
+    io.to(`team-${announcement.teamId}`).emit('announcement-deleted', { id });
+    
+    res.json({ message: 'Announcement deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
+app.post('coach/manual-points', authenticationToken, async (req, res) => {
+  try {
+    const { userId, activityDescription, points, notes} = req.body;
+
+    if (!userId || !activityDescription || points == null) {
+      return res.status(400).json({ error: 'userId, activityDescription and points are required' });
+    }
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { team:true }
+    });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const coachTeams = await prisma.team.findMany({
+      where: { coachId: req.user.id },
+      select: { id: true }
+    });
+
+    const coachTeamIds = coachTeams.map(team => team.id);
+    if (!targetUser.teamId || !coachTeamIds.includes(targetUser.teamId)) {
+      return res.status(403).json({ error: 'You can only award points to users in your team' });
+    }
+
+    const submission = await prisma.activitySubmission.create({
+      data: {
+        userId: userId,
+        activityId: null,
+        status: 'APPROVED',
+        submissionData: {
+          type: 'MANUAL_POINTS',
+          description: activityDescription,
+          notes: notes || '',
+          awardedBy: req.user.name,
+          awardedAt: new Date().toISOString(),
+        },
+        points: parseInt(points),
+        reviewedById: req.user.id,
+        reviewedAt: new Date(),
+      },
+      include:{
+        user: {
+          select: { id: true, name: true, email:true }
+        },
+        reviewedBy: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    await emitLeaderboardUpdate();
+
+    res.status(201).json({
+      message: 'Points awarded successfully',
+      submission
+    });
+  } catch (error) {
+    console.error('Error awarding manual points:', error);
+    res.status(500).json({ error: 'Failed to award points' });
+  }
+});
+
+app.get('/coach/manual-points-history', authenticationToken, async (req, res) => {
+  try {
+    const coachTeams = await prisma.team.findMany({
+      where: { coachId: req.user.id },
+      select: { id: true }
+    });
+    const coachTeamIds = coachTeams.map(team => team.id);
+
+    const submissions = await prisma.activitySubmission.findMany({
+      where: {
+        user: {
+          teamId: { in: coachTeamIds }
+        },
+        activityId:null,
+        status: 'APPROVED',
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        },
+        reviewedBy: {
+          select: { id: true, name: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+  });
+
+  res.json(submissions);
+} catch(error) {
+  console.error('Error fetching manual points history:', error);
+  res.status(500).json({ error: 'Failed to fetch manual points history' });
+}
 });
 
 server.listen(port, '0.0.0.0', () => {
