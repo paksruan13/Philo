@@ -5,6 +5,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
 import CoachDashboard from './components/CoachDashboard';
+import PhotoApprove from './components/PhotoApprove';
 
 const AppContent = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -168,8 +169,10 @@ const AppContent = () => {
       {/* Main content */}
       <main>
         {currentView === 'leaderboard' && <Leaderboard />}
-        {currentView === 'coach' && isCoach && <CoachDashboard />} {/* <-- ADD THIS LINE */}
+        {currentView === 'coach' && isCoach && (
+          <CoachDashboard onNavigate={setCurrentView}/>)}
         {currentView === 'admin' && isAdmin && <AdminDashboard />}
+        {currentView === 'photo-approval' && isCoach && <PhotoApprove />}
         {currentView === 'admin' && !isAdmin && (
           <div className="max-w-7xl mx-auto px-4">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">

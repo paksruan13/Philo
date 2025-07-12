@@ -27,6 +27,7 @@ model Team {
   coachId   String?
   coach     User?     @relation("CoachTeams", fields: [coachId], references: [id])
   activitySubmissions   ActivitySubmission[]
+  announcements Announcement[]
 }
 
 model User {
@@ -45,6 +46,7 @@ model User {
   createdActivities  Activity[]    @relation("CreatedActivities")
   Submissions   ActivitySubmission[]    @relation("UserSubmissions")
   reviewedSubmissions   ActivitySubmission[]    @relation("ReviewedSubmissions")
+  createdAnnouncements Announcement[] @relation("CreatedAnnouncements")
 }
 
 model Donation {
@@ -123,6 +125,19 @@ model ActivitySubmission {
   created        DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reviewedAt     DateTime?
+}
+
+model Announcement {
+  id            String      @id @default(uuid())
+  title         String
+  content       String
+  teamId        String
+  team          Team        @relation(fields: [teamId], references: [id])
+  createdById   String
+  createdBy     User        @relation("CreatedAnnouncements", fields: [createdById], references: [id])
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 enum ActivityType {

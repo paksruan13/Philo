@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "../hooks/useSocket";
+import { useAuth } from "../contexts/AuthContext";
 
 const Leaderboard = () => { 
     const [teams, setTeams] = useState([]);
+    const [teamAnnouncements, setTeamAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const { socket, connected } = useSocket();
+    const { user } = useAuth();
 
     const fetchLeaderboard = async () => {
         try {
@@ -31,9 +34,27 @@ const Leaderboard = () => {
         }
     };
 
+    const fetchTeamAnnouncements = async () => {
+        if (!user || !user.team) {
+            setTeamAnnouncements([]);
+            return;
+        }
+        try {
+            const response = await fetch(`http://localhost:4243/teams/${user.team.id}/announcements`);
+            if (response.ok) {
+                const announcements = await response.json();
+                setTeamAnnouncements(announcements);
+            }
+        } catch (error) {
+            console.error('Error fetching team announcements:', error);
+            setTeamAnnouncements([]);
+        }
+    };
+
     useEffect(() => {
-        fetchLeaderboard(); 
-    }, []);
+        fetchLeaderboard();
+        fetchTeamAnnouncements(); 
+    }, [user]);
     
     
     useEffect(() => {
@@ -79,39 +100,72 @@ const Leaderboard = () => {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-6xl"> 
-            {/* Header Section */}
-            <div className="text-center mb-8">
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 text-transparent bg-clip-text">
-                    Project Phi Leaderboard
-                </h1>
-                <div className="flex justify-center items-center space-x-4 text-sm text-gray-600">
-                    <span>Last Updated: {lastUpdated.toLocaleTimeString()}</span>
-                    <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className="font-medium">{connected ? 'Live Updates' : 'Disconnected'}</span>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">({teams.length} teams)</span>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+            <div className= "grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Header Section */}
+                <div className= "lg:col-span-2">
+                    <div className="text-center mb-8">
+                        <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 text-transparent bg-clip-text">
+                            Project Phi Leaderboard
+                        </h1>
+                        <div className="flex justify-center items-center space-x-4 text-sm text-gray-600">
+                            <span>Last Updated: {lastUpdated.toLocaleTimeString()}</span>
+                            <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                            <span className="font-medium">{connected ? 'Live Updates' : 'Disconnected'}</span>
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">({teams.length} teams)</span>
+                        </div>
+                    </div>
+                    
+                    {/* Leaderboard */}
+                    <div className="space-y-4">
+                        {teams.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-gray-500 text-lg">No Teams Found...Event not ready</p>
+                                <p className="text-xs text-gray-400 mt-2">Check console for debug info</p>
+                            </div>  
+                        ) : (
+                            teams.map((team, index) => {
+                                return (
+                                    <LeaderboardItem
+                                        key={team.id}
+                                        team={team}
+                                        rank={index + 1}
+                                        isTop3={index < 3}
+                                    />
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
-            </div>
-            
-            {/* Leaderboard */}
-            <div className="space-y-4">
-                {teams.length === 0 ? (
-                    <div className="text-center py-12">
-                        <p className="text-gray-500 text-lg">No Teams Found...Event not ready</p>
-                        <p className="text-xs text-gray-400 mt-2">Check console for debug info</p>
-                    </div>  
-                ) : (
-                    teams.map((team, index) => {
-                        return (
-                            <LeaderboardItem
-                                key={team.id}
-                                team={team}
-                                rank={index + 1}
-                                isTop3={index < 3}
-                            />
-                        );
-                    })
-                )}
+                {/*Placeholder for right sidebar*/}
+                <div className="hidden lg:block">
+                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 className="text-2xl font-bold mb-4">
+                            {user && user.team ? `${user.team.name} Announcements` : 'Team Announcements'}
+                        </h2>
+
+                        {user && user.team ? (
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {teamAnnouncements.length >0 ? teamAnnouncements.map((announcement, ) => (
+                                    <div key={announcement.id} className="p-4 bg-blue-50 rounded border-l-4 border-blue-400">
+                                        <h3 className="font-semibold text-blue-800 text-sm">{announcement.title}</h3>
+                                        <p className="text-sm text-blue-700 mt-1">{announcement.content}</p>
+                                        <p className="text-xs text-blue-600 mt-2">
+                                            {new Date(announcement.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                )) : (
+                                    <p className="text-sm text-gray-600">No announcements yet</p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-2 text-sm text-gray-500">
+                                <p>Please join a team to see announcements</p>
+                                <p className="text-xs">Announcements will appear here once you join a team</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     ); 
