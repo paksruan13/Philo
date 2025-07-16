@@ -1439,6 +1439,132 @@ app.get('/coach/manual-points-history', authenticationToken, async (req, res) =>
 }
 });
 
+// Add this complete endpoint before server.listen()
+
+app.post('/debug/create-specific-users', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    
+    // Create test team first
+    let team;
+    try {
+      team = await prisma.team.findFirst({
+        where: { teamCode: 'TEST123' }
+      });
+      
+      if (!team) {
+        team = await prisma.team.create({
+          data: {
+            name: 'Test Team Alpha',
+            teamCode: 'TEST123',
+            isActive: true
+          }
+        });
+      }
+    } catch (error) {
+      console.log('Team already exists or error creating team');
+    }
+
+    const hashedPassword = await bcrypt.hash('password123', 12);
+    const results = [];
+
+    // Create Coach User
+    try {
+      const coach = await prisma.user.upsert({
+        where: { email: 'coach@example.com' },
+        update: {},
+        create: {
+          name: 'Coach Smith',
+          email: 'coach@example.com',
+          password: hashedPassword,
+          role: 'COACH',
+          isActive: true
+        }
+      });
+
+      // Assign coach to team
+      if (team) {
+        await prisma.team.update({
+          where: { id: team.id },
+          data: { coachId: coach.id }
+        });
+      }
+
+      results.push({
+        type: 'COACH',
+        email: 'coach@example.com',
+        password: 'password123',
+        name: 'Coach Smith'
+      });
+    } catch (error) {
+      console.log('Coach creation error:', error);
+    }
+
+    // Create Student User
+    try {
+      const student = await prisma.user.upsert({
+        where: { email: 'student@example.com' },
+        update: {},
+        create: {
+          name: 'Student Johnson',
+          email: 'student@example.com',
+          password: hashedPassword,
+          role: 'STUDENT',
+          teamId: team ? team.id : null,
+          isActive: true
+        }
+      });
+
+      results.push({
+        type: 'STUDENT',
+        email: 'student@example.com',
+        password: 'password123',
+        name: 'Student Johnson',
+        team: team ? team.name : 'No team'
+      });
+    } catch (error) {
+      console.log('Student creation error:', error);
+    }
+
+    res.json({
+      message: 'Test users created/updated successfully',
+      users: results,
+      team: team ? { name: team.name, code: team.teamCode } : null
+    });
+
+  } catch (error) {
+    console.error('Error creating test users:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this simple debug endpoint too
+app.get('/debug/check-users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        teamId: true,
+        team: {
+          select: { name: true, teamCode: true }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Current users in database',
+      count: users.length,
+      users: users
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 server.listen(port, '0.0.0.0', () => {
   console.log(`Express & Socket.io server running on port ${port}`);
 });
