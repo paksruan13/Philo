@@ -26,6 +26,7 @@ model Team {
   shirtSales ShirtSale[]
   coachId   String?
   coach     User?     @relation("CoachTeams", fields: [coachId], references: [id])
+  activitySubmissions   ActivitySubmission[]
 }
 
 model User {
@@ -37,10 +38,13 @@ model User {
   teamId    String?
   role      UserRole  @default(STUDENT)
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   isActive  Boolean   @default(true)
   donations    Donation[]
   coachedTeams  Team[]  @relation("CoachTeams")
+  createdActivities  Activity[]    @relation("CreatedActivities")
+  Submissions   ActivitySubmission[]    @relation("UserSubmissions")
+  reviewedSubmissions   ActivitySubmission[]    @relation("ReviewedSubmissions")
 }
 
 model Donation {
@@ -62,6 +66,7 @@ model Photo {
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   uploadedAt DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model ShirtSale {
@@ -71,15 +76,4 @@ model ShirtSale {
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   soldAt    DateTime @default(now())
-}
-
-model ShirtInventory {
-  id        String   @id @default(cuid())
-  size      String   // S, M, L, XL, etc.
-  quantity  Int      @default(0)
-  reserved  Int      @default(0) // For pending orders
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([size])
 }
