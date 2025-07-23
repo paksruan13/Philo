@@ -62,7 +62,9 @@ model Donation {
 model Photo {
   id        String   @id @default(uuid())
   url       String
+  fileName  String
   approved  Boolean  @default(false)
+  status    String   @default("PENDING")
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   uploadedAt DateTime @default(now())
@@ -103,6 +105,8 @@ model Activity {
   updatedAt   DateTime    @updatedAt
   createdById String?
   createdBy   User?       @relation("CreatedActivities", fields: [createdById], references: [id])
+  allowOnlinePurchase Boolean     @default(false)
+  allowPhotoUpload  Boolean       @default(false)
 }
 
 model ActivitySubmission {

@@ -130,7 +130,7 @@ const getAllActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
   try {
-    const { title, description, points, type, categoryId, requirements, isPublished } = req.body;
+    const { title, description, points, type, categoryId, requirements, isPublished, allowOnlinePurchase, allowPhotoUpload } = req.body;
     const activity = await activityService.createActivity({
       title,
       description,
@@ -138,7 +138,9 @@ const createActivity = async (req, res) => {
       type,
       categoryId,
       requirements: requirements || {},
-      isPublished: isPublished || false
+      isPublished: isPublished || false,
+      allowOnlinePurchase: allowOnlinePurchase || false,
+      allowPhotoUpload: allowPhotoUpload || false
     }, req.user.id);
 
     res.status(201).json(activity);
@@ -151,8 +153,8 @@ const createActivity = async (req, res) => {
 const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, points, type, categoryId, requirements, isPublished, isActive } = req.body;
-    
+    const { title, description, points, type, categoryId, requirements, isPublished, isActive, allowOnlinePurchase, allowPhotoUpload } = req.body;
+
     const activity = await activityService.updateActivity(id, {
       title,
       description,
@@ -161,7 +163,9 @@ const updateActivity = async (req, res) => {
       categoryId,
       requirements,
       isPublished,
-      isActive
+      isActive,
+      allowOnlinePurchase: allowOnlinePurchase || false,
+      allowPhotoUpload: allowPhotoUpload || false
     });
 
     res.json(activity);
