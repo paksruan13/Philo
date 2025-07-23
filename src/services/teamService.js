@@ -122,11 +122,13 @@ const getUserTeamWithDetails = async (userId) => {
     throw new Error('User does not belong to any team');
   }
 
-  return await getTeamsWithDetails(user.teamId);
+  return await getTeamWithDetails(user.teamId);
 };
 
 const getTeamWithDetails = async (teamId) => {
-  return await prisma.team.findUnique({
+  console.log('🔍 Fetching team with ID:', teamId);
+  
+  const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
       coach: {
@@ -169,25 +171,46 @@ const getTeamWithDetails = async (teamId) => {
       }
     }
   });
+
+  console.log('🔍 Raw team data:', {
+    id: team?.id,
+    name: team?.name,
+    donations: Array.isArray(team?.donations) ? team.donations.length : 'NOT_ARRAY',
+    photos: Array.isArray(team?.photos) ? team.photos.length : 'NOT_ARRAY',
+    activitySubmissions: Array.isArray(team?.activitySubmissions) ? team.activitySubmissions.length : 'NOT_ARRAY',
+    members: Array.isArray(team?.members) ? team.members.length : 'NOT_ARRAY'
+  });
+
+  return team;
 };
 
 const calculateTeamStats = (teamData) => {
-  const totalDonations = teamData.donations.reduce((sum, donation) => sum + donation.amount, 0);
-  const totalPoints = teamData.activitySubmissions.reduce((sum, submission) => sum + submission.activity.points, 0);
-  const photoCount = teamData.photos.length;
-  const activityCount = teamData.activitySubmissions.length;
+
+  const donations = teamData.donations || [];
+  const activitySubmissions = teamData.activitySubmissions || [];
+  const photos = teamData.photos || [];
+  const members = teamData.members || [];
+
+  const totalDonations = donations.reduce((sum, donation) => sum + donation.amount, 0);
+  const totalPoints = activitySubmissions.reduce((sum, submission) => sum + submission.activity.points, 0);
+  const photoCount = photos.length;
+  const activityCount = activitySubmissions.length;
 
   return {
     totalDonations,
     totalPoints,
     photoCount,
     activityCount,
-    memberCount: teamData.members.length
+    memberCount: members.length
   };
 };
 
 const calculateMemberContributions = (teamData) => {
-  return teamData.members.map(member => {
+  const members = teamData.members || [];
+  const donations = teamData.donations || [];
+  const activitySubmissions = teamData.activitySubmissions || [];
+
+  return members.map(member => {
     const memberDonations = teamData.donations
       .filter(d => d.userId === member.id)
       .reduce((sum, d) => sum + d.amount, 0);
@@ -261,12 +284,17 @@ const calculateTeamScore = async (teamId) => {
 
 const getActivitiesWithSubmissionStatus = async (userId) => {
   const activities = await prisma.activity.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, isActive: true },
     select: {
       id: true,
       title: true,
       description: true,
       points: true,
+      allowOnlinePurchase: true,
+      allowPhotoUpload: true,
+      category: {
+        select: { id: true, name: true }
+      },
       createdBy: { select: { name: true } }
     },
     orderBy: { createdAt: 'desc' }
@@ -302,6 +330,8 @@ const getDashboardData = async (userId) => {
   if (!teamData) {
     throw new Error('Team not found');
   }
+
+  
 
   const stats = calculateTeamStats(teamData);
   const members = calculateMemberContributions(teamData);

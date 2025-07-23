@@ -28,7 +28,7 @@ const registerUser = async (userData) => {
   });
 
   const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, teamId: user.teamId },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -52,7 +52,7 @@ const loginUser = async (email, password) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, teamId: user.teamId },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -112,7 +112,7 @@ const registerWithTeam = async (userData) => {
   });
 
   const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, teamId: user.teamId },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
