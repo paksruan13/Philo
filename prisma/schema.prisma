@@ -74,9 +74,11 @@ model Photo {
 model ShirtSale {
   id        String   @id @default(uuid())
   quantity  Int
+  shirtSize String
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   soldAt    DateTime @default(now())
+
 }
 
 model ActivityCategory {
@@ -135,5 +137,7 @@ enum SubmissionStatus {
   APPROVED
   REJECTED
   DRAFT
+}
+
 }
 
