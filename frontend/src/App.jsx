@@ -4,18 +4,26 @@ import Leaderboard from './components/Leaderboard';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
+import ActivitySubmission from './components/student/ActivitySubmission';
+import StudentDashboard from './components/student/StudentDashboard';
 
 const AppContent = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [currentView, setCurrentView] = useState('leaderboard'); // Add view state
-  
+  const [selectedActivityId, setSelectedActivityId] = useState(null); 
   const { user, loading, logout, isCoach, isAdmin } = useAuth();
+
+
 
   useEffect(() => {
     window.setCurrentView = setCurrentView;
+    window.handleActivitySubmission = handleActivitySubmission;
+    window.handleBacktoDashboard = handleBacktoDashboard;
     return () => {
       delete window.setCurrentView;
+      delete window.handleActivitySubmission;
+      delete window.handleBacktoDashboard;
     }
   }, []);
 
@@ -55,6 +63,17 @@ const AppContent = () => {
     setShowLogin(true);
   };
 
+  const handleActivitySubmission = (activityId) => {
+    setSelectedActivityId(activityId);
+    setCurrentView('activity-submission');
+  };
+
+  const handleBacktoDashboard = () => {
+    setCurrentView('student-dashboard');
+    setSelectedActivityId(null);
+  }
+  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with authentication controls */}
@@ -75,6 +94,20 @@ const AppContent = () => {
               >
                 Leaderboard
               </button>
+
+              {/*Student Navigation*/}
+              {user && user.role === 'STUDENT' && (
+                <button
+                  onClick={() => setCurrentView('student-dashboard')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    currentView === 'student-dashboard' || currentView === 'activity-submission'
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  My Dashboard
+                </button>
+              )}
               
               {isAdmin && (
                 <button
@@ -169,6 +202,15 @@ const AppContent = () => {
               Access denied. Admin privileges required.
             </div>
           </div>
+        )}
+        {currentView === 'student-dashboard' && user && user.role === 'STUDENT' && (
+          <StudentDashboard onActivitySubmit={handleActivitySubmission} />
+        )}
+        {currentView === 'activity-submission' && selectedActivityId && (
+          <ActivitySubmission 
+            activityId={selectedActivityId} 
+            onBack={handleBacktoDashboard}
+          />
         )}
       </main>
 
