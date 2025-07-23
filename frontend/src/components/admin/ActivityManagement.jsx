@@ -61,15 +61,16 @@ const fetchCategories = async () => {
 
   const toggleActivityStatus = async (activityId, isPublished) => {
     try {
+
+      const currentActivity = activities.find(a => a.id === activityId);
       const response = await fetch(`http://localhost:4243/api/admin/activities/${activityId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ isPublished })
+        body: JSON.stringify({ ...currentActivity, isPublished })
       });
-
       if (response.ok) {
         fetchActivities(); // Refresh the list
       } else {
@@ -146,7 +147,7 @@ return (
                   Points
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Status & Features
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Submissions
@@ -178,13 +179,30 @@ return (
                     {activity.points} pts
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      activity.isPublished 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {activity.isPublished ? 'Published' : 'Draft'}
-                    </span>
+                    <div className="flex space-x-1">
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                          activity.isPublished 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {activity.isPublished ? 'Published' : 'Draft'}
+                        </span>
+
+                        {/* Show online purchase option if applicable */}
+                        {activity.allowOnlinePurchase && (
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                              🌐 Online
+                          </span>
+                        )}
+
+                        {/* Show photo upload option if applicable */}
+                        {activity.allowPhotoUpload && (
+                          <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+                              📸 Photo Upload
+                          </span>
+                        )}
+
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex space-x-2">
@@ -249,7 +267,9 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
         points: activity?.points || 100,
         categoryId: activity?.categoryId || '',
         requirements: activity?.requirements || {},
-        isPublished: activity?.isPublished || false
+        isPublished: activity?.isPublished || false,
+        allowOnlinePurchase: activity?.allowOnlinePurchase || false,
+        allowPhotoUpload: activity?.allowPhotoUpload || false
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -287,6 +307,10 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
             setLoading(false);
         }
     };
+
+    const selectedCategory = categories.find(cat => cat.id === formData.categoryId);
+    const isPurchaseOrDonation = selectedCategory?.name?.toLowerCase().includes('purchase') ||
+        selectedCategory?.name?.toLowerCase().includes('donation');
 
     return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -372,9 +396,45 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-900">
-              Publish immediately
+              Make Visible Now!
             </label>
           </div>
+
+          {/* Allow Online Purchase Option */}
+          {isPurchaseOrDonation && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="allowOnlinePurchase"
+                checked={formData.allowOnlinePurchase}
+                onChange={(e) => setFormData({...formData, allowOnlinePurchase: e.target.checked})}
+                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" 
+                />
+                <label htmlFor="allowOnlinePurchase" className="ml-2 block text-sm text-gray-900">
+                  Allow Online {selectedCategory?.name?.toLowerCase().includes('purchase') ? 'Purchase' : 'Donation'  }
+                  <span className="text-gray-500 ml-1">
+                    (shows online button to students)
+                  </span>
+                </label>
+            </div>
+          )}
+
+          {/*Allow Photo Upload Option */}
+          <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="allowPhotoUpload"
+                checked={formData.allowPhotoUpload}
+                onChange={(e) => setFormData({...formData, allowPhotoUpload: e.target.checked})}
+                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" 
+                />
+                <label htmlFor="allowPhotoUpload" className="ml-2 block text-sm text-gray-900">
+                  Allow Photo Upload
+                  <span className="text-gray-500 ml-1">
+                    (shows upload button to students)
+                  </span>
+                </label>
+            </div>
 
           <div className="flex justify-end space-x-3 pt-4">
             <button

@@ -200,16 +200,20 @@ const getMyTeamActivities = async ( req, res ) => {
 const getTeamMembers = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Verify the coach has access to this team
     const user = req.user;
+    
+    // Verify access for coaches
     if (user.role === 'COACH') {
       const team = await prisma.team.findUnique({
         where: { id },
-        select: { coachId: true }
+        select: { coachId: true, name: true }
       });
       
-      if (!team || team.coachId !== user.id) {
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+      
+      if (team.coachId !== user.id) {
         return res.status(403).json({ error: 'Access denied to this team' });
       }
     }
@@ -235,8 +239,6 @@ const getTeamMembers = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch team members' });
   }
 };
-
-
 
 module.exports = {
   getAllTeams,

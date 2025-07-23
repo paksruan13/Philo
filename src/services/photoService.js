@@ -1,27 +1,64 @@
 const { prisma } = require('../config/database');
 const s3 = require('../config/s3');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-const { v4: uuid } = require('uuid');
+const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+const { v4: uuidv4 } = require('uuid');
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: true,
+  credentials:{ 
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+})
+
 
 const uploadPhoto = async (file, teamId) => {
-  const objectKey = `photos/${uuid()}-${file.originalname}`;
-  
-  await s3.send(new PutObjectCommand({
-    Bucket: 'test-bucket',
-    Key: objectKey,
-    Body: file.buffer,
-    ContentType: file.mimetype,
-  }));
+  try {
+    console.log('🔧 AWS S3 Upload Debug:');
+    console.log('  Region:', process.env.AWS_REGION);
+    console.log('  Bucket:', process.env.S3_BUCKET_NAME);
+    console.log('  Access Key:', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '***');
 
-  const url = `http://${process.env.MINIO_ENDPOINT}/test-bucket/${objectKey}`;
-  
-  return await prisma.photo.create({
-    data: {
-      url,
-      team: { connect: { id: teamId } },
-    },
-    include: { team: { select: { id: true, name: true } } },
-  });
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const key = `photos/${uuidv4()}-${file.originalname}`;
+
+    const uploadParams = {
+      Bucket: bucketName,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    const photoUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+    const {prisma} = require('../config/database');
+    const photo = await prisma.photo.create({
+      data:{ 
+        fileName: key,
+        url: photoUrl,
+        teamId: teamId,
+        status: 'PENDING',
+        uploadedAt: new Date(),
+        approved: false
+      },
+      include: { team: true }
+    });
+
+    return {
+      id: photo.id,
+      url: photo.url,
+      fileName: photo.fileName,
+      team: photo.team,
+    }
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    throw new Error('Failed to upload photo');
+  }
 };
 
 const getAllPhotos = async () => {
