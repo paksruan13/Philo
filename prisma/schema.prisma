@@ -38,7 +38,7 @@ model User {
   teamId    String?
   role      UserRole  @default(STUDENT)
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now())
   isActive  Boolean   @default(true)
   donations    Donation[]
   coachedTeams  Team[]  @relation("CoachTeams")
@@ -62,13 +62,10 @@ model Donation {
 model Photo {
   id        String   @id @default(uuid())
   url       String
-  fileName  String
   approved  Boolean  @default(false)
-  status    String   @default("PENDING")
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   uploadedAt DateTime @default(now())
-  createdAt DateTime @default(now())
 }
 
 model ShirtSale {
@@ -95,6 +92,7 @@ model Activity {
   title       String
   description String
   points      Int
+  type        ActivityType
   isPublished Boolean     @default(false)
   isActive    Boolean     @default(true)
   requirements  Json?
@@ -105,8 +103,6 @@ model Activity {
   updatedAt   DateTime    @updatedAt
   createdById String?
   createdBy   User?       @relation("CreatedActivities", fields: [createdById], references: [id])
-  allowOnlinePurchase Boolean     @default(false)
-  allowPhotoUpload  Boolean       @default(false)
 }
 
 model ActivitySubmission {
@@ -124,11 +120,19 @@ model ActivitySubmission {
   reviewedById   String?
   reviewedBy     User?        @relation("ReviewedSubmissions", fields: [reviewedById], references: [id])
   reviewNotes    String?
-  createdAt      DateTime     @default(now())
+  created        DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reviewedAt     DateTime?
 }
 
+enum ActivityType {
+  PHOTO_UPLOAD
+  PURCHASE
+  SCAVENGER
+  MANUAL_ENTRY
+  DONATION
+  TEAM_CHALLENGE
+}
 
 enum SubmissionStatus {
   PENDING
