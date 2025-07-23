@@ -2,9 +2,20 @@ const photoService = require('../services/photoService');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 
 const uploadPhoto = async (req, res) => {
-  const { teamId } = req.body;
-  if (!teamId || !req.file) {
-    return res.status(400).json({ error: 'file (binary) and teamId are required' });
+  // Debug logging
+  console.log('=== PHOTO UPLOAD DEBUG ===');
+  console.log('req.body:', req.body);
+  console.log('req.file:', req.file);
+  console.log('req.user:', req.user);  // Check if user has teamId
+  console.log('=========================');
+
+  const teamId = req.user.teamId;
+  if (!teamId) {
+    return res.status(400).json({ error: 'You must be part of a team to upload a photo' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
   }
 
   try {

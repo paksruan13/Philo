@@ -7,6 +7,7 @@ const CoachDashboard = ({onNavigate}) => {
     const [teamMembers, setTeamMembers] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
     const [pointsHistory, setPointsHistory] = useState([]);
+    const [pendingSubmissions, setPendingSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -145,6 +146,82 @@ const CoachDashboard = ({onNavigate}) => {
         }
     };
 
+    const fetchPendingSubmissions = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:4243/api/coach/pending-submissions', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Pending submissions received:', data);
+                setPendingSubmissions(data);
+            }
+        } catch (error) {
+            console.error('Error fetching pending submissions:', error);
+        }
+    };
+
+    const handleApproveSubmission = async (submissionId, points) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:4243/api/coach/submissions/${submissionId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pointsAwarded: points,
+                    reviewNotes: 'Approved by coach'
+                })
+            });
+
+            if (response.ok) {
+                alert('Submission approved successfully!');
+                fetchPendingSubmissions(); // Refresh submissions
+                // Optionally refresh team data to show updated points
+                fetchCoachTeamData();
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to approve submission');
+            }
+        } catch (error) {
+            console.error('Error approving submission:', error);
+            alert('Failed to approve submission');
+        }
+    };
+
+    const handleRejectSubmission = async (submissionId, reason) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:4243/api/coach/submissions/${submissionId}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    reviewNotes: reason
+                })
+            });
+
+            if (response.ok) {
+                alert('Submission rejected');
+                fetchPendingSubmissions(); // Refresh submissions
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to reject submission');
+            }
+        } catch (error) {
+            console.error('Error rejecting submission:', error);
+            alert('Failed to reject submission');
+        }
+    };
+
     useEffect(() => {
         const fetchCoachTeamData = async () => {
             console.log('🔍 Starting fetchCoachTeamData...');
@@ -256,6 +333,9 @@ const CoachDashboard = ({onNavigate}) => {
 
                 // Fetch points history
                 await fetchPointsHistory();
+
+                // Fetch pending submissions
+                await fetchPendingSubmissions();
 
                 console.log('🎉 Coach dashboard data loaded successfully');
 
@@ -459,7 +539,7 @@ const CoachDashboard = ({onNavigate}) => {
                           {pointsHistory.slice(0, 3).map(entry => (
                             <div key={entry.id} className="text-xs bg-green-50 p-2 rounded">
                               <div className="font-medium">{entry.user.name} - {entry.points} pts</div>
-                              <div className="text-gray-600">{entry.submissionData.description}</div>
+                              <div className="text-gray-600">{entry.activityDescription}</div>
                               <div className="text-gray-500">{new Date(entry.createdAt).toLocaleDateString()}</div>
                             </div>
                           ))}
@@ -480,6 +560,30 @@ const CoachDashboard = ({onNavigate}) => {
                     >
                       Manage Photos
                     </button>
+                  </div>
+
+                  {/* Activity Submissions Review Section */}
+                  <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h2 className="text-2xl font-bold mb-4 text-gray-800">
+                        📋 Pending Submissions ({pendingSubmissions.length})
+                    </h2>
+                    
+                    {pendingSubmissions.length > 0 ? (
+                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                            {pendingSubmissions.map(submission => (
+                                <SubmissionCard 
+                                    key={submission.id}
+                                    submission={submission}
+                                    onApprove={handleApproveSubmission}
+                                    onReject={handleRejectSubmission}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No pending submissions</p>
+                        </div>
+                    )}
                   </div>
                 </div>
 
@@ -557,6 +661,125 @@ const CoachDashboard = ({onNavigate}) => {
           </main>
         </div>
       );
+};
+
+// Add the SubmissionCard component
+const SubmissionCard = ({ submission, onApprove, onReject }) => {
+    const [showDetails, setShowDetails] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [showRejectForm, setShowRejectForm] = useState(false);
+
+    const handleApprove = () => {
+        onApprove(submission.id, submission.activity.points);
+    };
+
+    const handleReject = () => {
+        if (!rejectReason.trim()) {
+            alert('Please provide a reason for rejection');
+            return;
+        }
+        onReject(submission.id, rejectReason);
+        setShowRejectForm(false);
+        setRejectReason('');
+    };
+
+    return (
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                    <h4 className="font-semibold text-lg">{submission.activity.title}</h4>
+                    <p className="text-sm text-gray-600">
+                        by {submission.user.name} • {submission.activity.points} points
+                    </p>
+                    <p className="text-xs text-gray-500">
+                        {new Date(submission.createdAt).toLocaleDateString()}
+                    </p>
+                </div>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
+                    PENDING
+                </span>
+            </div>
+
+            {/* Toggle Details Button */}
+            <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="text-blue-600 text-sm mb-3 hover:underline"
+            >
+                {showDetails ? 'Hide Details' : 'Show Details'}
+            </button>
+
+            {/* Submission Details */}
+            {showDetails && (
+                <div className="mb-4 p-3 bg-white rounded border">
+                    <p className="text-sm mb-2"><strong>Activity:</strong> {submission.activity.description}</p>
+                    
+                    {submission.notes && (
+                        <p className="text-sm mb-2"><strong>Student Notes:</strong> {submission.notes}</p>
+                    )}
+
+                    {submission.submissionData && (
+                        <div className="text-sm">
+                            <strong>Submission Data:</strong>
+                            <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">
+                                {JSON.stringify(submission.submissionData, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Rejection Form */}
+            {showRejectForm && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
+                    <label className="block text-sm font-medium text-red-700 mb-2">
+                        Reason for rejection:
+                    </label>
+                    <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="w-full p-2 border border-red-300 rounded text-sm"
+                        rows="2"
+                        placeholder="Please explain why this submission is being rejected..."
+                    />
+                    <div className="flex gap-2 mt-2">
+                        <button
+                            onClick={handleReject}
+                            className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                        >
+                            Confirm Reject
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowRejectForm(false);
+                                setRejectReason('');
+                            }}
+                            className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Action Buttons */}
+            {!showRejectForm && (
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleApprove}
+                        className="flex-1 bg-green-600 text-white py-2 px-4 rounded text-sm font-semibold hover:bg-green-700 transition-colors"
+                    >
+                        ✅ Approve ({submission.activity.points} pts)
+                    </button>
+                    <button
+                        onClick={() => setShowRejectForm(true)}
+                        className="flex-1 bg-red-600 text-white py-2 px-4 rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+                    >
+                        ❌ Reject
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default CoachDashboard;

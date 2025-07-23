@@ -8,16 +8,20 @@ const awardPoints = async (req, res) => {
   }
 
   try {
-    const submission = await prisma.manualPoint.create({
+    // Fix: Use 'manualPoints' (lowercase) instead of 'manualPoint'
+    const submission = await prisma.manualPoints.create({
       data: {
         userId,
+        coachId: req.user.id,
         points: Number(points),
-        submissionData: {
-          description: activityDescription,
-          notes: notes || '',
-        },
-        createdById: req.user.id,
+        activityDescription,
+        notes: notes || '',
+        teamId: req.user.teamId || null
       },
+      include: {
+        student: { select: { name: true, email: true } },
+        coach: { select: { name: true } }
+      }
     });
 
     return res.status(201).json(submission);
@@ -29,12 +33,16 @@ const awardPoints = async (req, res) => {
 
 const getPointsHistory = async (req, res) => {
   try {
-    const history = await prisma.manualPoint.findMany({
+    const coachId = req.user.id;
+    
+    const history = await prisma.manualPoints.findMany({
+      where: { coachId },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, name: true } },
-      },
+        student: { select: { name: true, email: true } }
+      }
     });
+
     return res.json(history);
   } catch (err) {
     console.error('Error fetching history:', err);
