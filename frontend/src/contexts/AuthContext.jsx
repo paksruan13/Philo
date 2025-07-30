@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
             const savedToken = localStorage.getItem('token');
             if (savedToken) {
                 try {
-                    const response = await fetch('http://localhost:4243/auth/me', {
+                    const response = await fetch('http://localhost:4243/api/auth/me', {
                         headers: {
                             'Authorization': `Bearer ${savedToken}`
                         }
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await fetch('http://localhost:4243/auth/login', {
+            const response = await fetch('http://localhost:4243/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (name, email, password, role = 'STUDENT', teamId = null) => {
         try {
-            const response = await fetch ('http://localhost:4243/auth/register', {
+            const response = await fetch ('http://localhost:4243/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
 
     const registerWithTeam = async (name, email, password, teamCode) => {
         try {
-            const response = await fetch('http://localhost:4243/auth/register-team', {
+            const response = await fetch('http://localhost:4243/api/auth/register-team', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

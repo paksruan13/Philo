@@ -6,6 +6,7 @@ import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
 import CoachDashboard from './components/CoachDashboard';
 import PhotoApprove from './components/PhotoApprove';
+import StudentDashboard from './components/student/StudentDashboard';
 
 const AppContent = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -80,6 +81,18 @@ const AppContent = () => {
                   }`}
                 >
                   Coach Dashboard
+                </button>
+              )}
+              {user && user.role === 'STUDENT' && (
+                <button
+                  onClick={() => setCurrentView('student')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    currentView === 'student'
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Student Dashboard
                 </button>
               )}
               
@@ -171,6 +184,7 @@ const AppContent = () => {
         {currentView === 'leaderboard' && <Leaderboard />}
         {currentView === 'coach' && isCoach && (
           <CoachDashboard onNavigate={setCurrentView}/>)}
+        {currentView === 'student' && user && user.role === 'STUDENT' && <StudentDashboard />}
         {currentView === 'admin' && isAdmin && <AdminDashboard />}
         {currentView === 'photo-approval' && isCoach && <PhotoApprove />}
         {currentView === 'admin' && !isAdmin && (
