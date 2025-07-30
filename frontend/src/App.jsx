@@ -6,6 +6,9 @@ import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
 import ActivitySubmission from './components/student/ActivitySubmission';
 import StudentDashboard from './components/student/StudentDashboard';
+import Donations from './components/Donations';
+import AdminInventoryManager from './components/adminStock';
+
 
 const AppContent = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -95,6 +98,7 @@ const AppContent = () => {
                 Leaderboard
               </button>
 
+
               {/*Student Navigation*/}
               {user && user.role === 'STUDENT' && (
                 <button
@@ -108,6 +112,28 @@ const AppContent = () => {
                   My Dashboard
                 </button>
               )}
+              <button
+                onClick={() => setCurrentView('donations')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  currentView === 'donations'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                
+                Donate
+              </button>
+
+              <button
+                onClick={() => setCurrentView('adminStock')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  currentView === 'adminStock'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                
+                Stock
+              </button>
+
               
               {isAdmin && (
                 <button
@@ -195,6 +221,8 @@ const AppContent = () => {
       {/* Main content */}
       <main>
         {currentView === 'leaderboard' && <Leaderboard />}
+        {currentView === 'donations' && <Donations />}
+        {currentView === 'adminStock' && <AdminInventoryManager />}
         {currentView === 'admin' && isAdmin && <AdminDashboard />}
         {currentView === 'admin' && !isAdmin && (
           <div className="max-w-7xl mx-auto px-4">
