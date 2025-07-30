@@ -68,6 +68,7 @@ model Photo {
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   uploadedAt DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model ShirtSale {
@@ -94,13 +95,12 @@ model Activity {
   title       String
   description String
   points      Int
-  type        ActivityType
   isPublished Boolean     @default(false)
   isActive    Boolean     @default(true)
   requirements  Json?
   categoryId  String
   category    ActivityCategory @relation(fields: [categoryId], references: [id])
-  submission  ActivitySubmission[]
+  submissions  ActivitySubmission[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   createdById String?
@@ -122,7 +122,7 @@ model ActivitySubmission {
   reviewedById   String?
   reviewedBy     User?        @relation("ReviewedSubmissions", fields: [reviewedById], references: [id])
   reviewNotes    String?
-  created        DateTime     @default(now())
+  createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reviewedAt     DateTime?
 }
@@ -140,14 +140,6 @@ model Announcement {
   updatedAt     DateTime    @updatedAt
 }
 
-enum ActivityType {
-  PHOTO_UPLOAD
-  PURCHASE
-  SCAVENGER
-  MANUAL_ENTRY
-  DONATION
-  TEAM_CHALLENGE
-}
 
 enum SubmissionStatus {
   PENDING

@@ -94,7 +94,7 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/teams/${teamData.id}/announcements`, {
+            const response = await fetch(`http://localhost:4243/api/teams/${teamData.id}/announcements`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -126,7 +126,7 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/announcements/${announcementId}`, {
+            const response = await fetch(`http://localhost:4243/api/announcements/${announcementId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -177,7 +177,7 @@ const CoachDashboard = ({onNavigate}) => {
 
                 // Get current user info with coached teams
                 console.log('📡 Fetching user info from /auth/me...');
-                const userRes = await fetch(`http://localhost:4243/auth/me`, { headers });
+                const userRes = await fetch(`http://localhost:4243/api/auth/me`, { headers });
                 console.log('📡 User response status:', userRes.status);
                 
                 if (!userRes.ok) {
@@ -203,7 +203,7 @@ const CoachDashboard = ({onNavigate}) => {
                 
                 // Fetch detailed team data from leaderboard
                 console.log('📡 Fetching leaderboard data...');
-                const leaderboardRes = await fetch(`http://localhost:4243/leaderboard`);
+                const leaderboardRes = await fetch(`http://localhost:4243/api/leaderboard`);
                 console.log('📡 Leaderboard response status:', leaderboardRes.status);
                 
                 if (!leaderboardRes.ok) {
@@ -228,7 +228,7 @@ const CoachDashboard = ({onNavigate}) => {
 
                 // Fetch team members
                 console.log('📡 Fetching team members...');
-                const memberRes = await fetch(`http://localhost:4243/teams/${coachedTeam.id}/members`, { headers });
+                const memberRes = await fetch(`http://localhost:4243/api/teams/${coachedTeam.id}/members`, { headers });
                 console.log('📡 Members response status:', memberRes.status);
                 
                 if (!memberRes.ok) {
@@ -244,7 +244,7 @@ const CoachDashboard = ({onNavigate}) => {
                 // Fetch announcements
                 console.log('📡 Fetching announcements...');
                 try {
-                    const announcementRes = await fetch(`http://localhost:4243/teams/${coachedTeam.id}/announcements`);
+                    const announcementRes = await fetch(`http://localhost:4243/api/teams/${coachedTeam.id}/announcements`);
                     if (announcementRes.ok) {
                         const announcementData = await announcementRes.json();
                         console.log('✅ Announcements received:', announcementData);
