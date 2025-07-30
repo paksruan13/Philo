@@ -105,6 +105,8 @@ model Activity {
   updatedAt   DateTime    @updatedAt
   createdById String?
   createdBy   User?       @relation("CreatedActivities", fields: [createdById], references: [id])
+  allowOnlinePurchase Boolean     @default(false)
+  allowPhotoUpload Boolean        @default(false)
 }
 
 model ActivitySubmission {
