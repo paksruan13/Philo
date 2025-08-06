@@ -5,10 +5,13 @@ const http = require('http');
 // Import configurations
 const { configureSocket } = require('./config/socket');
 const corsConfig = require('./middleware/cors');
+const { prisma } = require('./config/database'); // Add this import
 
 // Import routes
 const routes = require('./routes');
 const webhookRoutes = require('./routes/webhooks');
+const announcementRoutes = require('./routes/announcements');
+const coachRoutes = require('./routes/coach');
 
 const app = express();
 const port = process.env.PORT || 4243;
@@ -27,6 +30,7 @@ app.use('/webhook', webhookRoutes);
 // JSON middleware for other routes
 app.use(express.json());
 
+<<<<<<< HEAD
 // 3. Postgres
 const db = new Pool({
   host:     process.env.DB_HOST,
@@ -961,6 +965,36 @@ app.post('/admin/populate-team-codes', authenticationToken, requireRole(['ADMIN'
     res.status(500).json({ error: 'Failed to populate team codes' });
   }
 });
+=======
+//Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({ 
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+      service: 'Project Phi API'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      database: 'disconnected'
+    });
+  }
+});
+
+// Routes
+app.use('/api', routes);
+app.use('/api', announcementRoutes);
+app.use('/api/coach', coachRoutes);
+>>>>>>> origin/Coach/Admin
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`Express & Socket.io server running on port ${port}`);

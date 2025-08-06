@@ -129,94 +129,20 @@ const ActivitySubmission = ({ activityId, onBack }) => {
         const canSubmit = !activity.submission || 
             (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING');
 
-        switch (categoryName) {
-            case 'purchase':
-                return (
-                    <PurchaseCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'donation':
-                return (
-                    <DonationCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'photo upload':
-                return (
-                    <PhotoUploadCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'manual entry':
-                return (
-                    <ManualEntryCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onBack={onBack}
-                    />
-                );
-            case 'team challenge':
-                return (
-                    <TeamChallengeCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onBack={onBack}
-                    />
-                );
-            case 'steal object':
-                return (
-                    <StealObjectCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            default:
-                return (
-                    <DefaultCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-        }
+        // Use DefaultCategory for all activity types for now
+        return (
+            <DefaultCategory
+                activity={activity}
+                canSubmit={canSubmit}
+                onSubmit={handleSubmit}
+                formData={formData}
+                onInputChange={handleInputChange}
+                submitting={submitting}
+                error={error}
+                success={success}
+                onBack={onBack}
+            />
+        );
     };
 
     if (loading) {

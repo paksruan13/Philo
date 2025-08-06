@@ -11,6 +11,8 @@ const photoRoutes = require('./photos');
 const activityRoutes = require('./activities');
 const leaderboardRoutes = require('./leaderboard');
 const adminRoutes = require('./admin');
+const coachRoutes = require('./coach');
+const announcementRoutes = require('./announcements');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -35,5 +37,7 @@ router.use('/photos', photoRoutes);
 router.use('/activities', activityRoutes);
 router.use('/leaderboard', leaderboardRoutes);
 router.use('/admin', adminRoutes);
+router.use('/coach', coachRoutes);
+router.use('/', announcementRoutes);
 
 module.exports = router;
