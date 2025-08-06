@@ -6,11 +6,19 @@ const calculateLeaderboard = async () => {
       donations: { select: { amount: true } },
       shirtSales: { select: { quantity: true } },
       photos: { select: { approved: true } },
+      manualPoints: { select: { points: true } },
+      // Add this to include activity submissions
+      activitySubmissions: {
+        where: { status: 'APPROVED' },
+        select: { pointsAwarded: true }
+      },
       _count: {
         select: {
           donations: true,
           shirtSales: true,
           photos: true,
+          manualPoints: true,
+          activitySubmissions: true
         }
       }
     }
@@ -21,7 +29,15 @@ const calculateLeaderboard = async () => {
     const totalShirtPoints = team.shirtSales.reduce((sum, sale) => sum + (sale.quantity * 10), 0);
     const approvedPhotos = team.photos.filter(photo => photo.approved);
     const totalPhotoPoints = approvedPhotos.length * 50;
-    const totalScore = totalDonations + totalShirtPoints + totalPhotoPoints;
+    const totalManualPoints = team.manualPoints.reduce((sum, mp) => sum + mp.points, 0);
+    
+    // Add activity points calculation
+    const totalActivityPoints = team.activitySubmissions.reduce((sum, submission) => 
+      sum + (submission.pointsAwarded || 0), 0);
+    
+    // Include activity points in total score
+    const totalScore = totalDonations + totalShirtPoints + totalPhotoPoints + 
+                      totalManualPoints + totalActivityPoints;
     
     const memberCount = await prisma.user.count({
       where: { teamId: team.id },
@@ -38,6 +54,10 @@ const calculateLeaderboard = async () => {
       totalPhotoPoints,
       approvedPhotosCount: approvedPhotos.length,
       photoCount: team._count.photos,
+      totalManualPoints,
+      manualPointsCount: team._count.manualPoints,
+      totalActivityPoints, // Add this
+      activitySubmissionsCount: team._count.activitySubmissions, // Add this
       memberCount,
       createdAt: team.createdAt
     };

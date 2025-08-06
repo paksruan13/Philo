@@ -1,67 +1,66 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "../hooks/useSocket";
+import { useAuth } from "../contexts/AuthContext";
 
-const Leaderboard = () => { 
+const Leaderboard = () => {
     const [teams, setTeams] = useState([]);
+    const [teamAnnouncements, setTeamAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const { socket, connected } = useSocket();
+    const { user } = useAuth();
 
     const fetchLeaderboard = async () => {
         try {
             const response = await fetch('http://localhost:4243/api/leaderboard');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            
-            if (data && Array.isArray(data)) {
-                setTeams(data);
-            } else {
-                setTeams([]);
-            }
-            
-            setLoading(false);
-            
+            setTeams(Array.isArray(data) ? data : []);
         } catch (error) {
+            console.error('Error fetching leaderboard:', error);
             setTeams([]);
+        } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchLeaderboard(); 
-    }, []);
-    
-    
-    useEffect(() => {
-        if (!socket) {
+    const fetchTeamAnnouncements = async () => {
+        if (!user || !user.team) {
+            setTeamAnnouncements([]);
             return;
         }
+        try {
+            const response = await fetch(`http://localhost:4243/api/teams/${user.team.id}/announcements`);
+            if (response.ok) {
+                const announcements = await response.json();
+                setTeamAnnouncements(announcements);
+            }
+        } catch (error) {
+            console.error('Error fetching team announcements:', error);
+            setTeamAnnouncements([]);
+        }
+    };
 
-        console.log('Setting up socket listeners');
+    useEffect(() => {
+        fetchLeaderboard();
+        fetchTeamAnnouncements();
+    }, [user]);
+
+    useEffect(() => {
+        if (!socket) return;
 
         const handleLeaderboardUpdate = (data) => {
-            
-            if (data && Array.isArray(data)) {
-                console.log('✅ Using socket data directly');
+            if (Array.isArray(data)) {
                 setTeams(data);
                 setLastUpdated(new Date());
             } else {
-                console.log('⚠️ Socket data invalid, refetching');
                 fetchLeaderboard();
             }
         };
 
-        const leaderUpdateHandler = (eventName, data) => {
-            fetchLeaderboard();
-        };
-
         socket.on('leaderboard-update', handleLeaderboardUpdate);
-        socket.on('new-donation', (data) => leaderUpdateHandler('new-donation', data));
-        socket.on('photo-approved', (data) => leaderUpdateHandler('photo-approved', data));
+        socket.on('new-donation', fetchLeaderboard);
+        socket.on('photo-approved', fetchLeaderboard);
 
         return () => {
             socket.off('leaderboard-update');
@@ -71,7 +70,7 @@ const Leaderboard = () => {
     }, [socket]);
 
     if (loading) {
-        return (  
+        return (
             <div className="flex justify-center items-center min-h-screen">
                 <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-blue-500"></div>
             </div>
@@ -79,43 +78,71 @@ const Leaderboard = () => {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-6xl"> 
-            {/* Header Section */}
-            <div className="text-center mb-8">
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 text-transparent bg-clip-text">
-                    Project Phi Leaderboard
-                </h1>
-                <div className="flex justify-center items-center space-x-4 text-sm text-gray-600">
-                    <span>Last Updated: {lastUpdated.toLocaleTimeString()}</span>
-                    <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className="font-medium">{connected ? 'Live Updates' : 'Disconnected'}</span>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">({teams.length} teams)</span>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+            <div className={`grid grid-cols-1 ${user && user.team ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-8 justify-center`}>
+                {/* Left/Main Section */}
+                <div className="lg:col-span-2">
+                    <div className="text-center mb-8">
+                        <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 text-transparent bg-clip-text">
+                            Project Phi Leaderboard
+                        </h1>
+                        <div className="flex justify-center items-center space-x-4 text-sm text-gray-600">
+                            <span>Last Updated: {lastUpdated.toLocaleTimeString()}</span>
+                            <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                            <span className="font-medium">{connected ? 'Live Updates' : 'Disconnected'}</span>
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">({teams.length} teams)</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {teams.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-gray-500 text-lg">No Teams Found...Event not ready</p>
+                                <p className="text-xs text-gray-400 mt-2">Check console for debug info</p>
+                            </div>
+                        ) : (
+                            teams.map((team, index) => (
+                                <LeaderboardItem
+                                    key={team.id}
+                                    team={team}
+                                    rank={index + 1}
+                                    isTop3={index < 3}
+                                />
+                            ))
+                        )}
+                    </div>
                 </div>
-            </div>
-            
-            {/* Leaderboard */}
-            <div className="space-y-4">
-                {teams.length === 0 ? (
-                    <div className="text-center py-12">
-                        <p className="text-gray-500 text-lg">No Teams Found...Event not ready</p>
-                        <p className="text-xs text-gray-400 mt-2">Check console for debug info</p>
-                    </div>  
-                ) : (
-                    teams.map((team, index) => {
-                        return (
-                            <LeaderboardItem
-                                key={team.id}
-                                team={team}
-                                rank={index + 1}
-                                isTop3={index < 3}
-                            />
-                        );
-                    })
+
+                {/* Right Sidebar: Only show if user is logged in and has a team */}
+                {user && user.team && (
+                    <div className="hidden lg:block">
+                        <div className="bg-white p-6 rounded-xl shadow-lg">
+                            <h2 className="text-2xl font-bold mb-4">
+                                {user.team.name} Announcements
+                            </h2>
+
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {teamAnnouncements.length > 0 ? (
+                                    teamAnnouncements.map((announcement) => (
+                                        <div key={announcement.id} className="p-4 bg-blue-50 rounded border-l-4 border-blue-400">
+                                            <h3 className="font-semibold text-blue-800 text-sm">{announcement.title}</h3>
+                                            <p className="text-sm text-blue-700 mt-1">{announcement.content}</p>
+                                            <p className="text-xs text-blue-600 mt-2">
+                                                {new Date(announcement.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-gray-600">No announcements yet</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
-    ); 
-}; 
+    );
+};
 
 const LeaderboardItem = ({ team, rank, isTop3 }) => {
     const getRankBadge = (rank) => {

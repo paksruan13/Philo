@@ -14,6 +14,7 @@ router.get('/my-team/activities', authenticationToken, requireRole(['STUDENT']),
 //Public Routes
 router.get('/', teamController.getAllTeams);
 router.get('/:id/score', teamController.getTeamScore);
+router.get('/:id/members', authenticationToken, requireRole(['COACH', 'ADMIN']), teamController.getTeamMembers);
 
 //Admin Routes
 router.get('/admin', authenticationToken, requireRole(['ADMIN']), teamController.getAdminTeams);

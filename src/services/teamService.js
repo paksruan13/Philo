@@ -279,7 +279,12 @@ const calculateTeamScore = async (teamId) => {
   const pointsTotal = submissions.reduce((sum, submission) => 
     sum + (submission.activity.points || 0), 0);
 
-  return (donationsTotal._sum.amount || 0) + pointsTotal * 10;
+  const manualPointsTotal = await prisma.manualPoints.aggregate({
+    where: { teamId },
+    _sum: { points: true }
+  });
+
+  return (donationsTotal._sum.amount || 0) + pointsTotal * 10 + (manualPointsTotal._sum.points || 0);
 };
 
 const getActivitiesWithSubmissionStatus = async (userId) => {
