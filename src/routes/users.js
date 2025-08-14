@@ -7,4 +7,6 @@ router.post('/', userController.createUser);
 router.get('/', authenticationToken, requireRole(['ADMIN']),userController.getAllUsers);
 router.get('/coaches', authenticationToken, requireRole(['ADMIN']), userController.getAllCoaches);
 
+router.put('/:id', authenticationToken, requireRole(['ADMIN']), userController.updateUser);
+
 module.exports = router;

@@ -38,6 +38,6 @@ router.use('/activities', activityRoutes);
 router.use('/leaderboard', leaderboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/coach', coachRoutes);
-router.use('/', announcementRoutes);
+router.use('/announcements', announcementRoutes);
 
 module.exports = router;

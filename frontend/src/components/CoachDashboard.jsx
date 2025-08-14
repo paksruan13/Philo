@@ -20,8 +20,6 @@ const CoachDashboard = ({onNavigate}) => {
         notes: ''
     });
 
-    console.log('🏆 CoachDashboard rendering with user:', user);
-
     // Fetch points history
     const fetchPointsHistory = async () => {
         try {
@@ -56,7 +54,7 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4243/coach/manual-points', {
+            const response = await fetch('http://localhost:4243/api/coach/award-points', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -95,7 +93,7 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/api/teams/${teamData.id}/announcements`, {
+            const response = await fetch(`http://localhost:4243/api/announcements/teams/${teamData.id}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -127,21 +125,26 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/api/announcements/${announcementId}`, {
+            setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+            const response = await fetch(`http://localhost:4243/api/announcements/teams/${teamData.id}/${announcementId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
 
-            if (response.ok) {
-                setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+            if (!response.ok) {
+                const responseText = await response.text();
+                console.error(`Failed to delete announcement: ${responseText}`);
+                fetchCoachTeamData();
+                alert(`Failed to delete announcement: ${responseText}`);
             } else {
-                const errorData = await response.json();
-                alert(errorData.error || 'Failed to delete announcement');
+                console.log('Announcement deleted successfully');
+                history.replaceState(null, '', window.location.pathname);
             }
         } catch (error) {
             console.error('Error deleting announcement:', error);
+            fetchCoachTeamData();
             alert('Failed to delete announcement');
         }
     };
@@ -222,8 +225,7 @@ const CoachDashboard = ({onNavigate}) => {
         }
     };
 
-    useEffect(() => {
-        const fetchCoachTeamData = async () => {
+    const fetchCoachTeamData = async () => {
             console.log('🔍 Starting fetchCoachTeamData...');
             
             try {
@@ -321,14 +323,18 @@ const CoachDashboard = ({onNavigate}) => {
                 // Fetch announcements
                 console.log('📡 Fetching announcements...');
                 try {
-                    const announcementRes = await fetch(`http://localhost:4243/api/teams/${coachedTeam.id}/announcements`);
+                    const announcementRes = await fetch(`http://localhost:4243/api/announcements/teams/${coachedTeam.id}`);
+                    console.log(`Using team ID: ${coachedTeam.id}`)
                     if (announcementRes.ok) {
-                        const announcementData = await announcementRes.json();
-                        console.log('✅ Announcements received:', announcementData);
-                        setAnnouncements(announcementData);
+                        const response = await announcementRes.json();
+                        setAnnouncements(response);
+                    } else {
+                        const errorText = await announcementRes.text();
+                        setAnnouncements([]);
                     }
                 } catch (err) {
                     console.log('⚠️ Failed to fetch announcements:', err);
+                    setAnnouncements([]);
                 }
 
                 // Fetch points history
@@ -336,8 +342,6 @@ const CoachDashboard = ({onNavigate}) => {
 
                 // Fetch pending submissions
                 await fetchPendingSubmissions();
-
-                console.log('🎉 Coach dashboard data loaded successfully');
 
             } catch (error) {
                 console.error('💥 Error in fetchCoachTeamData:', error);
@@ -348,6 +352,7 @@ const CoachDashboard = ({onNavigate}) => {
             }
         };
 
+    useEffect(() => {
         fetchCoachTeamData();
     }, [user]);
 
@@ -547,25 +552,11 @@ const CoachDashboard = ({onNavigate}) => {
                       </div>
                     )}
                   </div>
-    
-                  {/* Photo Approval Section */}
-                  <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                    <h2 className="text-2xl font-bold mb-2 text-gray-800">Photo Approval</h2>
-                    <p className="text-gray-600 mb-4">
-                      Review photos submitted by your team members.
-                    </p>
-                    <button
-                      onClick={() => onNavigate('photo-approval')}
-                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Photos
-                    </button>
-                  </div>
 
                   {/* Activity Submissions Review Section */}
                   <div className="bg-white p-6 rounded-lg shadow-md">
                     <h2 className="text-2xl font-bold mb-4 text-gray-800">
-                        📋 Pending Submissions ({pendingSubmissions.length})
+                        📋 Activity Submissions ({pendingSubmissions.length})
                     </h2>
                     
                     {pendingSubmissions.length > 0 ? (
@@ -669,6 +660,13 @@ const SubmissionCard = ({ submission, onApprove, onReject }) => {
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectForm, setShowRejectForm] = useState(false);
 
+    console.log('Submission data:', submission.submissionData);
+    console.log('Activity allowPhotoUpload:', submission.activity.allowPhotoUpload);
+
+    // Add this helper variable to determine if it's a photo submission
+    const isPhotoSubmission = submission.submissionData && 
+                              (submission.submissionData.photo || submission.submissionData.photoUrl);
+
     const handleApprove = () => {
         onApprove(submission.id, submission.activity.points);
     };
@@ -717,10 +715,36 @@ const SubmissionCard = ({ submission, onApprove, onReject }) => {
                         <p className="text-sm mb-2"><strong>Student Notes:</strong> {submission.notes}</p>
                     )}
 
-                    {submission.submissionData && (
-                        <div className="text-sm">
-                            <strong>Submission Data:</strong>
-                            <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">
+                    {/* Photo Submission */}
+                    {isPhotoSubmission && (
+                        <div className="mt-3">
+                            <p className="text-sm mb-2"><strong>Photo Submission:</strong></p>
+                            <div className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100"
+                                onClick={() => window.open(submission.submissionData.photo || submission.submissionData.photoUrl, '_blank')}>
+                                <img 
+                                    src={submission.submissionData.photo || submission.submissionData.photoUrl}
+                                    alt="Submission Photo"
+                                    className="w-full h-auto max-h-64 object-contain transition-transform group-hover:scale-105"
+                                    onError={(e) => {
+                                        console.error("Image failed to load");
+                                        e.target.onerror = null;
+                                        e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='400' height='300' fill='%23eee'/%3E%3Ctext x='200' y='150' font-size='16' text-anchor='middle' alignment-baseline='middle' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+                                        e.target.style.backgroundColor = '#f0f0f0';
+                                    }}
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs py-1 px-2">
+                                    Click to view full size
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Non-Photo Submission Data */}
+                    {!isPhotoSubmission && submission.submissionData && 
+                     Object.keys(submission.submissionData).length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-sm mb-2"><strong>Submission Data:</strong></p>
+                            <pre className="p-2 bg-gray-100 rounded text-xs overflow-x-auto">
                                 {JSON.stringify(submission.submissionData, null, 2)}
                             </pre>
                         </div>
@@ -728,6 +752,7 @@ const SubmissionCard = ({ submission, onApprove, onReject }) => {
                 </div>
             )}
 
+            {/* Rest of your component remains unchanged */}
             {/* Rejection Form */}
             {showRejectForm && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">

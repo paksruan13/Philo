@@ -25,12 +25,14 @@ const Leaderboard = () => {
     };
 
     const fetchTeamAnnouncements = async () => {
-        if (!user || !user.team) {
+        const teamId = user?.team?.id || user?.teamId;
+        if (!teamId) {
             setTeamAnnouncements([]);
             return;
         }
         try {
-            const response = await fetch(`http://localhost:4243/api/teams/${user.team.id}/announcements`);
+            const response = await fetch(`http://localhost:4243/api/announcements/teams/${teamId}`);
+            console.log(`Id being used: ${teamId}`);
             if (response.ok) {
                 const announcements = await response.json();
                 setTeamAnnouncements(announcements);
@@ -114,11 +116,11 @@ const Leaderboard = () => {
                 </div>
 
                 {/* Right Sidebar: Only show if user is logged in and has a team */}
-                {user && user.team && (
+                {user && (user.team?.id || user.teamId) && (
                     <div className="hidden lg:block">
                         <div className="bg-white p-6 rounded-xl shadow-lg">
                             <h2 className="text-2xl font-bold mb-4">
-                                {user.team.name} Announcements
+                                {user.team?.name || "Team"} Announcements
                             </h2>
 
                             <div className="space-y-3 max-h-96 overflow-y-auto">

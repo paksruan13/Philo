@@ -18,10 +18,30 @@ const configureSocket = (server) => {
       socket.join('leaderboard');
     });
 
+    socket.on('join-team', (teamId) => {
+      if (teamId) {
+        console.log(`Socket ${socket.id} joining team ${teamId}`);
+        socket.join(`team-${teamId}`);
+      }
+    });
+
+    socket.on('leave-team', (teamId) => {
+      if (teamId) {
+        console.log(`Socket ${socket.id} leaving team ${teamId}`);
+        socket.leave(`team-${teamId}`);
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log(socket.id, 'disconnected');
     });
   });
+
+  io.announceToTeam = (teamId, event, data) => {
+    if (teamId) {
+      io.to(`team-${teamId}`).emit(event, data);
+    }
+  }
 
   return io;
 };

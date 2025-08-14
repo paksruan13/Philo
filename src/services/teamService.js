@@ -1,4 +1,15 @@
+const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
 const { prisma } = require('../config/database');
+const photoService = require('./photoService');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+})
 
 const getAllTeams = async () => {
   return await prisma.team.findMany({
@@ -259,32 +270,16 @@ const getTeamRanking = async (teamId) => {
 };
 
 const calculateTeamScore = async (teamId) => {
-  // Get donations total
-  const donationsTotal = await prisma.donation.aggregate({
-    where: { teamId },
-    _sum: { amount: true }
-  });
-
-  // Get activity points total
-  const submissions = await prisma.activitySubmission.findMany({
-    where: {
-      user: { teamId },
-      status: 'APPROVED'
-    },
-    include: {
-      activity: { select: { points: true } }
-    }
-  });
-
-  const pointsTotal = submissions.reduce((sum, submission) => 
-    sum + (submission.activity.points || 0), 0);
-
-  const manualPointsTotal = await prisma.manualPoints.aggregate({
-    where: { teamId },
-    _sum: { points: true }
-  });
-
-  return (donationsTotal._sum.amount || 0) + pointsTotal * 10 + (manualPointsTotal._sum.points || 0);
+  try {
+    const team = await prisma.team.findUnique({
+      where: {id: teamId},
+      select: {totalPoints: true}
+    });
+    return team?.totalPoints || 0;
+  }   catch (error) {
+    console.error('Error calculating team score:', error);
+    return 0;
+  }
 };
 
 const getActivitiesWithSubmissionStatus = async (userId) => {
@@ -330,36 +325,117 @@ const getActivitiesWithSubmissionStatus = async (userId) => {
 };
 
 const getDashboardData = async (userId) => {
-  const teamData = await getUserTeamWithDetails(userId);
-  
-  if (!teamData) {
-    throw new Error('Team not found');
+  const user = await prisma.user.findUnique({
+    where: {id: userId},
+    include: {team: true}
+  });
+  if (!user?.team) {
+    throw new Error('User is not part of a team');
   }
 
-  
+  const team = await prisma.team.findUnique({
+    where: {id: user.teamId},
+    include: {
+      members: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        }
+      },
+      coach: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      _count: {
+        select: {
+          donations: true,
+          photos: {where: {approved: true}},
+          activitySubmissions: {where: {status: 'APPROVED'}}
+        }
+      }
+    }
+  });
 
-  const stats = calculateTeamStats(teamData);
-  const members = calculateMemberContributions(teamData);
-  const ranking = await getTeamRanking(teamData.id);
+  const recentDonations = await prisma.donation.findMany({
+    where: {teamId: team.id},
+    orderBy: {createdAt: 'desc'},
+    take: 5,
+    include: {
+      user: {
+        select: {name: true}
+      }
+    }
+  });
+
+  const recentPhotos = await prisma.photo.findMany({
+    where: { teamId: team.id, approved: true},
+    orderBy: { uploadedAt: 'desc' },
+    take: 6
+  });
+
+  const photosWithUrls = await Promise.all(
+    recentPhotos.map(async (photo) => {
+      try {
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: photo.fileName
+        });
+        const presignedUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600
+        });
+        return {
+          ...photo,
+          url: presignedUrl
+        };
+      } catch (err) {
+        console.error('Error generating presigned URL:', err);
+        return null;
+      }
+    })
+  );
+
+  const validPhotos = photosWithUrls.filter(photo => photo !== null);
+
+  const allTeams = await prisma.team.findMany({
+    where: {isActive: true},
+    select:{ 
+      id: true,
+      totalPoints: true,
+    },
+    orderBy: {totalPoints: 'desc'}
+  });
+  const rank = allTeams.findIndex(t => t.id === team.id) + 1;
+
+  const donationTotal = await prisma.donation.aggregate({
+    where: {teamId: team.id},
+    _sum: {amount: true}
+  });
 
   return {
     team: {
-      id: teamData.id,
-      name: teamData.name,
-      teamCode: teamData.teamCode,
-      coach: teamData.coach,
-      createdAt: teamData.createdAt
+      id: team.id,
+      name: team.name,
+      teamCode: team.teamCode,
+      coach: team.coach,
+      members: team.members,
     },
     stats: {
-      ...stats,
-      rank: ranking.rank,
-      totalTeams: ranking.totalTeams
+      totalPoints: team.totalPoints,
+      rank,
+      totalTeams: allTeams.length,
+      membercount: team.members.length,
+      totalDonations: donationTotal._sum.amount || 0,
+      photoCount: team._count.photos,
+      activityCount: team._count.activitySubmissions
     },
-    members,
-    recentDonations: teamData.donations.slice(0, 5),
-    recentPhotos: teamData.photos.slice(0, 5),
-    recentActivities: teamData.activitySubmissions.slice(0, 5)
-  };
+    recentDonations,
+    photos: validPhotos
+  }
 };
 
 
@@ -378,5 +454,5 @@ module.exports = {
   getTeamRanking,
   calculateTeamScore,
   getActivitiesWithSubmissionStatus,
-  getDashboardData
+  getDashboardData,
 };

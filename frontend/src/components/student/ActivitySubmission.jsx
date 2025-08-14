@@ -129,9 +129,9 @@ const ActivitySubmission = ({ activityId, onBack }) => {
         const canSubmit = !activity.submission || 
             (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING');
 
-        // Use DefaultCategory for all activity types for now
+        if (activity.allowPhotoUpload) {
         return (
-            <DefaultCategory
+            <PhotoUploadCategory
                 activity={activity}
                 canSubmit={canSubmit}
                 onSubmit={handleSubmit}
@@ -143,6 +143,56 @@ const ActivitySubmission = ({ activityId, onBack }) => {
                 onBack={onBack}
             />
         );
+    }
+
+    // Check for online purchase activities
+    if (activity.allowOnlinePurchase) {
+        return (
+            <PurchaseCategory
+                activity={activity}
+                canSubmit={canSubmit}
+                onSubmit={handleSubmit}
+                formData={formData}
+                onInputChange={handleInputChange}
+                submitting={submitting}
+                error={error}
+                success={success}
+                onBack={onBack}
+            />
+        );
+    }
+
+    // Check by category name if needed
+    switch (categoryName) {
+        case 'donation':
+            return (
+                <DonationCategory
+                    activity={activity}
+                    canSubmit={canSubmit}
+                    onSubmit={handleSubmit}
+                    formData={formData}
+                    onInputChange={handleInputChange}
+                    submitting={submitting}
+                    error={error}
+                    success={success}
+                    onBack={onBack}
+                />
+            );
+        default:
+            return (
+                <DefaultCategory
+                    activity={activity}
+                    canSubmit={canSubmit}
+                    onSubmit={handleSubmit}
+                    formData={formData}
+                    onInputChange={handleInputChange}
+                    submitting={submitting}
+                    error={error}
+                    success={success}
+                    onBack={onBack}
+                />
+            );
+    }
     };
 
     if (loading) {
@@ -353,6 +403,18 @@ const DonationCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
 
 // Photo Upload Category Component
 const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputChange, submitting, error, success, onBack }) => {
+    // Track if photo has been selected but not yet uploaded
+    const [previewActive, setPreviewActive] = useState(false);
+    
+    // Handle photo change
+    const handlePhotoChange = (file) => {
+        onInputChange('photo', file);
+        // If it's a File object, we know it's a new selection
+        if (file instanceof File) {
+            setPreviewActive(true);
+        }
+    };
+    
     return (
         <div className="space-y-6">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
@@ -371,16 +433,77 @@ const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
             {canSubmit && (
                 <form onSubmit={onSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Upload Photo <span className="text-red-500">*</span>
-                        </label>
-                        <PhotoUpload
-                            value={formData.photo || ''}
-                            onChange={(url) => onInputChange('photo', url)}
-                            required={true}
-                            submitMode={true}
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Upload Photo <span className="text-red-500">*</span>
+                    </label>
+                    
+                    {/* File upload UI without preview */}
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            required={!formData.photo}
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    handlePhotoChange(file);
+                                }
+                            }}
                         />
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-center">
+                                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <p className="text-gray-600">Click or drag photo to upload</p>
+                            <p className="text-xs text-gray-500">Required</p>
+                        </div>
                     </div>
+                    
+                    {/* Preview area */}
+                    {formData.photo && (
+                        <div className="mt-4 relative p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm font-medium text-gray-700">
+                                    {formData.photo instanceof File ? 'Preview:' : 'Current Photo:'}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onInputChange('photo', '');
+                                        setPreviewActive(false);
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div className="relative rounded-lg overflow-hidden bg-white">
+                                <img 
+                                    src={formData.photo instanceof File ? URL.createObjectURL(formData.photo) : formData.photo}
+                                    alt="Photo preview" 
+                                    className="max-w-full h-auto max-h-64 object-contain mx-auto"
+                                    onLoad={() => { 
+                                        if (formData.photo instanceof File) {
+                                            URL.revokeObjectURL(formData.photo);
+                                        }
+                                    }}
+                                    onError={(e) => {
+                                        console.error("Image failed to load");
+                                        e.target.src = "https://via.placeholder.com/400x300?text=Preview+Not+Available";
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -435,7 +558,7 @@ const ManualEntryCategory = ({ activity, canSubmit, onBack }) => {
 
             <div className="text-center py-8">
                 <div className="mb-4">
-                    <span className="inline-block w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-2xl mb-3">
+                    <span className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-2xl mb-3">
                         📍
                     </span>
                     <p className="text-lg font-semibold text-gray-900">Visit Our Table</p>
@@ -474,7 +597,7 @@ const TeamChallengeCategory = ({ activity, canSubmit, onBack }) => {
 
             <div className="text-center py-8">
                 <div className="mb-4">
-                    <span className="inline-block w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-2xl mb-3">
+                    <span className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-2xl mb-3">
                         👥
                     </span>
                     <p className="text-lg font-semibold text-gray-900">Bring Your Team</p>
@@ -522,7 +645,7 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
             {canSubmit && (
                 <div className="text-center py-8">
                     <div className="mb-6">
-                        <span className="inline-block w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-3xl mb-4">
+                        <span className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-3xl mb-4">
                             📱
                         </span>
                         <p className="text-lg font-semibold text-gray-900 mb-2">Ready to Scan?</p>
@@ -642,7 +765,7 @@ const SubmitSection = ({ submitting, error, success, onBack }) => (
 const AlreadySubmittedSection = ({ activity, onBack }) => (
     <div className="text-center py-8">
         <div className="mb-4">
-            <span className="inline-block w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3">
+            <span className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3">
                 ✓
             </span>
             <p className="text-lg font-semibold text-gray-900">

@@ -5,6 +5,9 @@ const create = async (req, res) => {
   const { title, content } = req.body;
 
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const announcement = await prisma.announcement.create({
       data: {
         title,
@@ -13,10 +16,12 @@ const create = async (req, res) => {
         createdById: req.user.id,
       },
       include: {
-        createdBy: { select: { name: true } },
+        createdBy: { select: { 
+          id: true,
+          name: true } },
       },
     });
-    res.status(201).json(announcement);
+    return res.status(201).json(announcement);
   } catch (err) {
     console.error('Error creating announcement:', err);
     res.status(500).json({ error: 'Failed to create announcement' });
@@ -39,10 +44,16 @@ const getTeam = async (req, res) => {
 };
 
 const deleteAnnouncement = async (req, res) => {
-  const { announcementId } = req.params;
+  const { teamId, announcementId } = req.params;
   try {
+    const announcement = await prisma.announcement.findUnique({
+      where: { id: announcementId }
+    });
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
     await prisma.announcement.delete({ where: { id: announcementId } });
-    res.json({ message: 'Announcement deleted' });
+    return res.status(200).json({ message: 'Announcement deleted successfully' });
   } catch (err) {
     console.error('Error deleting announcement:', err);
     res.status(500).json({ error: 'Failed to delete announcement' });

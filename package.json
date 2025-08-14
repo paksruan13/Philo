@@ -10,7 +10,8 @@
     "db:generate": "npx prisma generate",
     "db:reset": "npx prisma migrate reset",
     "db:setup": "node scripts/setup-db.js",
-    "setup": "npm run db:migrate && npm run db:generate && npm run db:setup"
+    "setup": "npm run db:migrate && npm run db:generate && npm run db:setup",
+    "cleanup:photos": "node src/scripts/cleanupPhotos.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.470.0",

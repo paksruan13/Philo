@@ -1,56 +1,48 @@
 const { prisma } = require('../config/database');
 
-const awardPoints = async (req, res) => {
-  const { userId, activityDescription, points, notes } = req.body;
-
-  if (!userId || !activityDescription || !points) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  try {
-    // Fix: Use 'manualPoints' (lowercase) instead of 'manualPoint'
-    const submission = await prisma.manualPoints.create({
-      data: {
-        userId,
-        coachId: req.user.id,
-        points: Number(points),
-        activityDescription,
-        notes: notes || '',
-        teamId: req.user.teamId || null
-      },
-      include: {
-        student: { select: { name: true, email: true } },
-        coach: { select: { name: true } }
+const getCoachTeam = async (coachId) => {
+  return await prisma.team.findFirst({
+    where: {coachId: coachId},
+    include: {
+      members: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
       }
-    });
-
-    return res.status(201).json(submission);
-  } catch (err) {
-    console.error('Error awarding points:', err);
-    return res.status(500).json({ error: 'Failed to award points' });
-  }
+    }
+  });
 };
 
-const getPointsHistory = async (req, res) => {
-  try {
-    const coachId = req.user.id;
-    
-    const history = await prisma.manualPoints.findMany({
-      where: { coachId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        student: { select: { name: true, email: true } }
+const getPendingSubmissions = async (teamId) => {
+  return await prisma.activitySubmission.findMany({
+    where: {
+      status: 'PENDING',
+      user: { teamId: teamId }
+    },
+    include: {
+      activity: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          points: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
       }
-    });
-
-    return res.json(history);
-  } catch (err) {
-    console.error('Error fetching history:', err);
-    return res.status(500).json({ error: 'Failed to fetch points history' });
-  }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 };
 
 module.exports = {
-  awardPoints,
-  getPointsHistory,
+  getCoachTeam,
+  getPendingSubmissions
 };

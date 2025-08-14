@@ -79,12 +79,9 @@ const StudentDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <FinancialSummary stats={teamData.stats} recentDonations={teamData.recentDonations} />
         <ActivitySummary activities={activities} stats={teamData.stats} onActivitySubmit={handleActivitySubmission} />
-        <TeamMembersCard members={teamData.members} />
+        <TeamMembersCard members={teamData.team?.members} />
         <PhotoGallery photos={teamData.photos} />
       </div>
-      
-      {/* Activities Feed */}
-      <ActivitiesFeed activities={activities} onActivitySubmit={handleActivitySubmission} />
     </div>
   );
 };
@@ -108,69 +105,30 @@ const TeamOverviewCard = ({ team, stats }) => (
 );
 
 const PhotoGallery = ({ photos }) => {
-  const [teamPhotos, setTeamPhotos] = useState(photos || []);
-  const [loading, setLoading] = useState(!photos);
-  const { token } = useAuth();
-
-  useEffect(() => {
-    if(!photos || photos.length === 0) {
-      fetchPhotos();
-    } else {
-      setTeamPhotos(photos);
-    }
-  }, [photos]);
-
-  const fetchPhotos = async () => {
-    try {
-      const response = await fetch('http://localhost:4243/api/photos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if(response.ok) {
-        const data = await response.json();
-        const sortedPhotos = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setTeamPhotos(sortedPhotos.slice(0, 4));
-      }
-    } catch (error) {
-      console.error('Error fetching photos:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if(loading) {
-    return (
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h3 className="text-xl font-bold mb-4">📸 Photos</h3>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading photos...</p>
-        </div>
-      </div>
-    );
-  }
+  const validPhotos = photos?.filter(p => p.url) || [];
+  
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg">
       <h3 className="text-xl font-bold mb-4">📸 Recent Photos</h3>
       <div className="text-3xl font-bold text-blue-600 mb-2">
-        {teamPhotos?.length || 0}
+        {validPhotos.length}
       </div>
       <p className="text-gray-600 mb-4">Team Photos</p>
       
-      {teamPhotos && teamPhotos.length > 0 ? (
+      {validPhotos.length > 0 ? (
         <div className="grid grid-cols-2 gap-2">
-          {teamPhotos.slice(0, 4).map((photo, index) => (
+          {validPhotos.slice(0, 4).map((photo, index) => (
             <div
               key={photo.id}
-              className="relative group cursor-pointer overflow-hidden rounded-lg aspect-square"
+              className="relative group cursor-pointer overflow-hidden rounded-lg aspect-square bg-gray-100"
               onClick={() => window.open(photo.url, '_blank')}
             >
               <img
                 src={photo.url}
                 alt={`Team photo ${index + 1}`}
                 className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                loading="lazy"
               />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all"></div>
             </div>
           ))}
         </div>
@@ -245,45 +203,36 @@ const ActivitySummary = ({ activities, stats, onActivitySubmit }) => (
   </div>
 );
 
-const TeamMembersCard = ({ members }) => (
-  <div className="bg-white p-6 rounded-xl shadow-lg">
-    <h3 className="text-xl font-bold mb-4">👥 Team Members</h3>
-    <div className="space-y-2">
+const TeamMembersCard = ({ members }) => {
+  if (!members || members.length === 0) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-lg">
+        <h3 className="text-xl font-bold mb-4">👥 Team Members</h3>
+        <p className="text-gray-500">No team members to display</p>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-lg">
+      <h3 className="text-xl font-bold mb-4">👥 Team Members</h3>
+      <div className="space-y-2">
       {members.map(member => (
         <div key={member.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
           <div>
             <div className="font-semibold">{member.name}</div>
-            <div className="text-sm text-gray-600">{member.contributions.points} pts</div>
+            <div className="text-sm text-gray-600">{member.email}</div>
           </div>
-          <div className="text-sm">
-            ${member.contributions.donations.toFixed(2)}
-          </div>
+          {member.role === 'COACH' && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              Coach
+            </span>
+          )}
         </div>
       ))}
     </div>
   </div>
 );
-
-const ActivitiesFeed = ({ activities, onActivitySubmit }) => (
-    <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h3 className="text-xl font-bold mb-4">📋 Available Activities</h3>
-        {activities && activities.length > 0 ? (
-            <div className="space-y-4">
-                {activities.map(activity => (
-                    <ActivityCard 
-                        key={activity.id} 
-                        activity={activity} 
-                        onActivitySubmit={onActivitySubmit} // ✅ Pass the prop
-                    />
-                ))}
-            </div>
-        ) : (
-            <div className="text-center py-8 text-gray-500">
-                <p>No activities available yet</p>
-            </div>
-        )}
-    </div>
-);
+}
 
 // Replace your ActivityCard component with this fixed version
 const ActivityCard = ({ activity, onActivitySubmit }) => {

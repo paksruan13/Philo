@@ -67,6 +67,30 @@ const updateActivity = async (activityId, updateData) => {
   });
 };
 
+const deleteActivity = async (activityId) => {
+  const activity = await prisma.activity.findUnique({
+    where: {id: activityId},
+    include: {
+      submissions: {
+        select: {id: true}
+      }
+    }
+  });
+  if (!activity) {
+    throw new Error('Activity not found');
+  }
+  if (activity.submissions.length > 0) {
+    console.warn(`Deleting activity with ${activity.submissions.length} submissions`);
+    await prisma.activitySubmission.deleteMany({
+      where: {activityId: activityId}
+    });
+  }
+  const deletedActivity = await prisma.activity.delete({
+    where: {id: activityId}
+  });
+  return deletedActivity
+}
+
 const getPublishedActivities = async (userId) => {
   return await prisma.activity.findMany({
     where: {
@@ -284,5 +308,6 @@ module.exports = {
   submitActivity,
   updateSubmission,
   getUserSubmissions,
-  validateSubmissionData
+  validateSubmissionData,
+  deleteActivity
 };

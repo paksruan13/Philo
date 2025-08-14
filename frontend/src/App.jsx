@@ -4,18 +4,11 @@ import Leaderboard from './components/Leaderboard';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
-<<<<<<< HEAD
-import ActivitySubmission from './components/student/ActivitySubmission';
-import StudentDashboard from './components/student/StudentDashboard';
-import Donations from './components/Donations';
-import AdminInventoryManager from './components/adminStock';
-=======
 import CoachDashboard from './components/CoachDashboard';
-import PhotoApprove from './components/PhotoApprove';
 import StudentDashboard from './components/student/StudentDashboard';
 import ActivitySubmission from './components/student/ActivitySubmission';
+import Donations from './components/Donations';
 
->>>>>>> origin/Coach/Admin
 
 
 const AppContent = () => {
@@ -103,9 +96,6 @@ const AppContent = () => {
               >
                 Leaderboard
               </button>
-<<<<<<< HEAD
-
-=======
               {isCoach && (
                 <button
                   onClick={() => setCurrentView('coach')}
@@ -118,7 +108,6 @@ const AppContent = () => {
                   Coach Dashboard
                 </button>
               )}
->>>>>>> origin/Coach/Admin
 
               {/*Student Navigation*/}
               {user && user.role === 'STUDENT' && (
@@ -133,7 +122,6 @@ const AppContent = () => {
                   My Dashboard
                 </button>
               )}
-<<<<<<< HEAD
               <button
                 onClick={() => setCurrentView('donations')}
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
@@ -141,23 +129,10 @@ const AppContent = () => {
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
-                
+                >
                 Donate
               </button>
 
-              <button
-                onClick={() => setCurrentView('adminStock')}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentView === 'adminStock'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                
-                Stock
-              </button>
-
-=======
->>>>>>> origin/Coach/Admin
               
               {isAdmin && (
                 <button
@@ -245,16 +220,9 @@ const AppContent = () => {
       {/* Main content */}
       <main>
         {currentView === 'leaderboard' && <Leaderboard />}
-<<<<<<< HEAD
         {currentView === 'donations' && <Donations />}
-        {currentView === 'adminStock' && <AdminInventoryManager />}
-=======
-        {currentView === 'coach' && isCoach && (
-          <CoachDashboard onNavigate={setCurrentView}/>)}
-        {currentView === 'student' && user && user.role === 'STUDENT' && <StudentDashboard />}
->>>>>>> origin/Coach/Admin
         {currentView === 'admin' && isAdmin && <AdminDashboard />}
-        {currentView === 'photo-approval' && isCoach && <PhotoApprove />}
+        {currentView === 'coach' && isCoach && <CoachDashboard />}
         {currentView === 'admin' && !isAdmin && (
           <div className="max-w-7xl mx-auto px-4">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">

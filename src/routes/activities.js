@@ -14,5 +14,6 @@ router.get('/submission/my', authenticationToken, requireRole(['STUDENT']), acti
 router.get('/:id/submit', authenticationToken, requireRole(['STUDENT']), activityController.getActivityForSubmission);
 router.post('/:id/submit', authenticationToken, requireRole(['STUDENT']), activityController.submitActivityResponse);
 router.put('/submission/:submissionId', authenticationToken, requireRole(['STUDENT']), activityController.updateActivitySubmission);
+router.delete('/:id', authenticationToken, requireRole(['ADMIN']), activityController.deleteActivity);
 
 module.exports = router;
