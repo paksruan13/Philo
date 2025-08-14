@@ -59,28 +59,31 @@ const fetchCategories = async () => {
     );
   }
 
-  const toggleActivityStatus = async (activityId, isPublished) => {
-    try {
-
-      const currentActivity = activities.find(a => a.id === activityId);
-      const response = await fetch(`http://localhost:4243/api/admin/activities/${activityId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ...currentActivity, isPublished })
-      });
-      if (response.ok) {
-        fetchActivities(); // Refresh the list
-      } else {
-        setError('Failed to update activity status');
+const deleteActivity = async (activityId) => {
+  if (!confirm('Are you sure you want to delete this activity? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`http://localhost:4243/api/activities/${activityId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    } catch (error) {
-      console.error('Error updating activity:', error);
-      setError('Error updating activity');
+    });
+    
+    if (response.ok) {
+      alert('Activity deleted successfully');
+      fetchActivities(); // Refresh the list
+    } else {
+      const data = await response.json();
+      setError(data.error || 'Failed to delete activity');
     }
-  };
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    setError('Error deleting activity');
+  }
+};
 
 return (
     <div className="space-y-6">
@@ -220,14 +223,10 @@ return (
                         Edit
                       </button>
                       <button
-                        onClick={() => toggleActivityStatus(activity.id, !activity.isPublished)}
-                        className={`${
-                          activity.isPublished 
-                            ? 'text-yellow-600 hover:text-yellow-900' 
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
+                        onClick={() => deleteActivity(activity.id)}
+                        className="text-red-600 hover:text-red-900"
                       >
-                        {activity.isPublished ? 'Unpublish' : 'Publish'}
+                        Delete
                       </button>
                     </div>
                   </td>

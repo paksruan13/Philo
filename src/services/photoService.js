@@ -1,6 +1,7 @@
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { prisma } = require('../config/database');
 const s3 = require('../config/s3');
-const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
 
 const s3Client = new S3Client({
@@ -36,7 +37,6 @@ const uploadPhoto = async (file, teamId) => {
 
     const photoUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
-    const {prisma} = require('../config/database');
     const photo = await prisma.photo.create({
       data:{ 
         fileName: key,
@@ -98,11 +98,48 @@ const rejectPhoto = async (photoId) => {
   });
 };
 
+const getTeamPhotos = async (teamId) => {
+  const photos = await prisma.photo.findMany({
+    where: {
+      teamId: teamId,
+      approved: true
+    },
+    orderBy: {uploadedAt: 'desc'},
+    take: 10,
+  });
+  const photosWithSignedUrls = await Promise.all(
+    photos.map(async (photo) => {
+      try {
+        const key = photo.fileName || photo.url.split('.amazonaws.com/')[1];
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: key
+        });
+        const presignedUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600
+        });
+        return {
+          ...photo,
+          url: presignedUrl
+        };
+      } catch (err) {
+        console.error('Error generating presigned URL:', err);
+        return {
+          ...photo,
+          url: null
+        };
+      }
+    })
+  );
+  return photosWithSignedUrls.filter(photo => photo.url !== null);
+}
+
 module.exports = {
   uploadPhoto,
   getAllPhotos,
   getPendingPhotos,
   getApprovedPhotos,
   approvePhoto,
-  rejectPhoto
+  rejectPhoto,
+  getTeamPhotos
 };

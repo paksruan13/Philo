@@ -1,13 +1,9 @@
 const photoService = require('../services/photoService');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
+const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+const s3 = require('../config/s3');
 
 const uploadPhoto = async (req, res) => {
-  // Debug logging
-  console.log('=== PHOTO UPLOAD DEBUG ===');
-  console.log('req.body:', req.body);
-  console.log('req.file:', req.file);
-  console.log('req.user:', req.user);  // Check if user has teamId
-  console.log('=========================');
 
   const teamId = req.user.teamId;
   if (!teamId) {
@@ -23,16 +19,6 @@ const uploadPhoto = async (req, res) => {
     res.status(201).json(photo);
   } catch (err) {
     console.error('Error uploading photo:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-const getAllPhotos = async (req, res) => {
-  try {
-    const photos = await photoService.getAllPhotos();
-    res.json(photos);
-  } catch (err) {
-    console.error('Error fetching photos:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -101,11 +87,46 @@ const rejectPhoto = async (req, res) => {
   }
 };
 
+const getTeamPhotos = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const userId = req.user.id;
+    const photos = await photoService.getTeamPhotos(teamId);
+    res.json(photos);
+  } catch (err) {
+    console.error('Error fetching team photos:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+const getSignedUrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const photo = await prisma.photo.findUnique({
+      where:{ id },
+      select: { fileName: true }
+    });
+    if (!photo) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: photo.fileName
+    });
+    const signedUrl = await getSignedObject(S3Client, command, { expiresIn: 3600 });
+    res.json({ url: signedUrl });
+  } catch (err) {
+    console.error('Error fetching signed URL:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   uploadPhoto,
-  getAllPhotos,
   getPendingPhotos,
   getApprovedPhotos,
   approvePhoto,
-  rejectPhoto
+  rejectPhoto,
+  getTeamPhotos,
+  getSignedUrl
 };

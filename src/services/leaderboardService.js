@@ -2,66 +2,63 @@ const { prisma } = require('../config/database');
 
 const calculateLeaderboard = async () => {
   const teams = await prisma.team.findMany({
-    include: {
-      donations: { select: { amount: true } },
-      shirtSales: { select: { quantity: true } },
-      photos: { select: { approved: true } },
-      manualPoints: { select: { points: true } },
-      // Add this to include activity submissions
-      activitySubmissions: {
-        where: { status: 'APPROVED' },
-        select: { pointsAwarded: true }
-      },
-      _count: {
+    select: {
+      id: true,
+      name: true,
+      totalPoints: true,
+      createdAt: true,
+      _count:{ 
         select: {
+          members: true,
           donations: true,
-          shirtSales: true,
           photos: true,
-          manualPoints: true,
-          activitySubmissions: true
+          shirtSales: true,
+          activitySubmissions: {where: {status: 'APPROVED'}}
         }
+      },
+      donations: {
+        select: {amount: true}
+      },
+      shirtSales: {
+        select: {quantity: true}
+      },
+      photos: {
+        where: {approved: true}
+      },
+      activitySubmissions: {
+        where: {status: 'APPROVED'},
+        select: {pointsAwarded: true}
       }
     }
   });
 
-  const leaderboard = await Promise.all(teams.map(async team => {
-    const totalDonations = team.donations.reduce((sum, donation) => sum + donation.amount, 0);
-    const totalShirtPoints = team.shirtSales.reduce((sum, sale) => sum + (sale.quantity * 10), 0);
-    const approvedPhotos = team.photos.filter(photo => photo.approved);
-    const totalPhotoPoints = approvedPhotos.length * 50;
-    const totalManualPoints = team.manualPoints.reduce((sum, mp) => sum + mp.points, 0);
-    
-    // Add activity points calculation
-    const totalActivityPoints = team.activitySubmissions.reduce((sum, submission) => 
-      sum + (submission.pointsAwarded || 0), 0);
-    
-    // Include activity points in total score
-    const totalScore = totalDonations + totalShirtPoints + totalPhotoPoints + 
-                      totalManualPoints + totalActivityPoints;
-    
-    const memberCount = await prisma.user.count({
-      where: { teamId: team.id },
-    });
+const leaderboard = teams.map((team, index) => {
+  const totalDonations = team.donations.reduce((sum, d) => sum + d.amount, 0);
+  const donationCount = team._count.donations;
+  const shirtSaleCount = team._count.shirtSales;
+  const totalShirtSales = team.shirtSales.reduce((sum, s) => sum + s.quantity, 0);  
+  const approvedPhotosCount = team.photos.length;
+  const activityPoints = team.activitySubmissions.reduce((sum, s) => sum + (s.pointsAwarded || 0), 0);
 
-    return {
-      id: team.id,
-      name: team.name,
-      totalScore,
+  return {
+    id: team.id,
+    name: team.name,
+    totalScore: team.totalPoints,
+    rank: 0,
+    memberCount: team._count.members,
+    stats: {
       totalDonations,
-      totalShirtPoints,
-      donationCount: team._count.donations,
-      shirtSaleCount: team._count.shirtSales,
-      totalPhotoPoints,
-      approvedPhotosCount: approvedPhotos.length,
+      donationCount,
+      shirtSaleCount,
+      totalShirtSales,
+      approvedPhotosCount,
+      activityPoints,
       photoCount: team._count.photos,
-      totalManualPoints,
-      manualPointsCount: team._count.manualPoints,
-      totalActivityPoints, // Add this
-      activitySubmissionsCount: team._count.activitySubmissions, // Add this
-      memberCount,
-      createdAt: team.createdAt
-    };
-  }));
+      activitySubmissions: team._count.activitySubmissions,
+    },
+    createdAt: team.createdAt
+  };
+});
 
   leaderboard.sort((a, b) => b.totalScore - a.totalScore);
   

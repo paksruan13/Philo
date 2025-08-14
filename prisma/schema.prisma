@@ -25,6 +25,7 @@ model Team {
   name                String               @unique
   teamCode            String               @unique
   isActive            Boolean              @default(true)
+  totalPoints         Int                  @default(0)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   members             User[]
@@ -34,8 +35,8 @@ model Team {
   coachId             String?
   coach               User?                @relation("CoachTeams", fields: [coachId], references: [id])
   activitySubmissions ActivitySubmission[]
-  announcements       Announcement[]
-  manualPoints        ManualPoints[]
+  announcements       Announcement[]  
+  manualPointsAwards  ManualPointsAward[]
 }
 
 model User {
@@ -55,8 +56,8 @@ model User {
   Submissions          ActivitySubmission[] @relation("UserSubmissions")
   reviewedSubmissions  ActivitySubmission[] @relation("ReviewedSubmissions")
   createdAnnouncements Announcement[]       @relation("CreatedAnnouncements")
-  manualPointsReceived ManualPoints[]       @relation("UserManualPoints")
-  manualPointsAwarded  ManualPoints[]       @relation("CoachManualPoints")
+  awardedPoints        ManualPointsAward[]  @relation("AwardedPoints")
+  receivedManualPoints ManualPointsAward[]  @relation("ReceivedPoints")
 }
 
 model Donation {
@@ -72,15 +73,6 @@ model Donation {
 }
 
 model Photo {
-<<<<<<< HEAD
-  id        String   @id @default(uuid())
-  url       String
-  fileName  String
-  approved  Boolean  @default(false)
-  status    String   @default("PENDING")
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-=======
   id         String   @id @default(uuid())
   url        String
   fileName   String
@@ -88,7 +80,6 @@ model Photo {
   status     String   @default("PENDING")
   team       Team     @relation(fields: [teamId], references: [id])
   teamId     String
->>>>>>> origin/Coach/Admin
   uploadedAt DateTime @default(now())
   createdAt  DateTime @default(now())
 }
@@ -115,24 +106,6 @@ model ActivityCategory {
 }
 
 model Activity {
-<<<<<<< HEAD
-  id          String      @id @default(uuid())
-  title       String
-  description String
-  points      Int
-  isPublished Boolean     @default(false)
-  isActive    Boolean     @default(true)
-  requirements  Json?
-  categoryId  String
-  category    ActivityCategory @relation(fields: [categoryId], references: [id])
-  submission  ActivitySubmission[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  createdById String?
-  createdBy   User?       @relation("CreatedActivities", fields: [createdById], references: [id])
-  allowOnlinePurchase Boolean     @default(false)
-  allowPhotoUpload  Boolean       @default(false)
-=======
   id                  String               @id @default(uuid())
   title               String
   description         String
@@ -150,7 +123,6 @@ model Activity {
   createdBy           User?                @relation("CreatedActivities", fields: [createdById], references: [id])
   allowOnlinePurchase Boolean              @default(false)
   allowPhotoUpload    Boolean              @default(false)
->>>>>>> origin/Coach/Admin
 }
 
 model ActivitySubmission {
@@ -186,21 +158,16 @@ model Announcement {
   updatedAt   DateTime @default(now())
 }
 
-<<<<<<< HEAD
+model ManualPointsAward {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation("ReceivedPoints", fields: [userId], references: [id])
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id])
+  points      Int
+  activityDescription   String
+  awardedById String
+  awardedBy   User      @relation("AwardedPoints", fields: [awardedById], references: [id])
+  createdAt    DateTime @default(now())
 }
 
-=======
-model ManualPoints {
-  id                  String   @id @default(uuid())
-  userId              String
-  user                User     @relation("UserManualPoints", fields: [userId], references: [id])
-  coachId             String
-  coach               User     @relation("CoachManualPoints", fields: [coachId], references: [id])
-  teamId              String
-  team                Team     @relation(fields: [teamId], references: [id])
-  points              Int
-  activityDescription String
-  notes               String?
-  createdAt           DateTime @default(now())
-}
->>>>>>> origin/Coach/Admin

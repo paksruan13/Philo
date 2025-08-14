@@ -1,5 +1,6 @@
 const { parse } = require('dotenv');
 const activityService = require('../services/activityService');
+const { prisma } = require('../config/database');
 
 const getActivities = async (req, res) => {
   try {
@@ -34,7 +35,14 @@ const submitActivityResponse = async (req, res) => {
     const { id: activityId } = req.params;
     const userId = req.user.id;
     const { submissionData, notes } = req.body;
-    const teamId = req.user.teamId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { team: true }
+    });
+
+    if (!user.teamId || !user.team) {
+      return res.status(400).json({ error: 'User is not part of a team' });
+    }
 
     const activity = await activityService.getActivityById(activityId);
 
@@ -47,8 +55,16 @@ const submitActivityResponse = async (req, res) => {
     }
 
     const submission = await activityService.submitActivity(
-      activityId, userId, submissionData, notes, req.user.teamId
+      activityId, userId, submissionData, notes, user.teamId
     );
+
+    if (submission.status === 'APPROVED' && submission.pointsAwarded) {
+      await PointsService.addPoints(
+        user.teamId,
+        submission.pointsAwarded,
+        `Activity Completed: ${activity.title}`
+      );
+    }
 
     res.status(201).json({
       message: 'Activity Submitted Successfully',
@@ -109,10 +125,29 @@ const getMySubmissions = async (req, res) => {
   }
 }
 
+const deleteActivity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedActivity = await activityService.deleteActivity(id);
+    res.json({
+      success: true,
+      message: 'Activity deleted successfully',
+      activity: deletedActivity
+    });
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    if (error.message === 'Activity not found') {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete activity' });
+  }
+}
+
 module.exports = {
   getActivities,
   getMySubmissions,
   getActivityForSubmission,
   submitActivityResponse,
   updateActivitySubmission,
+  deleteActivity
 };
