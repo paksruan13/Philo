@@ -1,26 +1,8 @@
 const { prisma } = require('../config/database');
 
-const getAllCategories = async () => {
-  return await prisma.activityCategory.findMany({
-    include: {
-      activities: {
-        select: { id: true, title: true, isPublished: true }
-      }
-    },
-    orderBy: { name: 'asc' }
-  });
-};
-
-const createCategory = async (categoryData) => {
-  return await prisma.activityCategory.create({
-    data: categoryData
-  });
-};
-
 const getAllActivities = async () => {
   const activities = await prisma.activity.findMany({
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       },
@@ -46,7 +28,6 @@ const createActivity = async (activityData, createdById) => {
       createdById
     },
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       }
@@ -59,7 +40,6 @@ const updateActivity = async (activityId, updateData) => {
     where: { id: activityId },
     data: updateData,
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       }
@@ -98,7 +78,6 @@ const getPublishedActivities = async (userId) => {
       isActive: true
     },
     include: {
-      category: true,
       submissions: {
         where: { userId },
         select: { id: true, status: true, pointsAwarded: true, createdAt: true }
@@ -115,9 +94,6 @@ const getActivityById = async (activityId, userId = null) => {
       createdBy: {
         select: { name: true, email: true }
       },
-      category: {
-        select: { name: true, description: true }
-      }
     }
   });
 
@@ -298,8 +274,6 @@ const validateSubmissionData = (activity, submissionData) => {
 
 
 module.exports = {
-  getAllCategories,
-  createCategory,
   getAllActivities,
   createActivity,
   updateActivity,

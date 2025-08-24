@@ -64,14 +64,31 @@ const createUserWithHash = async (userData) => {
   });
 };
 
-const updateUser = async (userId, updateData) => {
-  return await prisma.user.update({
-    where: { id: userId },
-    data: updateData,
-    include: {
-      team: { select: { id: true, name: true, teamCode: true } },
+const updateUser = async (id, userData) => {
+  try {
+    const { role, teamId, isActive } = userData;
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        role, teamId, isActive,
+      },
+      include:{ 
+        team: true
+      }
+    });
+
+    if (role === 'COACH' && teamId) {
+      await prisma.team.update({
+        where: { id: teamId },
+        data: { coachId: id}
+      });
+      console.log(`User ${id} updated with role ${role} and team ${teamId}`);
     }
-  });
+    return updatedUser;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
 };
 
 const getAllUsersWithDetails = async () => {

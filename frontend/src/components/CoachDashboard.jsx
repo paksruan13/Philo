@@ -17,7 +17,6 @@ const CoachDashboard = ({onNavigate}) => {
         userId: '',
         activityDescription: '',
         points: '',
-        notes: ''
     });
 
     // Fetch points history
@@ -64,14 +63,13 @@ const CoachDashboard = ({onNavigate}) => {
                     userId: pointsForm.userId,
                     activityDescription: pointsForm.activityDescription,
                     points: parseInt(pointsForm.points),
-                    notes: pointsForm.notes
                 })
             });
 
             if (response.ok) {
                 const result = await response.json();
                 alert(`Successfully awarded ${pointsForm.points} points to ${teamMembers.find(m => m.id === pointsForm.userId)?.name}!`);
-                setPointsForm({ userId: '', activityDescription: '', points: '', notes: '' });
+                setPointsForm({ userId: '', activityDescription: '', points: ''});
                 setShowPointsForm(false);
                 fetchPointsHistory(); // Refresh history
             } else {
@@ -509,20 +507,6 @@ const CoachDashboard = ({onNavigate}) => {
                             onChange={(e) => setPointsForm({...pointsForm, points: e.target.value})}
                             placeholder="Enter points (e.g., 25)"
                             min="1"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-
-                        {/* Notes (Optional) */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Additional Notes (Optional)
-                          </label>
-                          <textarea
-                            value={pointsForm.notes}
-                            onChange={(e) => setPointsForm({...pointsForm, notes: e.target.value})}
-                            placeholder="Any additional details..."
-                            rows="2"
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
                         </div>

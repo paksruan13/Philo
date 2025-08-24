@@ -163,7 +163,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
     }
 
     // Check by category name if needed
-    switch (categoryName) {
+    switch (activity.categoryType) {
         case 'donation':
             return (
                 <DonationCategory
