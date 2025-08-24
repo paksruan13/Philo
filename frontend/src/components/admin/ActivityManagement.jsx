@@ -3,7 +3,6 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const ActivityManagement = () => {
     const [activities, setActivities] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [editingActivity, setEditingActivity] = useState(null);
@@ -12,7 +11,6 @@ const ActivityManagement = () => {
 
     useEffect(() => {
     fetchActivities();
-    fetchCategories();
 }, []);
 
 const fetchActivities = async () => {
@@ -34,22 +32,6 @@ const fetchActivities = async () => {
         setLoading(false);
     }
 }
-
-const fetchCategories = async () => {
-    try{
-        const response = await fetch('http://localhost:4243/api/admin/activity-categories', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if(response.ok) {
-            const data = await response.json();
-            setCategories(data);
-            console.log('Categories Loaded:', data);
-        }
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        setError('Error fetching categories');
-    }
-};
 
   if (loading) {
     return (
@@ -127,7 +109,7 @@ return (
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Categories</h3>
-          <p className="text-2xl font-bold text-blue-600">{categories.length}</p>
+          <p className="text-2xl font-bold text-blue-600">{ACTIVITY_CATEGORIES.length}</p>
         </div>
       </div>
 
@@ -175,7 +157,7 @@ return (
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                      {activity.category.name}
+                      {activity.categoryType}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -241,7 +223,7 @@ return (
       {(showCreateForm || editingActivity) && (
         <ActivityForm
           activity={editingActivity}
-          categories={categories}
+          categories={ACTIVITY_CATEGORIES}
           onClose={() => {
             setShowCreateForm(false);
             setEditingActivity(null);
@@ -258,13 +240,19 @@ return (
   );
 };
 
+const ACTIVITY_CATEGORIES = [
+  { value: 'PHOTO', label: 'Photo'},
+  { value: 'PURCHASE', label: 'Purchase'},
+  { value: 'DONATION', label: 'Donation'},
+  { value: 'OTHER', label: 'OTHER'},
+]
 
 const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
     const [formData, setFormData] = useState({
         title: activity ? activity.title : '',
         description: activity?.description || '',
         points: activity?.points || 100,
-        categoryId: activity?.categoryId || '',
+        categoryType: activity?.categoryType || 'OTHER',
         requirements: activity?.requirements || {},
         isPublished: activity?.isPublished || false,
         allowOnlinePurchase: activity?.allowOnlinePurchase || false,
@@ -372,15 +360,14 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700">Category</label>
             <select
-              value={formData.categoryId}
-              onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
+              value={formData.categoryType}
+              onChange={(e) => setFormData({...formData, categoryType: e.target.value})}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               required
             >
-              <option value="">Select a category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
+              {ACTIVITY_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
                 </option>
               ))}
             </select>

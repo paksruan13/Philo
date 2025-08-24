@@ -292,9 +292,7 @@ const getActivitiesWithSubmissionStatus = async (userId) => {
       points: true,
       allowOnlinePurchase: true,
       allowPhotoUpload: true,
-      category: {
-        select: { id: true, name: true }
-      },
+      categoryType: true,
       createdBy: { select: { name: true } }
     },
     orderBy: { createdAt: 'desc' }

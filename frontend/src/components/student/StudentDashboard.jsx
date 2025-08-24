@@ -245,8 +245,9 @@ const ActivityCard = ({ activity, onActivitySubmit }) => {
     }
   };
 
-  const isPurchaseActivity = activity.category?.name?.toLowerCase() === 'purchase';
-  const isDonationActivity = activity.category?.name?.toLowerCase() === 'donation';
+  const isPurchaseActivity = activity.categoryType === 'PURCHASE';
+  const isPhotoActivity = activity.categoryType === 'PHOTO';
+  const isDonationActivity = activity.categoryType === 'DONATION'
   const hasOnlinePurchase = activity.allowOnlinePurchase === true;
 
   const handleOnlineAction = (activity) => {
@@ -266,7 +267,7 @@ const ActivityCard = ({ activity, onActivitySubmit }) => {
             <h4 className="font-bold text-lg">{activity.title}</h4>
             {activity.category && (
               <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                {activity.category.name}
+                {activity.categoryType}
               </span>
             )}
           </div>

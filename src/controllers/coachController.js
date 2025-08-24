@@ -9,7 +9,7 @@ const { s3Client } = require('../config/s3');
 
 const awardManualPoints = async (req, res) => {
   try {
-    const { userId, points, activityDescription, notes } = req.body;
+    const { userId, points, activityDescription } = req.body;
     const coachId = req.user.id;
 
     if (!userId || !points) {
@@ -37,32 +37,32 @@ const awardManualPoints = async (req, res) => {
       if (!team) {
         throw new Error('Team not found or you are not the coach of this team');
       }
-      const updatedTeam = await tx.team.update({
-        where: {id: teamId},
-        data: {totalPoints: {increment: parseInt(points)}}
-      });
-      const manualAward = await tx.manualPointsAward.create({
+      const manualPointsAward = await tx.manualPointsAward.create({
         data: {
-          userId,
-          teamId,
-          points: parseInt(points),
+          points,
           activityDescription,
-          notes: notes || '',
-          awardedById: coachId
+          user: { connect: { id: userId }},
+          team: { connect: { id: teamId }},
+          awardedBy: { connect: { id: coachId } }
+        },
+        include: {
+          user: true,
+          team: true
         }
       });
-      return {user, team: updatedTeam, manualAward};
+      await tx.team.update({
+        where: { id: teamId },
+        data:{ 
+          totalPoints: { increment: points },
+        }
+      })
+      return {manualPointsAward, team};
     });
 
-      const io = req.app.get('io');
-      if (io) {
-        await emitLeaderboardUpdate(io);
-      }
-      res.json({
-        success: true,
-        message: `Awarded ${points} points to ${result.user.name}`,
-        newTotal: result.team.totalPoints,
-        award: result.manualAward
+      await emitLeaderboardUpdate();
+      res.status(201).json({
+        message: 'Points awarded successfully',
+        ...result
       });
   } catch (error) {
     console.error('Error awarding manual points:', error);
