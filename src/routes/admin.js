@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const saleController = require('../controllers/saleController');
 const { authenticationToken, requireRole } = require('../middleware/auth');
 
 // User management
@@ -21,5 +22,9 @@ router.post('/activity-categories', authenticationToken, requireRole(['ADMIN']),
 router.get('/activities', authenticationToken, requireRole(['ADMIN']), adminController.getAllActivities);
 router.post('/activities', authenticationToken, requireRole(['ADMIN']), adminController.createActivity);
 router.put('/activities/:id', authenticationToken, requireRole(['ADMIN']), adminController.updateActivity);
+
+// Inventory management
+router.post('/inventory/update', authenticationToken, requireRole(['ADMIN']), saleController.updateInventory);
+router.post('/price/update', authenticationToken, requireRole(['ADMIN']), saleController.updatePrice);
 
 module.exports = router;

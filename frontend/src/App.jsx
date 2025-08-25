@@ -4,7 +4,7 @@ import Leaderboard from './components/Leaderboard';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import AdminDashboard from './components/admin/AdminDashboard';
-import CoachDashboard from './components/CoachDashboard';
+import CoachDashboard from './components/coach/CoachDashboard';
 import StudentDashboard from './components/student/StudentDashboard';
 import ActivitySubmission from './components/student/ActivitySubmission';
 import Donations from './components/Donations';
