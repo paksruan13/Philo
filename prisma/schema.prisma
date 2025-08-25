@@ -65,6 +65,8 @@ model User {
   createdAnnouncements Announcement[]       @relation("CreatedAnnouncements")
   awardedPoints        ManualPointsAward[]  @relation("AwardedPoints")
   receivedManualPoints ManualPointsAward[]  @relation("ReceivedPoints")
+  soldShirts           ShirtSale[]
+  updatedShirtPrices   ShirtPrice[]
 }
 
 model Donation {
@@ -105,7 +107,18 @@ model ShirtSale {
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   soldAt    DateTime @default(now())
+  paymentMethod    String
+  amountPaid  Float
+  coachId   String
+  coach     User     @relation(fields: [coachId], references: [id])
+}
 
+model ShirtPrice {
+  id        String   @id @default(uuid())
+  price     Float    @default(30.00)
+  updatedAt DateTime @updatedAt
+  updatedBy String
+  user      User     @relation(fields: [updatedBy], references: [id])
 }
 
 model Activity {
