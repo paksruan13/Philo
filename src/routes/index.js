@@ -12,7 +12,9 @@ const activityRoutes = require('./activities');
 const leaderboardRoutes = require('./leaderboard');
 const adminRoutes = require('./admin');
 const coachRoutes = require('./coach');
+const staffRoutes = require('./staff');
 const announcementRoutes = require('./announcements');
+const productRoutes = require('./products');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -38,6 +40,8 @@ router.use('/activities', activityRoutes);
 router.use('/leaderboard', leaderboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/coach', coachRoutes);
+router.use('/staff', staffRoutes);
 router.use('/announcements', announcementRoutes);
+router.use('/products', productRoutes);
 
 module.exports = router;

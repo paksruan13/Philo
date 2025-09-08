@@ -13,17 +13,24 @@ const registerUser = async (userData) => {
 
   const hashedPassword = await bcrypt.hash(userData.password, 12);
 
+  // Set default role to INDIVIDUAL if no team is provided
+  const userRole = userData.teamId ? (userData.role || 'STUDENT') : 'STUDENT';
+
   const user = await prisma.user.create({
     data: {
       ...userData,
       password: hashedPassword,
+      role: userRole,
+      teamId: userData.teamId || null // Allow users without teams
     },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
+      teamId: true,
       team: { select: { id: true, name: true } },
+      mustChangePassword: true
     }
   });
 
@@ -64,9 +71,11 @@ const loginUser = async (email, password) => {
       email: user.email,
       role: user.role,
       team: user.team,
-      coachedTeams: user.coachedTeams
+      coachedTeams: user.coachedTeams,
+      mustChangePassword: user.mustChangePassword
     },
-    token
+    token,
+    mustChangePassword: user.mustChangePassword
   };
 };
 
@@ -120,8 +129,39 @@ const registerWithTeam = async (userData) => {
   return { user, token, teamName: team.name };
 };
 
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // For users who must change password, skip current password validation
+  if (!user.mustChangePassword) {
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!validPassword) {
+      throw new Error('Current password is incorrect');
+    }
+  }
+
+  const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      password: hashedNewPassword,
+      mustChangePassword: false
+    }
+  });
+
+  return { success: true };
+};
+
 module.exports = {
   registerUser,
   loginUser,
-  registerWithTeam
+  registerWithTeam,
+  changePassword
 };

@@ -175,6 +175,50 @@ const updateActivity = async (req, res) => {
   }
 };
 
+const resetTeamPoints = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { prisma } = require('../config/database');
+    const { emitLeaderboardUpdate } = require('../services/leaderboardService');
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if team exists
+      const team = await tx.team.findUnique({
+        where: { id: teamId }
+      });
+
+      if (!team) {
+        throw new Error('Team not found');
+      }
+
+      // Delete all manual points awards for this team
+      await tx.manualPointsAward.deleteMany({
+        where: { teamId: teamId }
+      });
+
+      // Reset team points to 0
+      await tx.team.update({
+        where: { id: teamId },
+        data: { totalPoints: 0 }
+      });
+
+      return team;
+    });
+
+    await emitLeaderboardUpdate();
+    res.json({
+      message: 'Team points reset successfully',
+      team: result
+    });
+  } catch (error) {
+    console.error('Error resetting team points:', error);
+    if (error.message === 'Team not found') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'An error occurred while resetting team points' });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllTeams,
@@ -186,5 +230,6 @@ module.exports = {
   createActivityCategory,
   getAllActivities,
   createActivity,
-  updateActivity
+  updateActivity,
+  resetTeamPoints
 };

@@ -72,7 +72,6 @@ const emitLeaderboardUpdate = async (io) => {
   try {
     const leaderboard = await calculateLeaderboard();
     io.to('leaderboard').emit('leaderboard-update', leaderboard);
-    console.log('Leaderboard update emitted to clients');
   } catch (err) {
     console.error('Error emitting leaderboard update:', err);
   }

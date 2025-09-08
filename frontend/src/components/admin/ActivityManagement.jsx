@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const ActivityManagement = () => {
     const [activities, setActivities] = useState([]);
@@ -15,7 +16,7 @@ const ActivityManagement = () => {
 
 const fetchActivities = async () => {
     try {
-        const response = await fetch('http://localhost:4243/api/admin/activities', {
+        const response = await fetch(API_ROUTES.admin.activities, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -47,7 +48,7 @@ const deleteActivity = async (activityId) => {
   }
   
   try {
-    const response = await fetch(`http://localhost:4243/api/activities/${activityId}`, {
+    const response = await fetch(API_ROUTES.activities.delete(activityId), {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -187,6 +188,13 @@ return (
                           </span>
                         )}
 
+                        {/* Show submission enabled indicator */}
+                        {activity.allowSubmission && (
+                          <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                              ✍️ Submittable
+                          </span>
+                        )}
+
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -256,7 +264,8 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
         requirements: activity?.requirements || {},
         isPublished: activity?.isPublished || false,
         allowOnlinePurchase: activity?.allowOnlinePurchase || false,
-        allowPhotoUpload: activity?.allowPhotoUpload || false
+        allowPhotoUpload: activity?.allowPhotoUpload || false,
+        allowSubmission: activity?.allowSubmission || false
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -268,8 +277,8 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
 
         try {
             const url = activity
-            ? `http://localhost:4243/api/admin/activities/${activity.id}`
-            : 'http://localhost:4243/api/admin/activities';
+            ? API_ROUTES.admin.activityDetail(activity.id)
+            : API_ROUTES.admin.activities;
 
             const method = activity ? 'PUT' : 'POST';
             const response = await fetch(url, {
@@ -418,6 +427,23 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
                   Allow Photo Upload
                   <span className="text-gray-500 ml-1">
                     (shows upload button to students)
+                  </span>
+                </label>
+            </div>
+
+          {/* Allow Submission Option */}
+          <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="allowSubmission"
+                checked={formData.allowSubmission}
+                onChange={(e) => setFormData({...formData, allowSubmission: e.target.checked})}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                />
+                <label htmlFor="allowSubmission" className="ml-2 block text-sm text-gray-900">
+                  Allow Student Submission
+                  <span className="text-gray-500 ml-1">
+                    (enables submission forms and buttons)
                   </span>
                 </label>
             </div>

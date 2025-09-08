@@ -3,11 +3,9 @@ const router = express.Router();
 const activityController = require('../controllers/activityController');
 const { authenticationToken, requireRole } = require('../middleware/auth');
 
-
 //General Routes
 router.get('/', authenticationToken, activityController.getActivities);
 router.get('/:id', authenticationToken, activityController.getActivityForSubmission);
-
 
 //Activity Submission Routes
 router.get('/submission/my', authenticationToken, requireRole(['STUDENT']), activityController.getMySubmissions);

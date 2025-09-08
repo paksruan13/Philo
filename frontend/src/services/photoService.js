@@ -1,3 +1,5 @@
+import { API_ROUTES } from './api';
+
 export const photoService = {
     async uploadPhoto(file) {
         const token = localStorage.getItem('token');
@@ -10,7 +12,7 @@ export const photoService = {
         formData.append('file', file);
 
         try{
-            const response = await fetch('http://localhost:4243/api/photos/', {
+            const response = await fetch(API_ROUTES.photos.upload, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -24,8 +26,6 @@ export const photoService = {
             }
 
             const result = await response.json();
-            console.log('Photo uploaded successfully:', result);
-
             return result;
         } catch (error) {
             console.error('Error uploading photo:', error);

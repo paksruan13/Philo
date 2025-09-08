@@ -1,10 +1,14 @@
 // Complete updated ActivitySubmission.jsx
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 import PhotoUpload from '../common/PhotoUpload';
 import { photoService } from '../../services/photoService';
 
-const ActivitySubmission = ({ activityId, onBack }) => {
+const ActivitySubmission = () => {
+    const { activityId } = useParams();
+    const navigate = useNavigate();
     const { token } = useAuth();
     const [activity, setActivity] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -12,6 +16,10 @@ const ActivitySubmission = ({ activityId, onBack }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [formData, setFormData] = useState({});
+
+    const handleBackToDashboard = () => {
+        navigate('/dashboard/student');
+    };
 
     useEffect(() => {
         if (activityId) {
@@ -21,7 +29,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
     const fetchActivity = async () => {
         try {
-            const response = await fetch(`http://localhost:4243/api/activities/${activityId}`, {
+            const response = await fetch(API_ROUTES.activities.detail(activityId), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -52,11 +60,9 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             const submissionData = {...formData};
 
             if(formData.photo && formData.photo instanceof File) {
-                console.log('Uploading');
                 try{
                     const result = await photoService.uploadPhoto(formData.photo);
                     submissionData.photo = result.url;
-                    console.log('Uploaded', result.url);
                 } catch (error) {
                     console.error('Error uploading photo:', error);
                     setError('Failed to upload photo');
@@ -64,11 +70,9 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             }
 
             if(formData.uploadedPhoto && formData.uploadedPhoto instanceof File) {
-                console.log('Uploading additional photos');
                 try {
                     const result = await photoService.uploadPhoto(formData.uploadedPhoto);
                     submissionData.uploadedPhoto = result.url;
-                    console.log('Uploaded additional photo', result.url);
                 } catch (error) {
                     console.error('Error uploading additional photo:', error);
                     setError('Failed to upload additional photo');
@@ -77,8 +81,8 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
             const isUpdate = activity.submission && activity.submission.id;
             const url = isUpdate
-                ? `http://localhost:4243/api/activities/submission/${activity.submission.id}`
-                : `http://localhost:4243/api/activities/${activityId}/submit`;
+                ? API_ROUTES.activities.updateSubmission(activity.submission.id)
+                : API_ROUTES.activities.submit(activityId);
 
             const method = isUpdate ? 'PUT' : 'POST';
             const response = await fetch(url, {
@@ -97,7 +101,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             setSuccess(isUpdate ? 'Submission Updated Successfully' : 'Activity Submitted Successfully');
 
             setTimeout(() => {
-                onBack();
+                navigate('/dashboard/student');
             }, 3000);
 
         } catch (err) {
@@ -126,8 +130,8 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
     const getCategoryComponent = () => {
         const categoryName = activity.category?.name?.toLowerCase();
-        const canSubmit = !activity.submission || 
-            (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING');
+        const canSubmit = activity.allowSubmission && (!activity.submission || 
+            (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING'));
 
         if (activity.allowPhotoUpload) {
         return (
@@ -140,7 +144,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
                 submitting={submitting}
                 error={error}
                 success={success}
-                onBack={onBack}
+                onBack={handleBackToDashboard}
             />
         );
     }
@@ -157,7 +161,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
                 submitting={submitting}
                 error={error}
                 success={success}
-                onBack={onBack}
+                onBack={handleBackToDashboard}
             />
         );
     }
@@ -175,7 +179,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
                     submitting={submitting}
                     error={error}
                     success={success}
-                    onBack={onBack}
+                    onBack={handleBackToDashboard}
                 />
             );
         default:
@@ -189,7 +193,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
                     submitting={submitting}
                     error={error}
                     success={success}
-                    onBack={onBack}
+                    onBack={handleBackToDashboard}
                 />
             );
     }
@@ -214,7 +218,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
     return (
         <div className="max-w-4xl mx-auto p-6">
             <button
-                onClick={onBack}
+                onClick={handleBackToDashboard}
                 className="mb-6 flex items-center text-blue-600 hover:text-blue-800"
             >
                 ← Back to Dashboard
@@ -309,7 +313,7 @@ const PurchaseCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
                 )}
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
 
                     {activity.allowPhotoUpload && (
@@ -328,9 +332,31 @@ const PurchaseCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            🛒
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Purchase Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -375,7 +401,7 @@ const DonationCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
                 )}
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
 
                     {activity.allowPhotoUpload && (
@@ -394,9 +420,31 @@ const DonationCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            💝
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Donation Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -430,7 +478,7 @@ const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                 </div>
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
                     <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -531,9 +579,31 @@ const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            📸
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Photo Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -642,7 +712,7 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                 </div>
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <div className="text-center py-8">
                     <div className="mb-6">
                         <span className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-3xl mb-4">
@@ -671,9 +741,31 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                         </button>
                     </div>
                 </div>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            🎯
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Steal Object Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -681,34 +773,29 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
 // Default Category Component
 const DefaultCategory = ({ activity, canSubmit, onSubmit, formData, onInputChange, submitting, error, success, onBack }) => {
     return (
-        <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">📝 General Activity</h3>
-                <div className="text-gray-700 mb-4">
-                    <p>{activity.description}</p>
+        <div className="space-y-8">
+            {/* Centered Activity Description */}
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-8 text-center shadow-sm">
+                <div className="mb-6">
+                    <span className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-4 mx-auto">
+                        📷
+                    </span>
+                </div>
+                
+                <div className="max-w-2xl mx-auto">
+                    <p className="text-lg text-gray-700 leading-relaxed">{activity.description}</p>
                 </div>
             </div>
 
-            {canSubmit && (
-                <form onSubmit={onSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Submission Notes
-                        </label>
-                        <textarea
-                            value={formData.notes || ''}
-                            onChange={(e) => onInputChange('notes', e.target.value)}
-                            rows={4}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter your submission details..."
-                        />
-                    </div>
-
-                    <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
-                </form>
-            )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
+            {/* Close Button Section */}
+            <div className="text-center py-6">
+                <button
+                    onClick={onBack}
+                    className="bg-blue-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                >
+                    Close
+                </button>
+            </div>
         </div>
     );
 };

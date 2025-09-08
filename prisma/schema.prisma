@@ -10,6 +10,7 @@ generator client {
 enum UserRole {
   STUDENT
   COACH
+  STAFF
   ADMIN
 }
 
@@ -39,6 +40,7 @@ model Team {
   donations           Donation[]
   photos              Photo[]
   shirtSales          ShirtSale[]
+  productSales        ProductSale[]        @relation("TeamProductSales")
   coachId             String?
   coach               User?                @relation("CoachTeams", fields: [coachId], references: [id])
   activitySubmissions ActivitySubmission[]
@@ -54,6 +56,7 @@ model User {
   team                 Team?                @relation(fields: [teamId], references: [id])
   teamId               String?
   role                 UserRole             @default(STUDENT)
+  mustChangePassword   Boolean              @default(false)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   isActive             Boolean              @default(true)
@@ -66,7 +69,10 @@ model User {
   awardedPoints        ManualPointsAward[]  @relation("AwardedPoints")
   receivedManualPoints ManualPointsAward[]  @relation("ReceivedPoints")
   soldShirts           ShirtSale[]
-  updatedShirtPrices   ShirtPrice[]
+  shirtPurchases       ShirtSale[]          @relation("UserShirtSales")
+  productPurchases     ProductSale[]        @relation("UserProductSales")
+  soldProducts         ProductSale[]        @relation("CoachProductSales")
+  updatedShirtConfigs  ShirtConfig[]
 }
 
 model Donation {
@@ -93,6 +99,55 @@ model Photo {
   createdAt  DateTime @default(now())
 }
 
+enum ProductType {
+  HOODIE
+  PANTS
+  SHIRT
+  TICKET
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String        // e.g. "Team Hoodie", "Team Pants"
+  type        ProductType
+  price       Float
+  points      Int           @default(10)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  inventory   ProductInventory[]
+  sales       ProductSale[]
+}
+
+model ProductInventory {
+  id         String    @id @default(uuid())
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  String
+  size       String    
+  quantity   Int       @default(0)
+  updatedAt  DateTime  @updatedAt
+  
+  @@unique([productId, size])
+}
+
+model ProductSale {
+  id        String   @id @default(uuid())
+  quantity  Int
+  size      String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  user      User     @relation("UserProductSales", fields: [userId], references: [id])
+  userId    String
+  team      Team     @relation("TeamProductSales", fields: [teamId], references: [id])
+  teamId    String
+  soldAt    DateTime @default(now())
+  paymentMethod    String
+  amountPaid  Float
+  coachId   String
+  coach     User     @relation("CoachProductSales", fields: [coachId], references: [id])
+}
+
+// Keep legacy models for backward compatibility during migration
 model ShirtInventory {
   id         String    @id @default(uuid())
   size       String    @unique
@@ -104,6 +159,8 @@ model ShirtSale {
   id        String   @id @default(uuid())
   quantity  Int
   shirtSize String
+  user      User     @relation("UserShirtSales", fields: [userId], references: [id])
+  userId    String
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
   soldAt    DateTime @default(now())
@@ -113,12 +170,13 @@ model ShirtSale {
   coach     User     @relation(fields: [coachId], references: [id])
 }
 
-model ShirtPrice {
-  id        String   @id @default(uuid())
-  price     Float    @default(30.00)
-  updatedAt DateTime @updatedAt
-  updatedBy String
-  user      User     @relation(fields: [updatedBy], references: [id])
+model ShirtConfig {
+  id               String   @id @default(uuid())
+  pointsPerShirt   Int      @default(10)
+  price            Float    @default(15.00)
+  updatedAt        DateTime @updatedAt
+  updatedBy        String
+  user             User     @relation(fields: [updatedBy], references: [id])
 }
 
 model Activity {

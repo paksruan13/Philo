@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_ROUTES } from '../services/api';
 
 const AuthContext = createContext();
 export const useAuth = () => {
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
             const savedToken = localStorage.getItem('token');
             if (savedToken) {
                 try {
-                    const response = await fetch('http://localhost:4243/api/auth/me', {
+                    const response = await fetch(API_ROUTES.auth.me, {
                         headers: {
                             'Authorization': `Bearer ${savedToken}`
                         }
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await fetch('http://localhost:4243/api/auth/login', {
+            const response = await fetch(API_ROUTES.auth.login, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -59,7 +60,10 @@ export const AuthProvider = ({ children }) => {
                 setUser(data.user);
                 setToken(data.token);
                 localStorage.setItem('token', data.token);
-                return {success: true};
+                return {
+                    success: true, 
+                    mustChangePassword: data.mustChangePassword || data.user?.mustChangePassword
+                };
             } else {
                 return { success: false, error: data.error};
             }
@@ -70,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (name, email, password, role = 'STUDENT', teamId = null) => {
         try {
-            const response = await fetch ('http://localhost:4243/api/auth/register', {
+            const response = await fetch(API_ROUTES.auth.register, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -93,7 +97,7 @@ export const AuthProvider = ({ children }) => {
 
     const registerWithTeam = async (name, email, password, teamCode) => {
         try {
-            const response = await fetch('http://localhost:4243/api/auth/register-team', {
+            const response = await fetch(API_ROUTES.auth.registerTeam, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -121,7 +125,6 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         localStorage.removeItem('token');
 
-        
     };
 
     const value = {
