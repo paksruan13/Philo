@@ -24,7 +24,13 @@ router.post('/activities', authenticationToken, requireRole(['ADMIN']), adminCon
 router.put('/activities/:id', authenticationToken, requireRole(['ADMIN']), adminController.updateActivity);
 
 // Inventory management
-router.post('/inventory/update', authenticationToken, requireRole(['ADMIN']), saleController.updateInventory);
-router.post('/price/update', authenticationToken, requireRole(['ADMIN']), saleController.updatePrice);
+router.get('/inventory/shirts', authenticationToken, requireRole(['ADMIN']), saleController.getShirtInventory);
+router.put('/inventory/shirts/update', authenticationToken, requireRole(['ADMIN']), saleController.updateInventory);
+router.put('/inventory/shirts/config', authenticationToken, requireRole(['ADMIN']), saleController.updateShirtConfig);
+router.post('/inventory/shirts/sizes', authenticationToken, requireRole(['ADMIN']), saleController.createShirtSize);
+router.delete('/inventory/shirts/sizes/:size', authenticationToken, requireRole(['ADMIN']), saleController.deleteShirtSize);
+
+// Points management
+router.post('/teams/:teamId/reset-points', authenticationToken, requireRole(['ADMIN']), adminController.resetTeamPoints);
 
 module.exports = router;

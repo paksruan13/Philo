@@ -82,7 +82,6 @@ const updateUser = async (id, userData) => {
         where: { id: teamId },
         data: { coachId: id}
       });
-      console.log(`User ${id} updated with role ${role} and team ${teamId}`);
     }
     return updatedUser;
   } catch (error) {

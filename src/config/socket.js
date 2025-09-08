@@ -11,8 +11,6 @@ const configureSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(socket.id, 'connected');
-
     socket.join('leaderboard');
     socket.on('join-leaderboard', () => {
       socket.join('leaderboard');
@@ -20,20 +18,17 @@ const configureSocket = (server) => {
 
     socket.on('join-team', (teamId) => {
       if (teamId) {
-        console.log(`Socket ${socket.id} joining team ${teamId}`);
         socket.join(`team-${teamId}`);
       }
     });
 
     socket.on('leave-team', (teamId) => {
       if (teamId) {
-        console.log(`Socket ${socket.id} leaving team ${teamId}`);
         socket.leave(`team-${teamId}`);
       }
     });
 
     socket.on('disconnect', () => {
-      console.log(socket.id, 'disconnected');
     });
   });
 

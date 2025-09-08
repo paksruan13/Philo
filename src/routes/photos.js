@@ -16,6 +16,4 @@ router.get('/approved', adminCoachAuth, photoController.getApprovedPhotos);
 router.put('/:id/approve', adminCoachAuth, photoController.approvePhoto);
 router.put('/:id/reject', adminCoachAuth, photoController.rejectPhoto);
 
-
-
 module.exports = router;

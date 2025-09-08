@@ -47,8 +47,6 @@ const approvePhoto = async (req, res) => {
   const { id } = req.params;
   try {
     const photo = await photoService.approvePhoto(id);
-    console.log('Photo Approved!', photo.id, 'for team:', photo.team.name);
-    
     const io = req.app.get('io');
     await emitLeaderboardUpdate(io);
     io.to('leaderboard').emit('photo-approved', {
@@ -71,8 +69,6 @@ const rejectPhoto = async (req, res) => {
 
   try {
     const photo = await photoService.rejectPhoto(id);
-    console.log('Photo Rejected!', photo.id);
-
     const io = req.app.get('io');
     io.to('leaderboard').emit('photo-rejected', {
       photoId: photo.id,

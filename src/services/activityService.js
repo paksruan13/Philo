@@ -225,7 +225,6 @@ const getUserSubmissions = async (userId, page = 1, limit = 10) => {
   }
 }
 
-
 const validateSubmissionData = (activity, submissionData) => {
   const errors = [];
   if(!submissionData || typeof submissionData !== 'object') {
@@ -270,8 +269,6 @@ const validateSubmissionData = (activity, submissionData) => {
 
   return errors;
 }
-
-
 
 module.exports = {
   getAllActivities,

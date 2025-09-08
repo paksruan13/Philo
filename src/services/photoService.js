@@ -14,12 +14,8 @@ const s3Client = new S3Client({
   }
 })
 
-
 const uploadPhoto = async (file, teamId) => {
   try {
-    console.log('🔧 AWS S3 Upload Debug:');
-    console.log('  Region:', process.env.AWS_REGION);
-    console.log('  Bucket:', process.env.S3_BUCKET_NAME);
     console.log('  Access Key:', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '***');
 
     const bucketName = process.env.S3_BUCKET_NAME;

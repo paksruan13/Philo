@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState([]);
@@ -18,7 +19,7 @@ const TeamManagement = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/teams/admin', {
+      const response = await fetch(API_ROUTES.teams.admin, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -36,7 +37,7 @@ const TeamManagement = () => {
 
   const fetchCoaches = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/users/coaches', {
+      const response = await fetch(API_ROUTES.users.coaches, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -53,7 +54,7 @@ const TeamManagement = () => {
 
   const createTeam = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/teams', {
+      const response = await fetch(API_ROUTES.teams.create, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -82,7 +83,7 @@ const TeamManagement = () => {
 
   const updateTeam = async (teamId, teamData) => {
     try {
-      const response = await fetch(`http://localhost:4243/api/teams/admin/${teamId}`, {
+      const response = await fetch(API_ROUTES.teams.adminDetail(teamId), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -107,7 +108,7 @@ const TeamManagement = () => {
 
   const assignCoach = async (teamId, coachId) => {
   try {
-    const response = await fetch(`http://localhost:4243/api/teams/${teamId}/coach`, {  
+    const response = await fetch(API_ROUTES.teams.assignCoach(teamId), {  
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -143,6 +144,33 @@ const TeamManagement = () => {
         coachId: editingTeam.coachId || null,
         isActive: editingTeam.isActive
       });
+    }
+  };
+
+  const handleResetPoints = async (team) => {
+    if (!confirm(`Are you sure you want to reset ${team.name}'s points to 0?\n\nThis will:\n- Set total points to 0\n- Clear all manual points awards\n- Keep donations and activity points\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(API_ROUTES.teams.resetPoints(team.id), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert(`${team.name}'s points have been reset successfully!`);
+        await fetchTeams(); // Refresh teams data
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to reset points');
+      }
+    } catch (error) {
+      setError('Error resetting points');
+      console.error('Error:', error);
     }
   };
 
@@ -234,12 +262,20 @@ const TeamManagement = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleEditTeam(team)}
-                    className="text-blue-600 hover:text-blue-900"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditTeam(team)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleResetPoints(team)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Reset Points
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

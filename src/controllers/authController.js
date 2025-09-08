@@ -51,6 +51,29 @@ const login = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+    }
+
+    await authService.changePassword(userId, currentPassword, newPassword);
+    
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    if (err.message === 'Current password is incorrect') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.message === 'User not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 const getCurrentUser = async (req, res) => {
   try {
     const user = await userService.getUserById(req.user.id);
@@ -59,7 +82,20 @@ const getCurrentUser = async (req, res) => {
     }
     res.json({ user });
   } catch (err) {
-    console.error('Error fetching user info:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+const getMe = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ user });
+  } catch (err) {
+    console.error('GetMe error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -113,7 +149,9 @@ const joinTeam = async (req, res) => {
 module.exports = {
   register,
   login,
+  changePassword,
   getCurrentUser,
+  getMe,
   registerWithTeam,
   joinTeam
 };

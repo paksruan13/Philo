@@ -5,7 +5,9 @@ const { authenticationToken } = require('../middleware/auth');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-router.get('/me', authenticationToken, authController.getCurrentUser);
+router.post('/change-password', authenticationToken, authController.changePassword);
+router.get('/me', authenticationToken, authController.getMe);
+router.get('/current', authenticationToken, authController.getCurrentUser);
 router.post('/register-team', authController.registerWithTeam);
 router.post('/join-team', authenticationToken, authController.joinTeam);
 

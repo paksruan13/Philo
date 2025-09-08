@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiClient, API_ROUTES } from '../../services/api';
+import SellProducts from './SellProducts';
 
-const CoachDashboard = ({onNavigate}) => {
+const CoachDashboard = ({ onNavigate }) => {
     const { user } = useAuth();
     const [teamData, setTeamData] = useState(null);
     const [teamMembers, setTeamMembers] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
     const [pointsHistory, setPointsHistory] = useState([]);
     const [pendingSubmissions, setPendingSubmissions] = useState([]);
@@ -18,24 +21,46 @@ const CoachDashboard = ({onNavigate}) => {
         activityDescription: '',
         points: '',
     });
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [teams, setTeams] = useState([]);
+    const [showAllSubmissions, setShowAllSubmissions] = useState(false);
+    const [approvedSubmissions, setApprovedSubmissions] = useState([]);
+    const [showAllApprovedSubmissions, setShowAllApprovedSubmissions] = useState(false);
 
     // Fetch points history
     const fetchPointsHistory = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4243/coach/manual-points-history', {
+            const apiEndpoint = API_ROUTES.coach.pointsHistory;
+            const response = await fetch(apiEndpoint, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
             });
-            
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Points history received:', data);
                 setPointsHistory(data);
             }
         } catch (error) {
             console.error('Error fetching points history:', error);
+        }
+    };
+
+    // Fetch all students
+    const fetchAllStudents = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ROUTES.coach.students, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAllStudents(data);
+            }
+        } catch (error) {
+            console.error('Error fetching all students:', error);
         }
     };
 
@@ -44,6 +69,8 @@ const CoachDashboard = ({onNavigate}) => {
         if (!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points) {
             alert('Please fill in all required fields');
             return;
+            // ...existing code for fetchPointsHistory, handleAwardPoints, etc...
+            // ...existing code for fetchCoachTeamData, useEffect, etc...
         }
 
         if (isNaN(pointsForm.points) || parseInt(pointsForm.points) <= 0) {
@@ -53,22 +80,26 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4243/api/coach/award-points', {
+            const selectedStudent = allStudents.find(s => s.id === pointsForm.userId);
+            
+            const requestBody = {
+                userId: pointsForm.userId,
+                activityDescription: pointsForm.activityDescription,
+                points: parseInt(pointsForm.points),
+            };
+            
+            const response = await fetch(API_ROUTES.coach.awardPoints, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    userId: pointsForm.userId,
-                    activityDescription: pointsForm.activityDescription,
-                    points: parseInt(pointsForm.points),
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (response.ok) {
                 const result = await response.json();
-                alert(`Successfully awarded ${pointsForm.points} points to ${teamMembers.find(m => m.id === pointsForm.userId)?.name}!`);
+                alert(`Successfully awarded ${pointsForm.points} points to ${allStudents.find(s => s.id === pointsForm.userId)?.name}!`);
                 setPointsForm({ userId: '', activityDescription: '', points: ''});
                 setShowPointsForm(false);
                 fetchPointsHistory(); // Refresh history
@@ -82,6 +113,34 @@ const CoachDashboard = ({onNavigate}) => {
         }
     };
 
+    // Delete manual points award
+    const handleDeletePoints = async (pointsAwardId) => {
+        if (!confirm('Are you sure you want to delete this points award?')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ROUTES.coach.deletePoints(pointsAwardId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                alert('Points award deleted successfully!');
+                fetchPointsHistory(); // Refresh history
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to delete points award');
+            }
+        } catch (error) {
+            console.error('Error deleting points award:', error);
+            alert('Failed to delete points award');
+        }
+    };
+
     // Create announcement
     const handleCreateAnnouncement = async () => {
         if (!newAnnouncement.title.trim() || !newAnnouncement.content.trim()) {
@@ -91,7 +150,7 @@ const CoachDashboard = ({onNavigate}) => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/api/announcements/teams/${teamData.id}`, {
+            const response = await fetch(API_ROUTES.announcements.create(teamData.id), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -124,7 +183,7 @@ const CoachDashboard = ({onNavigate}) => {
         try {
             const token = localStorage.getItem('token');
             setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
-            const response = await fetch(`http://localhost:4243/api/announcements/teams/${teamData.id}/${announcementId}`, {
+            const response = await fetch(API_ROUTES.announcements.delete(teamData.id, announcementId), {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -137,7 +196,6 @@ const CoachDashboard = ({onNavigate}) => {
                 fetchCoachTeamData();
                 alert(`Failed to delete announcement: ${responseText}`);
             } else {
-                console.log('Announcement deleted successfully');
                 history.replaceState(null, '', window.location.pathname);
             }
         } catch (error) {
@@ -150,7 +208,7 @@ const CoachDashboard = ({onNavigate}) => {
     const fetchPendingSubmissions = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4243/api/coach/pending-submissions', {
+            const response = await fetch(API_ROUTES.coach.pendingSubmissions, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -158,7 +216,6 @@ const CoachDashboard = ({onNavigate}) => {
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Pending submissions received:', data);
                 setPendingSubmissions(data);
             }
         } catch (error) {
@@ -166,10 +223,32 @@ const CoachDashboard = ({onNavigate}) => {
         }
     };
 
+    const fetchApprovedSubmissions = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ROUTES.coach.approvedSubmissions, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setApprovedSubmissions(data);
+            } else {
+                const errorText = await response.text();
+                setApprovedSubmissions([]);
+            }
+        } catch (error) {
+            console.error('💥 Error fetching approved submissions:', error);
+            setApprovedSubmissions([]);
+        }
+    };
+
     const handleApproveSubmission = async (submissionId, points) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/api/coach/submissions/${submissionId}/approve`, {
+            const response = await fetch(API_ROUTES.coach.approveSubmission(submissionId), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -183,7 +262,8 @@ const CoachDashboard = ({onNavigate}) => {
 
             if (response.ok) {
                 alert('Submission approved successfully!');
-                fetchPendingSubmissions(); // Refresh submissions
+                fetchPendingSubmissions(); // Refresh pending submissions
+                fetchApprovedSubmissions(); // Refresh approved submissions
                 // Optionally refresh team data to show updated points
                 fetchCoachTeamData();
             } else {
@@ -199,7 +279,7 @@ const CoachDashboard = ({onNavigate}) => {
     const handleRejectSubmission = async (submissionId, reason) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:4243/api/coach/submissions/${submissionId}/reject`, {
+            const response = await fetch(API_ROUTES.coach.rejectSubmission(submissionId), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -223,23 +303,76 @@ const CoachDashboard = ({onNavigate}) => {
         }
     };
 
+    const handleUnapproveSubmission = async (submissionId) => {
+        if (!confirm('Are you sure you want to unapprove this submission? The points will be removed from the student.')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ROUTES.coach.unapproveSubmission(submissionId), {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    reviewNotes: 'Unapproved by coach'
+                })
+            });
+
+            if (response.ok) {
+                alert('Submission unapproved successfully! Points have been removed.');
+                fetchApprovedSubmissions(); // Refresh approved submissions
+                fetchPendingSubmissions(); // Refresh pending (in case it goes back to pending)
+                fetchCoachTeamData(); // Refresh team data to show updated points
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to unapprove submission');
+            }
+        } catch (error) {
+            console.error('Error unapproving submission:', error);
+            alert('Failed to unapprove submission');
+        }
+    };
+
+    const handleDeleteSubmission = async (submissionId) => {
+        if (!confirm('Are you sure you want to permanently delete this submission? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ROUTES.coach.deleteSubmission(submissionId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                alert('Submission deleted successfully!');
+                fetchApprovedSubmissions(); // Refresh approved submissions
+                fetchCoachTeamData(); // Refresh team data
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to delete submission');
+            }
+        } catch (error) {
+            console.error('Error deleting submission:', error);
+            alert('Failed to delete submission');
+        }
+    };
+
     const fetchCoachTeamData = async () => {
-            console.log('🔍 Starting fetchCoachTeamData...');
-            
             try {
                 if (!user) {
-                    console.log('❌ No user found');
                     setError('User not authenticated');
                     setLoading(false);
                     return;
                 }
-
-                console.log('👤 Current user:', user);
-                console.log('🎯 User role:', user.role);
-
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    console.log('❌ No token found');
                     setError('No authentication token found');
                     setLoading(false);
                     return;
@@ -253,22 +386,15 @@ const CoachDashboard = ({onNavigate}) => {
                 };
 
                 // Get current user info with coached teams
-                console.log('📡 Fetching user info from /auth/me...');
-                const userRes = await fetch(`http://localhost:4243/api/auth/me`, { headers });
-                console.log('📡 User response status:', userRes.status);
-                
+                const userRes = await fetch(API_ROUTES.auth.me, { headers });
                 if (!userRes.ok) {
                     const errorText = await userRes.text();
-                    console.log('❌ User fetch failed:', errorText);
                     throw new Error(`Failed to fetch user data: ${userRes.status} - ${errorText}`);
                 }
                 
                 const userData = await userRes.json();
-                console.log('✅ User data received:', userData);
-
                 // Check if user has coached teams
                 if (!userData.user.coachedTeams || userData.user.coachedTeams.length === 0) {
-                    console.log('⚠️ No coached teams found for user');
                     setError('You are not assigned as a coach to any team. Please contact an administrator to assign you to a team.');
                     setLoading(false);
                     return;
@@ -276,52 +402,34 @@ const CoachDashboard = ({onNavigate}) => {
 
                 // Get the first coached team
                 const coachedTeam = userData.user.coachedTeams[0];
-                console.log('🏆 Coached team found:', coachedTeam);
-                
                 // Fetch detailed team data from leaderboard
-                console.log('📡 Fetching leaderboard data...');
-                const leaderboardRes = await fetch(`http://localhost:4243/api/leaderboard`);
-                console.log('📡 Leaderboard response status:', leaderboardRes.status);
-                
+                const leaderboardRes = await fetch(API_ROUTES.leaderboard.list);
                 if (!leaderboardRes.ok) {
                     throw new Error('Failed to fetch leaderboard data');
                 }
                 
                 const leaderboardData = await leaderboardRes.json();
-                console.log('✅ Leaderboard data received:', leaderboardData.length, 'teams');
-                
                 const currentTeam = leaderboardData.find(team => team.id === coachedTeam.id);
-                console.log('🔍 Found team in leaderboard:', currentTeam);
-                
                 if (!currentTeam) {
-                    console.log('❌ Team not found in leaderboard');
                     setError('Team not found in leaderboard');
                     setLoading(false);
                     return;
                 }
-                
-                console.log('✅ Setting team data:', currentTeam);
                 setTeamData(currentTeam);
 
                 // Fetch team members
-                console.log('📡 Fetching team members...');
-                const memberRes = await fetch(`http://localhost:4243/api/teams/${coachedTeam.id}/members`, { headers });
-                console.log('📡 Members response status:', memberRes.status);
-                
+                const memberRes = await fetch(API_ROUTES.teams.members(coachedTeam.id), { headers });
                 if (!memberRes.ok) {
                     const errorText = await memberRes.text();
-                    console.log('⚠️ Members fetch failed:', errorText);
                     setTeamMembers([]);
                 } else {
                     const memberData = await memberRes.json();
-                    console.log('✅ Team members received:', memberData);
                     setTeamMembers(memberData);
                 }
 
                 // Fetch announcements
-                console.log('📡 Fetching announcements...');
                 try {
-                    const announcementRes = await fetch(`http://localhost:4243/api/announcements/teams/${coachedTeam.id}`);
+                    const announcementRes = await fetch(API_ROUTES.announcements.forTeam(coachedTeam.id));
                     console.log(`Using team ID: ${coachedTeam.id}`)
                     if (announcementRes.ok) {
                         const response = await announcementRes.json();
@@ -331,21 +439,25 @@ const CoachDashboard = ({onNavigate}) => {
                         setAnnouncements([]);
                     }
                 } catch (err) {
-                    console.log('⚠️ Failed to fetch announcements:', err);
                     setAnnouncements([]);
                 }
 
                 // Fetch points history
                 await fetchPointsHistory();
 
+                // Fetch all students
+                await fetchAllStudents();
+
                 // Fetch pending submissions
                 await fetchPendingSubmissions();
+
+                // Fetch approved submissions
+                await fetchApprovedSubmissions();
 
             } catch (error) {
                 console.error('💥 Error in fetchCoachTeamData:', error);
                 setError(error.message);
             } finally {
-                console.log('🏁 Setting loading to false');
                 setLoading(false);
             }
         };
@@ -353,11 +465,7 @@ const CoachDashboard = ({onNavigate}) => {
     useEffect(() => {
         fetchCoachTeamData();
     }, [user]);
-
-    console.log('🖼️ Rendering with state:', { loading, error, teamData: !!teamData, teamMembers: teamMembers.length });
-
     if (loading) {
-        console.log('⏳ Showing loading...');
         return (
             <div className="text-center p-10">
                 <div className="text-lg">Loading Coach Dashboard...</div>
@@ -369,7 +477,6 @@ const CoachDashboard = ({onNavigate}) => {
     }
 
     if (error) {
-        console.log('❌ Showing error:', error);
         return (
             <div className="text-center p-10">
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -389,7 +496,6 @@ const CoachDashboard = ({onNavigate}) => {
     }
 
     if (!teamData) {
-        console.log('❌ No team data');
         return (
             <div className="text-center p-10">
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
@@ -399,243 +505,714 @@ const CoachDashboard = ({onNavigate}) => {
             </div>
         );
     }
+    const tabs = [
+        { id: 'dashboard', label: 'Team Overview', icon: '📊' },
+        { id: 'sell', label: 'Sell Products', icon: '🛒' },
+        { id: 'points', label: 'Manage Points', icon: '⭐' },
+        { id: 'announcements', label: 'Announcements', icon: '📢' },
+        { id: 'submissions', label: 'Review Submissions', icon: '📋' }
+    ];
 
-    console.log('✅ Rendering full dashboard');
     return (
-        <div className="bg-gray-50 min-h-screen">
-          <main className="container mx-auto p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6">
-              
-                {/* Left Column: Team Members */}
-                <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-800">Team Members ({teamMembers.length})</h2>
-                  <ul className="space-y-4 max-h-96 overflow-y-auto">
-                    {teamMembers.length > 0 ? teamMembers.map(member => (
-                      <li key={member.id} className="border-b border-gray-200 pb-2">
-                        <p className="font-semibold text-gray-700">{member.name}</p>
-                        <p className="text-sm text-gray-500">{member.email}</p>
-                        <p className="text-xs text-blue-600">{member.role || 'STUDENT'}</p>
-                      </li>
-                    )) : (
-                      <p className="text-gray-500">No members found.</p>
-                    )}
-                  </ul>
-                </div>
-    
-                {/* Middle Column: Team Stats and Actions */}
-                <div className="lg:col-span-1 space-y-8">
-                
-                  {/* Team Information Box */}
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-1">Team: {teamData.name}</h2>
-                    <p className="text-sm text-gray-500 mb-4">Team Code: {teamData.teamCode || 'N/A'}</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <p className="text-lg font-semibold text-blue-600">{teamData.memberCount}</p>
-                          <p className="text-gray-600">Members</p>
-                      </div>
-                      <div>
-                          <p className="text-lg font-semibold text-blue-600">{teamData.totalScore}</p>
-                          <p className="text-gray-600">Total Points</p>
-                      </div>
-                      <div>
-                          <p className="text-lg font-semibold text-green-600">${teamData.totalDonations?.toFixed(2) || '0.00'}</p>
-                          <p className="text-gray-600">Donations Raised</p>
-                      </div>
-                      <div>
-                          <p className="text-lg font-semibold text-yellow-600">{teamData.donationCount || 0}</p>
-                          <p className="text-gray-600">Number of Donations</p>
-                      </div>
+        <div className="min-h-screen bg-gray-50">
+            {/* Coach Header */}
+            <div className="bg-white shadow">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="py-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900">
+                                    Coach Dashboard
+                                </h1>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    {user?.role === 'STAFF' 
+                                        ? 'Manage students and products across all teams'
+                                        : `Managing Team: ${teamData.name}`
+                                    }
+                                </p>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <div className="text-sm text-gray-500">
+                                    Logged in as: <span className="font-medium text-gray-900">{user?.name}</span>
+                                </div>
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                    {user?.role || 'COACH'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                  </div>
+                </div>
+            </div>
 
-                  {/* Manual Points Award Section */}
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-bold text-gray-800">Award Points</h3>
-                      <button
-                        onClick={() => setShowPointsForm(!showPointsForm)}
-                        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors"
-                      >
-                        {showPointsForm ? 'Cancel' : '+ Award Points'}
-                      </button>
+            {/* Navigation Tabs */}
+            <div className="bg-white border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <nav className="-mb-px flex space-x-8">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                                    activeTab === tab.id
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                <span className="mr-2">{tab.icon}</span>
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {activeTab === 'dashboard' && (
+                    <TeamOverview 
+                        teamData={teamData}
+                        teamMembers={teamMembers}
+                        announcements={announcements.slice(0, 3)}
+                        pendingSubmissions={pendingSubmissions.slice(0, 3)}
+                        allPendingSubmissions={pendingSubmissions}
+                        approvedSubmissions={approvedSubmissions.slice(0, 3)}
+                        allApprovedSubmissions={approvedSubmissions}
+                        recentPoints={pointsHistory.slice(0, 3)}
+                        showAllSubmissions={showAllSubmissions}
+                        setShowAllSubmissions={setShowAllSubmissions}
+                        showAllApprovedSubmissions={showAllApprovedSubmissions}
+                        setShowAllApprovedSubmissions={setShowAllApprovedSubmissions}
+                        handleApproveSubmission={handleApproveSubmission}
+                        handleRejectSubmission={handleRejectSubmission}
+                        handleUnapproveSubmission={handleUnapproveSubmission}
+                        handleDeleteSubmission={handleDeleteSubmission}
+                    />
+                )}
+                {activeTab === 'points' && (
+                    <PointsManagement 
+                        teamMembers={teamMembers}
+                        allStudents={allStudents}
+                        pointsHistory={pointsHistory}
+                        pointsForm={pointsForm}
+                        setPointsForm={setPointsForm}
+                        showPointsForm={showPointsForm}
+                        setShowPointsForm={setShowPointsForm}
+                        handleAwardPoints={handleAwardPoints}
+                        handleDeletePoints={handleDeletePoints}
+                    />
+                )}
+                {activeTab === 'announcements' && (
+                    <AnnouncementsTab 
+                        announcements={announcements}
+                        newAnnouncement={newAnnouncement}
+                        setNewAnnouncement={setNewAnnouncement}
+                        showAnnouncementForm={showAnnouncementForm}
+                        setShowAnnouncementForm={setShowAnnouncementForm}
+                        handleCreateAnnouncement={handleCreateAnnouncement}
+                        handleDeleteAnnouncement={handleDeleteAnnouncement}
+                    />
+                )}
+                {activeTab === 'sell' && (
+                    <SellProducts />
+                )}
+                {activeTab === 'submissions' && (
+                    <SubmissionsTab 
+                        pendingSubmissions={pendingSubmissions}
+                        approvedSubmissions={approvedSubmissions}
+                        handleApproveSubmission={handleApproveSubmission}
+                        handleRejectSubmission={handleRejectSubmission}
+                        handleUnapproveSubmission={handleUnapproveSubmission}
+                        handleDeleteSubmission={handleDeleteSubmission}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Tab Components
+const TeamOverview = ({ 
+    teamData, 
+    teamMembers, 
+    announcements, 
+    pendingSubmissions, 
+    allPendingSubmissions,
+    approvedSubmissions,
+    allApprovedSubmissions,
+    recentPoints, 
+    showAllSubmissions, 
+    setShowAllSubmissions,
+    showAllApprovedSubmissions,
+    setShowAllApprovedSubmissions,
+    handleApproveSubmission,
+    handleRejectSubmission,
+    handleUnapproveSubmission,
+    handleDeleteSubmission
+}) => (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Team Stats */}
+        <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Team Statistics</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-blue-600">{teamData.memberCount}</p>
+                        <p className="text-gray-600">Members</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-green-600">{teamData.totalScore}</p>
+                        <p className="text-gray-600">Total Points</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-purple-600">${teamData.stats?.totalDonations?.toFixed(2) || '0.00'}</p>
+                        <p className="text-gray-600">Donations</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-orange-600">{pendingSubmissions.length}</p>
+                        <p className="text-gray-600">Pending</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Recent Points Awarded</h3>
+                {recentPoints.length > 0 ? (
+                    <div className="space-y-3">
+                        {recentPoints.map(entry => (
+                            <div key={entry.id} className="flex justify-between items-center p-3 bg-green-50 rounded">
+                                <div>
+                                    <p className="font-medium">{entry.user?.name}</p>
+                                    <p className="text-sm text-gray-600">{entry.activityDescription}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-green-600">+{entry.points} pts</p>
+                                    <p className="text-xs text-gray-500">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No recent points awarded.</p>
+                )}
+            </div>
+        </div>
+
+        {/* Quick Actions Sidebar */}
+        <div className="space-y-6">
+            {/* Team Members */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Team Members ({teamMembers.length})</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {teamMembers.map(member => (
+                        <div key={member.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-sm font-medium text-blue-600">
+                                    {member.name?.charAt(0)?.toUpperCase()}
+                                </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
+                                <p className="text-xs text-gray-500">{member.role}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Recent Announcements */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Recent Announcements</h3>
+                {announcements.length > 0 ? (
+                    <div className="space-y-3">
+                        {announcements.map(announcement => (
+                            <div key={announcement.id} className="p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                                <h4 className="font-medium text-blue-800">{announcement.title}</h4>
+                                <p className="text-sm text-blue-700 mt-1">{announcement.content.substring(0, 100)}...</p>
+                                <p className="text-xs text-blue-600 mt-2">
+                                    {new Date(announcement.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No announcements yet.</p>
+                )}
+            </div>
+
+            {/* Pending Submissions */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Pending Submissions ({allPendingSubmissions.length})</h3>
+                    {allPendingSubmissions.length > 3 && (
+                        <button
+                            onClick={() => setShowAllSubmissions(true)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            See All
+                        </button>
+                    )}
+                </div>
+                {pendingSubmissions.length > 0 ? (
+                    <div className="space-y-3">
+                        {pendingSubmissions.map(submission => (
+                            <div key={submission.id} className="p-3 bg-orange-50 rounded border-l-4 border-orange-400">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <h4 className="font-medium text-orange-800">{submission.activity.title}</h4>
+                                        <p className="text-sm text-orange-700 mt-1">
+                                            by {submission.user.name} • {submission.activity.points} pts
+                                        </p>
+                                        <p className="text-xs text-orange-600 mt-1">
+                                            {new Date(submission.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
+                                        PENDING
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No pending submissions.</p>
+                )}
+            </div>
+
+            {/* Approved Submissions History */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Approved History ({allApprovedSubmissions.length})</h3>
+                    {allApprovedSubmissions.length > 3 && (
+                        <button
+                            onClick={() => setShowAllApprovedSubmissions(true)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            See All
+                        </button>
+                    )}
+                </div>
+                {approvedSubmissions.length > 0 ? (
+                    <div className="space-y-3">
+                        {approvedSubmissions.map(submission => (
+                            <div key={submission.id} className="p-3 bg-green-50 rounded border-l-4 border-green-400">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <h4 className="font-medium text-green-800">{submission.activity.title}</h4>
+                                        <p className="text-sm text-green-700 mt-1">
+                                            by {submission.user.name} • {submission.activity.points} pts
+                                        </p>
+                                        <p className="text-xs text-green-600 mt-1">
+                                            Approved: {new Date(submission.updatedAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                                        APPROVED
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No approved submissions yet.</p>
+                )}
+            </div>
+        </div>
+
+        {/* See All Submissions Modal */}
+        {showAllSubmissions && (
+            <div 
+                className="fixed inset-0 flex items-center justify-center p-4 z-50 transition-all duration-300 ease-in-out"
+                onClick={() => setShowAllSubmissions(false)}
+            >
+                <div 
+                    className="bg-white rounded-xl shadow-2xl border-2 border-gray-200 max-w-4xl w-full max-h-[85vh] overflow-hidden transform transition-all duration-300 ease-out scale-100"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    }}
+                >
+                    {/* Header with gradient background */}
+                    <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-6">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-xl font-bold">📋 All Pending Submissions</h2>
+                                <p className="text-orange-100 text-sm mt-1">{allPendingSubmissions.length} submissions awaiting review</p>
+                            </div>
+                            <button
+                                onClick={() => setShowAllSubmissions(false)}
+                                className="text-white hover:text-gray-200 transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     
-                    {showPointsForm && (
-                      <div className="space-y-4">
-                        {/* Student Selection */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {/* Content */}
+                    <div className="p-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+                        {allPendingSubmissions.length > 0 ? (
+                            <div className="space-y-4">
+                                {allPendingSubmissions.map(submission => (
+                                    <SubmissionCard 
+                                        key={submission.id}
+                                        submission={submission}
+                                        onApprove={(submissionId, points) => {
+                                            handleApproveSubmission(submissionId, points);
+                                            // Close modal if no more submissions
+                                            if (allPendingSubmissions.length === 1) {
+                                                setShowAllSubmissions(false);
+                                            }
+                                        }}
+                                        onReject={(submissionId, reason) => {
+                                            handleRejectSubmission(submissionId, reason);
+                                            // Close modal if no more submissions
+                                            if (allPendingSubmissions.length === 1) {
+                                                setShowAllSubmissions(false);
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-gray-500">
+                                <p className="text-lg">No pending submissions</p>
+                                <p className="text-sm">All submissions have been reviewed.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* See All Approved Submissions Modal */}
+        {showAllApprovedSubmissions && (
+            <div 
+                className="fixed inset-0 flex items-center justify-center p-4 z-50 transition-all duration-300 ease-in-out"
+                onClick={() => setShowAllApprovedSubmissions(false)}
+            >
+                <div 
+                    className="bg-white rounded-xl shadow-2xl border-2 border-gray-200 max-w-4xl w-full max-h-[85vh] overflow-hidden transform transition-all duration-300 ease-out scale-100"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    }}
+                >
+                    {/* Header with gradient background */}
+                    <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-xl font-bold">✅ Approved Submissions History</h2>
+                                <p className="text-green-100 text-sm mt-1">{allApprovedSubmissions.length} approved submissions</p>
+                            </div>
+                            <button
+                                onClick={() => setShowAllApprovedSubmissions(false)}
+                                className="text-white hover:text-gray-200 transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+                        {allApprovedSubmissions.length > 0 ? (
+                            <div className="space-y-4">
+                                {allApprovedSubmissions.map(submission => (
+                                    <ApprovedSubmissionCard 
+                                        key={submission.id}
+                                        submission={submission}
+                                        onUnapprove={handleUnapproveSubmission}
+                                        onDelete={handleDeleteSubmission}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-gray-500">
+                                <p className="text-lg">No approved submissions</p>
+                                <p className="text-sm">No submissions have been approved yet.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+);
+
+const PointsManagement = ({ 
+    teamMembers, allStudents, pointsHistory, pointsForm, setPointsForm, 
+    showPointsForm, setShowPointsForm, handleAwardPoints, handleDeletePoints 
+}) => (
+    <div className="space-y-6">
+        {/* Award Points Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Award Manual Points</h2>
+                <button
+                    onClick={() => setShowPointsForm(!showPointsForm)}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                >
+                    {showPointsForm ? 'Cancel' : '+ Award Points'}
+                </button>
+            </div>
+            
+            {showPointsForm && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Select Student *
-                          </label>
-                          <select
+                        </label>
+                        <select
                             value={pointsForm.userId}
                             onChange={(e) => setPointsForm({...pointsForm, userId: e.target.value})}
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-                          >
+                        >
                             <option value="">Choose a student...</option>
-                            {teamMembers.filter(member => member.role === 'STUDENT').map(member => (
-                              <option key={member.id} value={member.id}>
-                                {member.name}
-                              </option>
+                            {console.log('🔍 All students for dropdown:', allStudents)}
+                            {allStudents.map(student => (
+                                <option key={student.id} value={student.id}>
+                                    {student.name} {student.team ? `(${student.team.name})` : '(No Team)'}
+                                </option>
                             ))}
-                          </select>
-                        </div>
+                        </select>
+                    </div>
 
-                        {/* Activity Description */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Activity Description *
-                          </label>
-                          <input
+                        </label>
+                        <input
                             type="text"
                             value={pointsForm.activityDescription}
                             onChange={(e) => setPointsForm({...pointsForm, activityDescription: e.target.value})}
                             placeholder="e.g., Helped with fundraising event"
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
+                        />
+                    </div>
 
-                        {/* Points */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                             Points to Award *
-                          </label>
-                          <input
-                            type="number"
-                            value={pointsForm.points}
-                            onChange={(e) => setPointsForm({...pointsForm, points: e.target.value})}
-                            placeholder="Enter points (e.g., 25)"
-                            min="1"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-
-                        <button
-                          onClick={handleAwardPoints}
-                          className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium"
-                        >
-                          Award Points
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Recent Points History */}
-                    {pointsHistory.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Points Awarded</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {pointsHistory.slice(0, 3).map(entry => (
-                            <div key={entry.id} className="text-xs bg-green-50 p-2 rounded">
-                              <div className="font-medium">{entry.user.name} - {entry.points} pts</div>
-                              <div className="text-gray-600">{entry.activityDescription}</div>
-                              <div className="text-gray-500">{new Date(entry.createdAt).toLocaleDateString()}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Activity Submissions Review Section */}
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-2xl font-bold mb-4 text-gray-800">
-                        📋 Activity Submissions ({pendingSubmissions.length})
-                    </h2>
-                    
-                    {pendingSubmissions.length > 0 ? (
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {pendingSubmissions.map(submission => (
-                                <SubmissionCard 
-                                    key={submission.id}
-                                    submission={submission}
-                                    onApprove={handleApproveSubmission}
-                                    onReject={handleRejectSubmission}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <p>No pending submissions</p>
-                        </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Column: Announcements */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white p-6 rounded-lg shadow-md sticky top-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-gray-800">Announcements</h2>
+                        </label>
+                        <div className="flex space-x-2">
+                            <input
+                                type="number"
+                                value={pointsForm.points}
+                                onChange={(e) => setPointsForm({...pointsForm, points: e.target.value})}
+                                placeholder="Points"
+                                min="1"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
                             <button
-                                onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
-                                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors text-sm"
+                                onClick={handleAwardPoints}
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors font-medium"
                             >
-                                {showAnnouncementForm ? 'Cancel' : '+ Add'}
+                                Award
                             </button>
-                        </div>
-
-                        {/* Announcement Form */}
-                        {showAnnouncementForm && (
-                            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                                <div className="space-y-3">
-                                    <input
-                                        type="text"
-                                        placeholder="Announcement title..."
-                                        value={newAnnouncement.title}
-                                        onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <textarea
-                                        placeholder="Announcement content..."
-                                        value={newAnnouncement.content}
-                                        onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})}
-                                        rows="3"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <button
-                                        onClick={handleCreateAnnouncement}
-                                        className="w-full bg-green-600 text-white py-2 rounded text-sm hover:bg-green-700"
-                                    >
-                                        Post Announcement
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Announcements List */}
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {announcements.length > 0 ? announcements.map(announcement => (
-                                <div key={announcement.id} className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold text-blue-800">{announcement.title}</h3>
-                                            <p className="text-sm text-blue-700 mt-1">{announcement.content}</p>
-                                            <p className="text-xs text-blue-600 mt-2">
-                                                By {announcement.createdBy?.name || 'Coach'} • {new Date(announcement.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleDeleteAnnouncement(announcement.id)}
-                                            className="text-red-500 hover:text-red-700 text-sm ml-2"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="p-4 bg-gray-100 rounded-lg">
-                                    <p className="text-sm text-gray-600">No announcements yet.</p>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
-
-            </div>
-          </main>
+            )}
         </div>
-      );
+
+        {/* Points History */}
+        <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-6">Points History</h2>
+            {pointsHistory.length > 0 ? (
+                <div className="space-y-4">
+                    {pointsHistory.map(entry => (
+                        <div key={entry.id} className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
+                            <div className="flex-1">
+                                <p className="font-medium text-gray-900">{entry.user?.name}</p>
+                                <p className="text-sm text-gray-600">{entry.activityDescription}</p>
+                                <p className="text-xs text-gray-500">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <p className="text-lg font-bold text-green-600">+{entry.points} pts</p>
+                                </div>
+                                <button
+                                    onClick={() => handleDeletePoints(entry.id)}
+                                    className="text-red-600 hover:text-red-800 text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+                                    title="Delete this points award"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-gray-500">No points awarded yet.</p>
+            )}
+        </div>
+    </div>
+);
+
+const AnnouncementsTab = ({ 
+    announcements, newAnnouncement, setNewAnnouncement, 
+    showAnnouncementForm, setShowAnnouncementForm, 
+    handleCreateAnnouncement, handleDeleteAnnouncement 
+}) => (
+    <div className="space-y-6">
+        {/* Create Announcement */}
+        <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Team Announcements</h2>
+                <button
+                    onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                >
+                    {showAnnouncementForm ? 'Cancel' : '+ New Announcement'}
+                </button>
+            </div>
+            
+            {showAnnouncementForm && (
+                <div className="space-y-4">
+                    <input
+                        type="text"
+                        placeholder="Announcement title..."
+                        value={newAnnouncement.title}
+                        onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <textarea
+                        placeholder="Announcement content..."
+                        value={newAnnouncement.content}
+                        onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})}
+                        rows="4"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                        onClick={handleCreateAnnouncement}
+                        className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors"
+                    >
+                        Post Announcement
+                    </button>
+                </div>
+            )}
+        </div>
+
+        {/* Announcements List */}
+        <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">All Announcements</h3>
+            {announcements.length > 0 ? (
+                <div className="space-y-4">
+                    {announcements.map(announcement => (
+                        <div key={announcement.id} className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-blue-800">{announcement.title}</h4>
+                                    <p className="text-blue-700 mt-2">{announcement.content}</p>
+                                    <p className="text-xs text-blue-600 mt-3">
+                                        By {announcement.createdBy?.name || 'Coach'} • {new Date(announcement.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                    className="text-red-500 hover:text-red-700 ml-4 p-1"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-gray-500">No announcements yet.</p>
+            )}
+        </div>
+    </div>
+);
+
+const SubmissionsTab = ({ 
+    pendingSubmissions, 
+    approvedSubmissions, 
+    handleApproveSubmission, 
+    handleRejectSubmission, 
+    handleUnapproveSubmission, 
+    handleDeleteSubmission 
+}) => {
+    const [showAllPending, setShowAllPending] = useState(false);
+    const [showAllApproved, setShowAllApproved] = useState(false);
+
+    // Show first 5 by default
+    const displayedPending = showAllPending ? pendingSubmissions : pendingSubmissions.slice(0, 5);
+    const displayedApproved = showAllApproved ? approvedSubmissions : approvedSubmissions.slice(0, 5);
+
+    return (
+        <div className="space-y-6">
+            {/* Pending Submissions Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold">Pending Submissions ({pendingSubmissions.length})</h2>
+                    {pendingSubmissions.length > 5 && (
+                        <button
+                            onClick={() => setShowAllPending(!showAllPending)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            {showAllPending ? 'Show Less' : `See All (${pendingSubmissions.length})`}
+                        </button>
+                    )}
+                </div>
+                
+                {displayedPending.length > 0 ? (
+                    <div className="space-y-6">
+                        {displayedPending.map(submission => (
+                            <SubmissionCard 
+                                key={submission.id}
+                                submission={submission}
+                                onApprove={handleApproveSubmission}
+                                onReject={handleRejectSubmission}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-gray-500">
+                        <p className="text-lg">No pending submissions</p>
+                        <p className="text-sm">All submissions have been reviewed.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Approved Submissions History Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold">Approved Submissions History ({approvedSubmissions.length})</h2>
+                    {approvedSubmissions.length > 5 && (
+                        <button
+                            onClick={() => setShowAllApproved(!showAllApproved)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            {showAllApproved ? 'Show Less' : `See All (${approvedSubmissions.length})`}
+                        </button>
+                    )}
+                </div>
+                
+                {displayedApproved.length > 0 ? (
+                    <div className="space-y-6">
+                        {displayedApproved.map(submission => (
+                            <ApprovedSubmissionCard 
+                                key={submission.id}
+                                submission={submission}
+                                onUnapprove={handleUnapproveSubmission}
+                                onDelete={handleDeleteSubmission}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-gray-500">
+                        <p className="text-lg">No approved submissions</p>
+                        <p className="text-sm">No submissions have been approved yet.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 // Add the SubmissionCard component
@@ -643,10 +1220,6 @@ const SubmissionCard = ({ submission, onApprove, onReject }) => {
     const [showDetails, setShowDetails] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectForm, setShowRejectForm] = useState(false);
-
-    console.log('Submission data:', submission.submissionData);
-    console.log('Activity allowPhotoUpload:', submission.activity.allowPhotoUpload);
-
     // Add this helper variable to determine if it's a photo submission
     const isPhotoSubmission = submission.submissionData && 
                               (submission.submissionData.photo || submission.submissionData.photoUrl);
@@ -787,6 +1360,116 @@ const SubmissionCard = ({ submission, onApprove, onReject }) => {
                     </button>
                 </div>
             )}
+        </div>
+    );
+};
+
+// Approved Submission Card Component
+const ApprovedSubmissionCard = ({ submission, onUnapprove, onDelete }) => {
+    const [showDetails, setShowDetails] = useState(false);
+
+    // Helper variable to determine if it's a photo submission
+    const isPhotoSubmission = submission.submissionData && 
+                              (submission.submissionData.photo || submission.submissionData.photoUrl);
+
+    const handleUnapprove = () => {
+        onUnapprove(submission.id);
+    };
+
+    const handleDelete = () => {
+        onDelete(submission.id);
+    };
+
+    return (
+        <div className="border border-gray-200 rounded-lg p-4 bg-green-50">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                    <h4 className="font-semibold text-lg text-green-800">{submission.activity.title}</h4>
+                    <p className="text-sm text-green-700">
+                        by {submission.user.name} • {submission.activity.points} points awarded
+                    </p>
+                    <p className="text-xs text-green-600">
+                        Approved: {new Date(submission.updatedAt).toLocaleDateString()}
+                    </p>
+                </div>
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                    ✅ APPROVED
+                </span>
+            </div>
+
+            {/* Toggle Details Button */}
+            <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="text-blue-600 text-sm mb-3 hover:underline"
+            >
+                {showDetails ? 'Hide Details' : 'Show Details'}
+            </button>
+
+            {/* Submission Details */}
+            {showDetails && (
+                <div className="mb-4 p-3 bg-white rounded border">
+                    <p className="text-sm mb-2"><strong>Activity:</strong> {submission.activity.description}</p>
+                    
+                    {submission.notes && (
+                        <p className="text-sm mb-2"><strong>Student Notes:</strong> {submission.notes}</p>
+                    )}
+
+                    {submission.reviewNotes && (
+                        <p className="text-sm mb-2"><strong>Review Notes:</strong> {submission.reviewNotes}</p>
+                    )}
+
+                    {/* Photo Submission */}
+                    {isPhotoSubmission && (
+                        <div className="mt-3">
+                            <p className="text-sm mb-2"><strong>Photo Submission:</strong></p>
+                            <div className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100"
+                                onClick={() => window.open(submission.submissionData.photo || submission.submissionData.photoUrl, '_blank')}>
+                                <img 
+                                    src={submission.submissionData.photo || submission.submissionData.photoUrl}
+                                    alt="Submission Photo"
+                                    className="w-full h-auto max-h-64 object-contain transition-transform group-hover:scale-105"
+                                    onError={(e) => {
+                                        console.error("Image failed to load");
+                                        e.target.onerror = null;
+                                        e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='400' height='300' fill='%23eee'/%3E%3Ctext x='200' y='150' font-size='16' text-anchor='middle' alignment-baseline='middle' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+                                        e.target.style.backgroundColor = '#f0f0f0';
+                                    }}
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs py-1 px-2">
+                                    Click to view full size
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Non-Photo Submission Data */}
+                    {!isPhotoSubmission && submission.submissionData && 
+                     Object.keys(submission.submissionData).length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-sm mb-2"><strong>Submission Data:</strong></p>
+                            <pre className="p-2 bg-gray-100 rounded text-xs overflow-x-auto">
+                                {JSON.stringify(submission.submissionData, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+                <button
+                    onClick={handleUnapprove}
+                    className="flex-1 bg-yellow-600 text-white py-2 px-4 rounded text-sm font-semibold hover:bg-yellow-700 transition-colors"
+                >
+                    ↩️ Unapprove (-{submission.activity.points} pts)
+                </button>
+                <button
+                    onClick={handleDelete}
+                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+                >
+                    🗑️ Delete
+                </button>
+            </div>
         </div>
     );
 };

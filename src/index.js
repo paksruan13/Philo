@@ -58,8 +58,9 @@ app.get('/health', async (req, res) => {
 app.use('/api', routes);
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Express & Socket.io server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`📊 Health check: http://localhost:${port}/health`);
+  console.log(`🌐 API endpoint: http://localhost:${port}/api`);
 });
-
 
 //Updated
