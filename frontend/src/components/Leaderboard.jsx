@@ -6,6 +6,8 @@ import { API_ROUTES } from "../services/api";
 const Leaderboard = () => {
     const [teams, setTeams] = useState([]);
     const [teamAnnouncements, setTeamAnnouncements] = useState([]);
+    const [globalAnnouncements, setGlobalAnnouncements] = useState([]);
+    const [statistics, setStatistics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const { socket, connected } = useSocket();
@@ -43,9 +45,42 @@ const Leaderboard = () => {
         }
     };
 
+    const fetchGlobalAnnouncements = async () => {
+        try {
+            const response = await fetch(API_ROUTES.announcements.global);
+            if (response.ok) {
+                const announcements = await response.json();
+                setGlobalAnnouncements(announcements);
+            }
+        } catch (error) {
+            console.error('Error fetching global announcements:', error);
+            setGlobalAnnouncements([]);
+        }
+    };
+
+    const fetchStatistics = async () => {
+        try {
+            const response = await fetch(API_ROUTES.leaderboard.statistics);
+            if (response.ok) {
+                const stats = await response.json();
+                setStatistics(stats);
+            }
+        } catch (error) {
+            console.error('Error fetching statistics:', error);
+            setStatistics({
+                teamCount: 0,
+                totalRaised: 0,
+                donationGoal: 50000,
+                progressPercentage: 0
+            });
+        }
+    };
+
     useEffect(() => {
         fetchLeaderboard();
         fetchTeamAnnouncements();
+        fetchGlobalAnnouncements();
+        fetchStatistics();
     }, [user]);
 
     useEffect(() => {
@@ -58,11 +93,17 @@ const Leaderboard = () => {
             } else {
                 fetchLeaderboard();
             }
+            fetchStatistics(); // Update statistics when leaderboard changes
+        };
+
+        const handleDataUpdate = () => {
+            fetchLeaderboard();
+            fetchStatistics();
         };
 
         socket.on('leaderboard-update', handleLeaderboardUpdate);
-        socket.on('new-donation', fetchLeaderboard);
-        socket.on('photo-approved', fetchLeaderboard);
+        socket.on('new-donation', handleDataUpdate);
+        socket.on('photo-approved', handleDataUpdate);
 
         return () => {
             socket.off('leaderboard-update');
@@ -80,14 +121,18 @@ const Leaderboard = () => {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Hero Section */}
-            <Hero connected={connected} teams={teams} lastUpdated={lastUpdated} />
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+            {/* Hero & Statistics Section */}
+            <HeroWithStatistics statistics={statistics} />
             
             <main className="container mx-auto px-6 py-12 space-y-12">
                 <div className="grid gap-8 lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                        <Announcements />
+                        <Announcements 
+                            user={user}
+                            globalAnnouncements={globalAnnouncements}
+                            teamAnnouncements={teamAnnouncements}
+                        />
                     </div>
                     <div>
                         <LeaderboardSidebar 
@@ -105,136 +150,223 @@ const Leaderboard = () => {
     );
 };
 
-// Hero Component
-const Hero = ({ connected, teams, lastUpdated }) => (
-    <div className="relative overflow-hidden bg-gradient-primary/5 border-b border-border/30">
-        <div className="absolute inset-0 bg-gradient-secondary opacity-30"></div>
-        <div className="container mx-auto px-6 py-16 relative z-10">
-            <div className="text-center space-y-6">
-                <div className="inline-flex items-center space-x-4 bg-card/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-card">
-                    <div className={`w-3 h-3 rounded-full transition-smooth ${connected ? 'bg-success animate-pulse' : 'bg-destructive'}`}></div>
-                    <span className="text-sm font-medium text-foreground">
-                        {connected ? '🔴 Live Updates' : '⚫ Disconnected'}
-                    </span>
-                    <span className="badge-base bg-primary text-primary-foreground">
-                        {teams.length} Teams
-                    </span>
+// Hero with Statistics Component (Merged)
+const HeroWithStatistics = ({ statistics }) => {
+    // Loading state for statistics
+    const isLoading = !statistics;
+    const stats = statistics || { teamCount: 0, totalRaised: 0, donationGoal: 50000, progressPercentage: 0 };
+
+    return (
+        <div className="relative overflow-hidden bg-gradient-to-r from-purple-100/40 via-pink-100/40 to-yellow-100/40">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-transparent to-white/40"></div>
+            <div className="container mx-auto px-6 py-16 relative z-10 space-y-12">
+                {/* Hero Content */}
+                <div className="text-center space-y-6">
+                    <h1 className="text-5xl md:text-6xl font-bold text-gradient-primary">
+                        Welcome to Project Phi
+                    </h1>
+                    
+                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                        Join the movement to make a difference. Track progress, celebrate achievements, and build community.
+                    </p>
                 </div>
-                
-                <h1 className="text-5xl md:text-6xl font-bold text-gradient-primary">
-                    Welcome to Project Phi
-                </h1>
-                
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                    Join the movement to make a difference. Track progress, celebrate achievements, and build community.
-                </p>
-                
-                <div className="text-sm text-muted-foreground">
-                    Last Updated: {lastUpdated.toLocaleTimeString()}
+
+                {/* Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+                    {/* Teams Participating */}
+                    <div className="text-center space-y-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <span className="text-2xl text-white">👥</span>
+                        </div>
+                        <div>
+                            {isLoading ? (
+                                <div className="text-3xl font-bold text-gradient-primary animate-pulse">
+                                    --
+                                </div>
+                            ) : (
+                                <div className="text-3xl font-bold text-gradient-primary">
+                                    {stats.teamCount}
+                                </div>
+                            )}
+                            <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                                Teams Participating
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Donation Goal */}
+                    <div className="text-center space-y-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <span className="text-2xl text-white">🎯</span>
+                        </div>
+                        <div>
+                            {isLoading ? (
+                                <div className="text-3xl font-bold text-gradient-primary animate-pulse">
+                                    $--,---
+                                </div>
+                            ) : (
+                                <div className="text-3xl font-bold text-gradient-primary">
+                                    ${stats.donationGoal.toLocaleString()}
+                                </div>
+                            )}
+                            <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                                Donation Goal
+                            </div>
+                            <div className="w-full bg-secondary/30 rounded-full h-3 mt-3">
+                                <div 
+                                    className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-1000"
+                                    style={{ width: `${isLoading ? 0 : stats.progressPercentage}%` }}
+                                ></div>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-2">
+                                {isLoading ? '--' : stats.progressPercentage.toFixed(1)}% Complete
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Total Raised */}
+                    <div className="text-center space-y-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <span className="text-2xl text-white">💰</span>
+                        </div>
+                        <div>
+                            {isLoading ? (
+                                <div className="text-3xl font-bold text-gradient-primary animate-pulse">
+                                    $--,---
+                                </div>
+                            ) : (
+                                <div className="text-3xl font-bold text-gradient-primary">
+                                    ${stats.totalRaised.toLocaleString()}
+                                </div>
+                            )}
+                            <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                                Total Raised
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // Announcements Component
-const Announcements = () => (
-    <div className="space-y-8">
-        <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-2xl text-primary-foreground">📢</span>
+const Announcements = ({ user, globalAnnouncements, teamAnnouncements }) => {
+    // Combine and sort announcements by date (newest first)
+    const allAnnouncements = [
+        ...(globalAnnouncements || []).map(ann => ({ ...ann, type: 'global' })),
+        ...(teamAnnouncements || []).map(ann => ({ ...ann, type: 'team' }))
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const getAnnouncementIcon = (type) => {
+        switch (type) {
+            case 'global': return '🌍';
+            case 'team': return '👥';
+            default: return '📢';
+        }
+    };
+
+    const getAnnouncementBadge = (type) => {
+        switch (type) {
+            case 'global': return { text: 'Global', class: 'bg-gradient-primary text-primary-foreground' };
+            case 'team': return { text: 'Team', class: 'bg-gradient-accent text-accent-foreground' };
+            default: return { text: 'Info', class: 'bg-secondary text-secondary-foreground' };
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-2xl text-primary-foreground">📢</span>
+                </div>
+                <div>
+                    <h2 className="text-3xl font-bold text-gradient-primary">Latest Updates</h2>
+                    <p className="text-muted-foreground">Stay informed about Project Phi activities and events</p>
+                </div>
             </div>
-            <div>
-                <h2 className="text-3xl font-bold text-gradient-primary">Latest Updates</h2>
-                <p className="text-muted-foreground">Stay informed about Project Phi activities and events</p>
-            </div>
+
+            {allAnnouncements.length === 0 ? (
+                <div className="card-base p-12 text-center space-y-4">
+                    <div className="text-6xl">📭</div>
+                    <h3 className="text-2xl font-bold text-foreground">No Announcements Yet</h3>
+                    <p className="text-muted-foreground">
+                        {user?.team ? 'Check back later for updates from your coaches and administrators.' : 'Join a team to see announcements!'}
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {allAnnouncements.map((announcement, index) => {
+                        const badge = getAnnouncementBadge(announcement.type);
+                        const isFirst = index === 0;
+                        
+                        return (
+                            <div 
+                                key={`${announcement.type}-${announcement.id}`}
+                                className={`card-base p-6 hover-lift ${isFirst ? 'border-2 border-primary/20' : ''}`}
+                            >
+                                <div className="flex items-start space-x-4">
+                                    <div className={`
+                                        w-12 h-12 bg-gradient-to-br rounded-full flex items-center justify-center shadow-lg
+                                        ${announcement.type === 'global' 
+                                            ? 'from-blue-400 to-purple-600' 
+                                            : 'from-green-400 to-emerald-600'
+                                        }
+                                    `}>
+                                        <span className="text-xl text-white">
+                                            {getAnnouncementIcon(announcement.type)}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center space-x-3 flex-wrap">
+                                            <h3 className={`font-bold text-foreground ${isFirst ? 'text-2xl' : 'text-xl'}`}>
+                                                {announcement.title}
+                                            </h3>
+                                            <span className={`badge-base ${badge.class}`}>
+                                                {badge.text}
+                                            </span>
+                                            {isFirst && (
+                                                <span className="badge-base bg-gradient-secondary text-secondary-foreground">
+                                                    Latest
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        <p className={`text-muted-foreground leading-relaxed ${isFirst ? 'text-lg' : ''}`}>
+                                            {announcement.content}
+                                        </p>
+                                        
+                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                            <div className="flex items-center space-x-4">
+                                                <span>🕐 {new Date(announcement.createdAt).toLocaleDateString()}</span>
+                                                {announcement.createdBy && (
+                                                    <span>
+                                                        👤 {announcement.createdBy.name}
+                                                        {announcement.createdBy.role && (
+                                                            <span className="ml-1 text-xs">
+                                                                ({announcement.createdBy.role})
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {announcement.type === 'team' && user?.team && (
+                                                <span className="text-xs bg-secondary/50 px-2 py-1 rounded">
+                                                    {user.team.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
-
-        <div className="space-y-6">
-            {/* Featured Announcement */}
-            <div className="card-base border-2 border-primary/20 p-8 hover-lift">
-                <div className="flex items-start space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                        <span className="text-2xl text-white">🎉</span>
-                    </div>
-                    <div className="flex-1 space-y-3">
-                        <div className="flex items-center space-x-3">
-                            <h3 className="text-2xl font-bold text-foreground">Project Phi 2025 Kickoff!</h3>
-                            <span className="badge-base bg-gradient-primary text-primary-foreground">Featured</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed text-lg">
-                            Welcome to the most exciting fundraising competition of the year! Teams from across the region 
-                            are competing to make the biggest impact in their communities. Join us in raising funds, 
-                            completing activities, and building stronger connections with your peers.
-                        </p>
-                        <div className="text-sm text-muted-foreground">
-                            Posted on September 1, 2025
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Regular Announcements */}
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="card-base p-6 hover-lift">
-                    <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-2xl">🏆</span>
-                            <h4 className="text-xl font-semibold text-foreground">Leaderboard Updates</h4>
-                        </div>
-                        <p className="text-muted-foreground">
-                            Team rankings are updated in real-time! Check the leaderboard to see how your team 
-                            is performing against others. Every donation, activity, and photo submission counts!
-                        </p>
-                        <div className="text-sm text-muted-foreground">September 5, 2025</div>
-                    </div>
-                </div>
-
-                <div className="card-base p-6 hover-lift">
-                    <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-2xl">📸</span>
-                            <h4 className="text-xl font-semibold text-foreground">Photo Contest</h4>
-                        </div>
-                        <p className="text-muted-foreground">
-                            Share your team's journey! Upload photos of your fundraising activities and 
-                            community service projects. The most creative submissions earn bonus points!
-                        </p>
-                        <div className="text-sm text-muted-foreground">September 3, 2025</div>
-                    </div>
-                </div>
-
-                <div className="card-base p-6 hover-lift">
-                    <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-2xl">💰</span>
-                            <h4 className="text-xl font-semibold text-foreground">Donation Milestones</h4>
-                        </div>
-                        <p className="text-muted-foreground">
-                            We've reached amazing milestones! Every dollar donated goes directly to supporting 
-                            local community programs and educational initiatives.
-                        </p>
-                        <div className="text-sm text-muted-foreground">September 4, 2025</div>
-                    </div>
-                </div>
-
-                <div className="card-base p-6 hover-lift">
-                    <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-2xl">🎯</span>
-                            <h4 className="text-xl font-semibold text-foreground">Activity Challenges</h4>
-                        </div>
-                        <p className="text-muted-foreground">
-                            New activities are available! Complete challenges to earn points for your team 
-                            and make a meaningful impact in your community.
-                        </p>
-                        <div className="text-sm text-muted-foreground">September 6, 2025</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-);
+    );
+};
 
 // Leaderboard Sidebar Component
 const LeaderboardSidebar = ({ teams, loading, user, teamAnnouncements }) => (
@@ -242,8 +374,8 @@ const LeaderboardSidebar = ({ teams, loading, user, teamAnnouncements }) => (
         {/* Compact Leaderboard */}
         <div className="card-base p-6 space-y-4">
             <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center shadow-lg">
-                    <span className="text-lg text-white">🏆</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-yellow-200 to-orange-300 rounded-full flex items-center justify-center shadow-sm">
+                    <span className="text-lg">🏆</span>
                 </div>
                 <div>
                     <h3 className="text-xl font-bold text-foreground">Top Teams</h3>
@@ -286,8 +418,8 @@ const LeaderboardSidebar = ({ teams, loading, user, teamAnnouncements }) => (
         {user && (user.team?.id || user.teamId) && (
             <div className="card-base p-6 space-y-4">
                 <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
-                        <span className="text-lg text-primary-foreground">📋</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-lg">📋</span>
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-foreground">Your Team</h3>

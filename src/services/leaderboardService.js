@@ -77,7 +77,48 @@ const emitLeaderboardUpdate = async (io) => {
   }
 };
 
+const getStatistics = async () => {
+  try {
+    // Get total donations across all teams
+    const totalDonationsResult = await prisma.donation.aggregate({
+      _sum: {
+        amount: true
+      }
+    });
+
+    // Get donation goal from config
+    const donationGoalConfig = await prisma.appConfig.findUnique({
+      where: { key: 'donationGoal' }
+    });
+
+    // Get team count
+    const teamCount = await prisma.team.count({
+      where: { isActive: true }
+    });
+
+    const totalRaised = totalDonationsResult._sum.amount || 0;
+    const donationGoal = donationGoalConfig ? parseFloat(donationGoalConfig.value) : 50000;
+    const progressPercentage = Math.min((totalRaised / donationGoal) * 100, 100);
+
+    return {
+      teamCount,
+      totalRaised,
+      donationGoal,
+      progressPercentage
+    };
+  } catch (error) {
+    console.error('Error calculating statistics:', error);
+    return {
+      teamCount: 0,
+      totalRaised: 0,
+      donationGoal: 50000,
+      progressPercentage: 0
+    };
+  }
+};
+
 module.exports = {
   calculateLeaderboard,
-  emitLeaderboardUpdate
+  emitLeaderboardUpdate,
+  getStatistics
 };

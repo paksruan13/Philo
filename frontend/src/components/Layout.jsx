@@ -86,175 +86,146 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header with authentication controls */}
-      <header className="bg-white shadow mb-8">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-8">
-            <Link to="/leaderboard" className="text-2xl font-bold text-gray-900 hover:text-blue-600">
-              Project Phi
-            </Link>
-            
-            {/* Navigation */}
-            <nav className="flex space-x-4">
-              <Link
-                to="/leaderboard"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/leaderboard')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+      <header className="bg-card shadow-lg border-b-2 border-secondary/30 mb-2">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            {/* Logo and Navigation */}
+            <div className="flex items-center space-x-8">
+              <Link 
+                to="/leaderboard" 
+                className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-red-500 to-yellow-500 bg-clip-text text-transparent hover:scale-105 transition-transform"
               >
-                Leaderboard
+                Project Phi
               </Link>
-
-              <Link
-                to="/store"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/store')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Store
-              </Link>
-
-              {/* Coach Navigation */}
-              {isCoach && (
+              
+              {/* Navigation */}
+              <nav className="hidden md:flex items-center space-x-2">
                 <Link
-                  to="/dashboard/coach"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActivePath('/dashboard/coach')
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'text-gray-600 hover:text-gray-900'
+                  to="/leaderboard"
+                  className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                    isActivePath('/leaderboard')
+                      ? 'bg-gradient-to-r from-purple-600 to-red-500 text-white shadow-lg'
+                      : 'text-foreground hover:bg-secondary/20 hover:text-accent'
                   }`}
                 >
-                  Coach Dashboard
+                  🏆 Leaderboard
                 </Link>
-              )}
 
-              {/* Staff Navigation */}
-              {user && user.role === 'STAFF' && (
                 <Link
-                  to="/dashboard/staff"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActivePath('/dashboard/staff')
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-600 hover:text-gray-900'
+                  to="/store"
+                  className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                    isActivePath('/store')
+                      ? 'bg-gradient-to-r from-red-500 to-yellow-500 text-white shadow-lg'
+                      : 'text-foreground hover:bg-secondary/20 hover:text-accent'
                   }`}
                 >
-                  Staff Dashboard
+                  🛒 Store
                 </Link>
-              )}
 
-              {/* Student Navigation - Only show if student has a team */}
-              {user && user.role === 'STUDENT' && user.team && (
-                <Link
-                  to="/dashboard/student"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActivePath('/dashboard/student')
-                      ? 'bg-green-100 text-green-700'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  My Dashboard
-                </Link>
-              )}
+                {/* Coach Navigation */}
+                {isCoach && (
+                  <Link
+                    to="/dashboard/coach"
+                    className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                      isActivePath('/dashboard/coach')
+                        ? 'bg-gradient-to-r from-yellow-500 to-purple-600 text-white shadow-lg'
+                        : 'text-foreground hover:bg-secondary/20 hover:text-accent'
+                    }`}
+                  >
+                    👨‍🏫 Coach
+                  </Link>
+                )}
 
-              {/* Admin Navigation */}
-              {isAdmin && (
-                <Link
-                  to="/dashboard/admin"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActivePath('/dashboard/admin')
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Admin Panel
-                </Link>
-              )}
-            </nav>
+                {/* Staff Navigation */}
+                {user && user.role === 'STAFF' && (
+                  <Link
+                    to="/dashboard/staff"
+                    className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                      isActivePath('/dashboard/staff')
+                        ? 'bg-gradient-to-r from-purple-600 to-red-500 text-white shadow-lg'
+                        : 'text-foreground hover:bg-secondary/20 hover:text-accent'
+                    }`}
+                  >
+                    ⭐ Staff
+                  </Link>
+                )}
+
+                {/* Student Navigation - Only show if student has a team */}
+                {user && user.role === 'STUDENT' && user.team && (
+                  <Link
+                    to="/dashboard/student"
+                    className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                      isActivePath('/dashboard/student')
+                        ? 'bg-gradient-to-r from-red-500 to-yellow-500 text-white shadow-lg'
+                        : 'text-foreground hover:bg-secondary/20 hover:text-accent'
+                    }`}
+                  >
+                    🎯 Dashboard
+                  </Link>
+                )}
+
+                {/* Admin Navigation */}
+                {isAdmin && (
+                  <Link
+                    to="/dashboard/admin"
+                    className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 min-w-[120px] text-center ${
+                      isActivePath('/dashboard/admin')
+                        ? 'bg-gradient-to-r from-yellow-500 to-purple-600 text-white shadow-lg'
+                        : 'text-foreground hover:bg-secondary/20 hover:text-accent'
+                    }`}
+                  >
+                    ⚙️ Admin
+                  </Link>
+                )}
+              </nav>
           </div>
           
-          {/* Authentication section */}
-          <div className="flex items-center space-x-4">
-            {loading ? (
-              <div className="text-sm text-gray-500">Loading...</div>
-            ) : user ? (
-              <>
-                <div className="text-sm text-gray-600">
-                  Welcome, <span className="font-medium">{user.name}</span>
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    {user.role}
-                  </span>
-                </div>
-                <button
-                  onClick={logout}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm font-medium transition-colors"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleLoginClick}
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={handleRegisterClick}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
-                >
-                  Sign Up
-                </button>
-              </>
-            )}
+            {/* Authentication section */}
+            <div className="flex items-center space-x-4">
+              {loading ? (
+                <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
+              ) : user ? (
+                <>
+                  <div className="text-sm text-foreground hidden lg:block">
+                    Welcome, <span className="font-semibold">{user.name}</span>
+                    <span className="ml-2 px-3 py-1 bg-gradient-to-r from-purple-100 to-yellow-100 text-purple-800 rounded-full text-xs font-medium border border-purple-200">
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-2.5 rounded-lg hover:from-red-600 hover:to-red-700 text-sm font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleLoginClick}
+                    className="text-accent hover:text-primary font-semibold text-sm transition-colors px-4 py-2.5 rounded-lg hover:bg-secondary/20"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={handleRegisterClick}
+                    className="bg-gradient-to-r from-purple-600 to-red-500 text-white px-6 py-2.5 rounded-lg hover:from-purple-700 hover:to-red-600 text-sm font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Role-specific notifications for authenticated users on leaderboard */}
-      {user && location.pathname === '/leaderboard' && (
+      {/* Individual student notice for users without a team */}
+      {user && user.role === 'STUDENT' && !user.team && location.pathname === '/leaderboard' && (
         <div className="max-w-7xl mx-auto px-4 mb-6">
-          {isCoach && (
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-4">
-              <p className="text-yellow-700">
-                🏆 <strong>Coach Dashboard:</strong> Manage your teams and approve activities from your{' '}
-                <Link to="/dashboard/coach" className="underline hover:text-yellow-800">
-                  Coach Dashboard
-                </Link>
-              </p>
-            </div>
-          )}
-          
-          {isAdmin && (
-            <div className="bg-purple-100 border-l-4 border-purple-500 p-4 mb-4">
-              <p className="text-purple-700">
-                ⚙️ <strong>Admin Panel:</strong> Manage users and teams from your{' '}
-                <Link to="/dashboard/admin" className="underline hover:text-purple-800">
-                  Admin Panel
-                </Link>
-              </p>
-            </div>
-          )}
-
-          {user.role === 'STUDENT' && user.team && (
-            <div className="bg-green-100 border-l-4 border-green-500 p-4 mb-4">
-              <p className="text-green-700">
-                🎯 <strong>Member Portal:</strong> Submit photos, track donations, and compete with your team from your{' '}
-                <Link to="/dashboard/student" className="underline hover:text-green-800">
-                  Dashboard
-                </Link>
-              </p>
-            </div>
-          )}
-
-          {user.role === 'STUDENT' && !user.team && (
-            <IndividualStudentNotice />
-          )}
+          <IndividualStudentNotice />
         </div>
       )}
 
