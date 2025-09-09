@@ -74,153 +74,314 @@ const Donations = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-gradient-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading team store...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 md:px-16 lg:px-32 space-y-12">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Team Store</h1>
-        <p className="text-lg text-gray-600">Browse our available products and tickets. Contact your coach to make a purchase!</p>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-purple-100/60 via-pink-100/60 to-yellow-100/60 border-b border-purple-200/30">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-transparent to-white/50"></div>
+        <div className="container mx-auto px-6 py-16 relative z-10">
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center space-x-3 bg-card/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-card">
+              <span className="text-2xl">🛒</span>
+              <span className="font-medium text-foreground">Project Phi Store</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold text-gradient-primary">
+              Team Store
+            </h1>
+            
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Support your team and earn points! Browse our exclusive merchandise and event tickets. 
+              Every purchase helps fund our mission and strengthens our community.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      {/* Tickets Section */}
-      {tickets.length > 0 && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">🎫 Event Tickets</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tickets.map(ticket => (
-              <div key={ticket.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-                <h3 className="text-xl font-semibold mb-2">{ticket.name}</h3>
-                <div className="space-y-2 mb-4">
-                  <p className="text-lg font-medium text-green-600">${ticket.price}</p>
-                  <p className="text-sm text-purple-600">{ticket.points} points earned</p>
-                  <p className="text-sm text-gray-600">
-                    Available: {ticket.inventory?.find(inv => inv.size === 'ONESIZE')?.quantity || 0}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowTicketPurchase(ticket)}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
-                  disabled={!ticket.inventory?.find(inv => inv.size === 'ONESIZE')?.quantity}
-                >
-                  {ticket.inventory?.find(inv => inv.size === 'ONESIZE')?.quantity ? 'Buy Online' : 'Sold Out'}
-                </button>
-              </div>
-            ))}
+      <main className="container mx-auto px-6 py-12 space-y-12 max-w-7xl">
+        {error && (
+          <div className="card-base p-4 border-l-4 border-destructive bg-destructive/10">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">⚠️</span>
+              <p className="text-destructive font-medium">{error}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Products Section */}
-      {products.length > 0 && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">👕 Available Products</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map(product => (
-              <div key={product.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-                <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{product.type}</p>
-                <div className="space-y-2 mb-4">
-                  <p className="text-lg font-medium text-green-600">${product.price}</p>
-                  <p className="text-sm text-purple-600">{product.points} points earned</p>
-                  
-                  {/* Size availability */}
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Available Sizes:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.inventory?.map(inv => (
-                        <span
-                          key={inv.size}
-                          className={`px-2 py-1 rounded text-xs ${
-                            inv.quantity > 0 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {inv.size}: {inv.quantity}
-                        </span>
-                      ))}
+        {/* Products Section - Team Merchandise First */}
+        {products.length > 0 && (
+          <div className="space-y-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-xl text-white">👕</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gradient-primary">Team Merchandise</h2>
+                <p className="text-muted-foreground">Show your team spirit with our exclusive gear!</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center place-items-center max-w-7xl mx-auto">
+              {products.map(product => {
+                const hasAvailableSizes = product.inventory?.some(inv => inv.quantity > 0);
+                
+                return (
+                  <div key={product.id} className="card-base p-4 hover-lift group w-full max-w-sm">
+                    <div className="space-y-3">
+                      {/* Product Image */}
+                      <div className="aspect-square bg-gradient-to-br from-secondary/20 to-secondary/10 rounded-lg overflow-hidden">
+                        {product.imageUrl ? (
+                          <img 
+                            src={product.imageUrl} 
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-4xl text-secondary">
+                            👕
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-bold text-foreground group-hover:text-primary transition-smooth line-clamp-2">
+                              {product.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.type}</p>
+                          </div>
+                          <div className={`badge-base text-xs ${hasAvailableSizes ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>
+                            {hasAvailableSizes ? 'Available' : 'Out of Stock'}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-xl font-bold text-gradient-primary">${product.price}</span>
+                          <div className="flex items-center space-x-1 bg-secondary/30 rounded-full px-2 py-1">
+                            <span className="text-xs">⭐</span>
+                            <span className="text-xs font-medium">{product.points}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedProduct(product)}
+                        className="w-full btn-secondary py-2 px-3 text-sm font-medium"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
-                </div>
-                
-                <button
-                  onClick={() => setSelectedProduct(product)}
-                  className="w-full bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 transition-colors"
-                >
-                  View Details
-                </button>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* No products message */}
-      {products.length === 0 && tickets.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No products available</h3>
-          <p className="text-gray-600">Check back later for new products!</p>
-        </div>
-      )}
+        {/* Event Tickets Section - Second */}
+        {tickets.length > 0 && (
+          <div className="space-y-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-xl text-white">🎫</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gradient-primary">Event Tickets</h2>
+                <p className="text-muted-foreground">Special events and fundraising tickets</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center place-items-center max-w-7xl mx-auto">
+              {tickets.map(ticket => {
+                const availableQuantity = ticket.inventory?.find(inv => inv.size === 'ONESIZE')?.quantity || 0;
+                const isAvailable = availableQuantity > 0;
+                
+                return (
+                  <div key={ticket.id} className="card-base p-4 hover-lift group w-full max-w-sm">
+                    <div className="space-y-3">
+                      {/* Ticket Image */}
+                      <div className="aspect-square bg-gradient-to-br from-yellow-100/50 to-orange-100/50 rounded-lg overflow-hidden">
+                        {ticket.imageUrl ? (
+                          <img 
+                            src={ticket.imageUrl} 
+                            alt={ticket.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-4xl text-yellow-600">
+                            🎫
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-bold text-foreground group-hover:text-primary transition-smooth line-clamp-2">
+                              {ticket.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">{availableQuantity} available</p>
+                          </div>
+                          <div className={`badge-base text-xs ${isAvailable ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>
+                            {isAvailable ? 'Available' : 'Sold Out'}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-xl font-bold text-gradient-primary">${ticket.price}</span>
+                          <div className="flex items-center space-x-1 bg-secondary/30 rounded-full px-2 py-1">
+                            <span className="text-xs">⭐</span>
+                            <span className="text-xs font-medium">{ticket.points}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedProduct(ticket)}
+                        className="w-full btn-secondary py-2 px-3 text-sm font-medium"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+
+
+        {/* No products message */}
+        {products.length === 0 && tickets.length === 0 && !loading && (
+          <div className="text-center py-16 space-y-4">
+            <div className="w-20 h-20 bg-gradient-to-br from-secondary/20 to-secondary/30 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-4xl">🛒</span>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-foreground">Store Coming Soon</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                We're preparing amazing products and tickets for you. Check back soon for exclusive team merchandise and event access!
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* Product Details Modal */}
       {selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold">{selectedProduct.name}</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card-base max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-8">
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold text-gradient-primary">{selectedProduct.name}</h2>
+                  <p className="text-muted-foreground uppercase tracking-wide">{selectedProduct.type}</p>
+                </div>
                 <button
                   onClick={() => setSelectedProduct(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="w-10 h-10 bg-secondary/20 hover:bg-secondary/30 rounded-full flex items-center justify-center text-foreground hover:text-primary transition-smooth"
                 >
-                  ×
+                  ✕
                 </button>
               </div>
               
-              <div className="space-y-4">
-                <p className="text-gray-600">Type: {selectedProduct.type}</p>
-                <p className="text-2xl font-bold text-green-600">${selectedProduct.price}</p>
-                <p className="text-lg text-purple-600">{selectedProduct.points} points earned per purchase</p>
-                
-                <div>
-                  <h3 className="font-semibold mb-2">Size Availability:</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedProduct.inventory?.map(inv => (
-                      <div 
-                        key={inv.size}
-                        className={`p-3 rounded text-center ${
-                          inv.quantity > 0 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        <div className="font-semibold">{inv.size}</div>
-                        <div className="text-sm">
-                          {inv.quantity > 0 ? `${inv.quantity} available` : 'Out of Stock'}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Product Image */}
+                <div className="space-y-4">
+                  <div className="aspect-square bg-gradient-to-br from-secondary/20 to-secondary/10 rounded-lg overflow-hidden">
+                    {selectedProduct.imageUrl ? (
+                      <img 
+                        src={selectedProduct.imageUrl} 
+                        alt={selectedProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center space-y-2">
+                          <div className="text-6xl text-secondary">
+                            {selectedProduct.type === 'TICKET' ? '🎫' : '👕'}
+                          </div>
+                          <p className="text-sm text-muted-foreground">No image available</p>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
-                
-                <div className="mt-6 p-4 bg-blue-50 rounded">
-                  <p className="text-blue-800 font-medium">How to Purchase:</p>
-                  <p className="text-blue-700 text-sm mt-1">
-                    Contact your coach to purchase this item. They can process the sale and you'll earn points for your team!
-                  </p>
+
+                {/* Product Details */}
+                <div className="space-y-6">
+                  {/* Price and Points */}
+                  <div className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/10">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-3xl font-bold text-gradient-primary">${selectedProduct.price}</div>
+                        <div className="text-sm text-muted-foreground">Per item</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center space-x-2 bg-secondary/30 rounded-full px-3 py-2">
+                          <span>⭐</span>
+                          <span className="font-bold">{selectedProduct.points} pts</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">earned per purchase</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedProduct.description && (
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground mb-2">Description</h3>
+                      <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>
+                    </div>
+                  )}
+                  
+                  {/* Availability Status */}
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground mb-2">Availability</h3>
+                    <div className="flex items-center space-x-2">
+                      {selectedProduct.inventory?.some(inv => inv.quantity > 0) ? (
+                        <>
+                          <div className="w-3 h-3 bg-success rounded-full"></div>
+                          <span className="text-success font-medium">In Stock</span>
+                          <span className="text-muted-foreground text-sm">
+                            (Multiple sizes available)
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-3 h-3 bg-destructive rounded-full"></div>
+                          <span className="text-destructive font-medium">Out of Stock</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Purchase Instructions */}
+                  <div className="p-4 bg-gradient-to-r from-blue-50/80 to-purple-50/80 rounded-lg border border-blue-200/30">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-sm">👥</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-foreground mb-2">How to Purchase</h4>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                          Contact your team coach to purchase this item. They have access to process sales and will ensure 
+                          you receive your points immediately upon purchase. Ask about availability in your preferred size!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -230,53 +391,77 @@ const Donations = () => {
 
       {/* Ticket Purchase Modal */}
       {showTicketPurchase && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold">Purchase Ticket</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card-base max-w-md w-full shadow-2xl">
+            <div className="p-8">
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold text-gradient-primary">Purchase Ticket</h2>
+                  <div className="w-8 h-1 bg-gradient-primary rounded-full"></div>
+                </div>
                 <button
                   onClick={() => setShowTicketPurchase(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="w-10 h-10 bg-secondary/20 hover:bg-secondary/30 rounded-full flex items-center justify-center text-foreground hover:text-primary transition-smooth"
                 >
-                  ×
+                  ✕
                 </button>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold">{showTicketPurchase.name}</h3>
-                  <p className="text-green-600 font-medium">${showTicketPurchase.price}</p>
+              <div className="space-y-6">
+                {/* Ticket Details */}
+                <div className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/10">
+                  <h3 className="text-xl font-bold text-foreground">{showTicketPurchase.name}</h3>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-3xl font-bold text-gradient-primary">${showTicketPurchase.price}</span>
+                    <div className="flex items-center space-x-2 bg-secondary/30 rounded-full px-3 py-1">
+                      <span className="text-sm">⭐</span>
+                      <span className="text-sm font-medium">{showTicketPurchase.points} pts</span>
+                    </div>
+                  </div>
                 </div>
                 
                 <form onSubmit={(e) => {
                   e.preventDefault();
                   handleTicketPurchase(showTicketPurchase);
-                }}>
-                  <div className="space-y-3">
+                }} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Full Name
+                    </label>
                     <input
                       type="text"
-                      placeholder="Full Name"
+                      placeholder="Enter your full name"
                       value={ticketForm.name}
                       onChange={(e) => setTicketForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-smooth"
                       required
                     />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Email Address
+                    </label>
                     <input
                       type="email"
-                      placeholder="Email Address"
+                      placeholder="Enter your email address"
                       value={ticketForm.email}
                       onChange={(e) => setTicketForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-smooth"
                       required
                     />
-                    <button
-                      type="submit"
-                      className="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition-colors"
-                    >
-                      Purchase Ticket
-                    </button>
                   </div>
+                  
+                  <button
+                    type="submit"
+                    className="w-full btn-primary py-4 text-lg font-medium"
+                  >
+                    Complete Purchase
+                  </button>
+                  
+                  <p className="text-xs text-muted-foreground text-center">
+                    Points will be added to your team immediately after purchase
+                  </p>
                 </form>
               </div>
             </div>

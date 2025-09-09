@@ -219,6 +219,50 @@ const resetTeamPoints = async (req, res) => {
   }
 };
 
+const getConfig = async (req, res) => {
+  try {
+    const { prisma } = require('../config/database');
+    const configs = await prisma.appConfig.findMany();
+    const configObj = {};
+    configs.forEach(config => {
+      configObj[config.key] = config.value;
+    });
+    res.json(configObj);
+  } catch (err) {
+    console.error('Error fetching config:', err);
+    res.status(500).json({ error: 'Failed to fetch configuration' });
+  }
+};
+
+const updateConfig = async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    const { prisma } = require('../config/database');
+    
+    if (!key || value === undefined) {
+      return res.status(400).json({ error: 'Key and value are required' });
+    }
+
+    const config = await prisma.appConfig.upsert({
+      where: { key },
+      update: { 
+        value: value.toString(),
+        updatedBy: req.user.id 
+      },
+      create: { 
+        key,
+        value: value.toString(), 
+        updatedBy: req.user.id 
+      }
+    });
+
+    res.json({ message: 'Configuration updated successfully', config });
+  } catch (err) {
+    console.error('Error updating config:', err);
+    res.status(500).json({ error: 'Failed to update configuration' });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllTeams,
@@ -231,5 +275,7 @@ module.exports = {
   getAllActivities,
   createActivity,
   updateActivity,
-  resetTeamPoints
+  resetTeamPoints,
+  getConfig,
+  updateConfig
 };

@@ -113,6 +113,8 @@ model Product {
   price       Float
   points      Int           @default(10)
   isActive    Boolean       @default(true)
+  imageUrl    String?       // S3 bucket URL for product image
+  description String?       // Optional product description
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   inventory   ProductInventory[]
@@ -179,6 +181,14 @@ model ShirtConfig {
   user             User     @relation(fields: [updatedBy], references: [id])
 }
 
+model AppConfig {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  value        String
+  updatedAt    DateTime @updatedAt
+  updatedBy    String
+}
+
 model Activity {
   id                  String               @id @default(uuid())
   title               String
@@ -222,8 +232,9 @@ model Announcement {
   id          String   @id @default(uuid())
   title       String
   content     String
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id])
+  teamId      String?  // Optional for global announcements
+  team        Team?    @relation(fields: [teamId], references: [id])
+  isGlobal    Boolean  @default(false) // Flag for global announcements
   createdById String
   createdBy   User     @relation("CreatedAnnouncements", fields: [createdById], references: [id])
   isActive    Boolean  @default(true)

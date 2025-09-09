@@ -1,22 +1,24 @@
-/* Modern Charity Design System - CSS Custom Properties */
+/* Modern Charity Design System - Red, Purple, Gold Theme */
 :root {
-  /* Primary Brand Colors */
-  --primary: 263 85% 65%; /* vibrant purple */
+  /* Primary Brand Colors - Red Purple Gold */
+  --primary: 270 85% 65%; /* rich purple */
   --primary-foreground: 0 0% 100%; /* white text */
   
   /* Supporting Colors */
-  --accent: 200 100% 70%; /* bright cyan */
-  --secondary: 210 40% 96%; /* light gray-blue */
-  --background: 210 40% 98%; /* very light blue-gray */
-  --foreground: 222.2 84% 4.9%; /* very dark blue */
+  --accent: 0 85% 60%; /* vibrant red */
+  --accent-foreground: 0 0% 100%; /* white text */
+  --secondary: 45 100% 50%; /* bright gold */
+  --secondary-foreground: 0 0% 10%; /* dark text */
+  --background: 45 20% 98%; /* warm cream background */
+  --foreground: 0 0% 10%; /* very dark text */
   
   /* Status Colors */
-  --gold: 45 100% 60%; /* winner gold */
+  --gold: 45 100% 50%; /* winner gold */
   --silver: 0 0% 65%; /* second place silver */
   --bronze: 30 80% 55%; /* third place bronze */
   --destructive: 0 84% 60%; /* error red */
   --success: 142 76% 36%; /* success green */
-  --warning: 48 96% 53%; /* warning yellow */
+  --warning: 45 96% 53%; /* warning gold */
   
   /* Neutral Colors */
   --muted: 210 40% 90%;
@@ -27,18 +29,22 @@
   --input: 214.3 31.8% 91.4%;
   --ring: 263 85% 65%;
   
-  /* Multi-Color Gradients */
+  /* Multi-Color Gradients - Red Purple Gold */
   --gradient-primary: linear-gradient(135deg, 
-    hsl(263, 85%, 65%) 0%, 
+    hsl(270, 85%, 65%) 0%, 
     hsl(300, 85%, 65%) 50%, 
-    hsl(330, 85%, 65%) 100%);
+    hsl(330, 85%, 60%) 100%);
   --gradient-secondary: linear-gradient(135deg, 
-    hsl(210, 40%, 96%) 0%, 
-    hsl(200, 40%, 98%) 100%);
+    hsl(45, 100%, 50%) 0%, 
+    hsl(50, 100%, 55%) 100%);
   --gradient-accent: linear-gradient(135deg, 
-    hsl(48, 96%, 53%) 0%, 
-    hsl(263, 85%, 65%) 50%, 
-    hsl(200, 100%, 70%) 100%);
+    hsl(0, 85%, 60%) 0%, 
+    hsl(270, 85%, 65%) 50%, 
+    hsl(45, 100%, 50%) 100%);
+  --gradient-royal: linear-gradient(135deg,
+    hsl(270, 85%, 65%) 0%,
+    hsl(0, 85%, 60%) 50%,
+    hsl(45, 100%, 50%) 100%);
   
   /* Effects */
   --shadow-glow: 0 0 40px hsla(263, 85%, 65%, 0.4);
@@ -91,13 +97,26 @@
   }
 }
 
-/* Utility Classes for HSL Colors */
+/* Utility Classes for Red Purple Gold Theme */
 .text-primary { color: hsl(var(--primary)); }
 .text-primary-foreground { color: hsl(var(--primary-foreground)); }
 .text-accent { color: hsl(var(--accent)); }
+.text-accent-foreground { color: hsl(var(--accent-foreground)); }
 .text-secondary { color: hsl(var(--secondary)); }
-.text-muted { color: hsl(var(--muted-foreground)); }
+.text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
 .text-foreground { color: hsl(var(--foreground)); }
+
+.bg-primary { background-color: hsl(var(--primary)); }
+.bg-accent { background-color: hsl(var(--accent)); }
+.bg-secondary { background-color: hsl(var(--secondary)); }
+.bg-background { background-color: hsl(var(--background)); }
+.bg-card { background-color: hsl(var(--card)); }
+
+.border-primary { border-color: hsl(var(--primary)); }
+.border-accent { border-color: hsl(var(--accent)); }
+.border-secondary { border-color: hsl(var(--secondary)); }
+.border-border { border-color: hsl(var(--border)); }
 .text-destructive { color: hsl(var(--destructive)); }
 .text-success { color: hsl(var(--success)); }
 .text-warning { color: hsl(var(--warning)); }
@@ -154,19 +173,31 @@
 /* Animation Classes */
 .hover-scale:hover { transform: scale(1.05); }
 .hover-glow:hover { box-shadow: var(--shadow-glow); }
+.hover-lift {
+  transition: var(--transition-smooth);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(147, 51, 234, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 
 /* Component Base Styles */
 .card-base {
-  background: var(--gradient-secondary);
-  border: 1px solid hsl(var(--border) / 0.5);
-  box-shadow: var(--shadow-card);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.9) 0%, 
+    rgba(255, 252, 248, 0.8) 50%, 
+    rgba(252, 246, 255, 0.9) 100%);
+  border: 1px solid rgba(147, 51, 234, 0.1);
+  box-shadow: 0 4px 20px rgba(147, 51, 234, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
   border-radius: var(--radius-xl);
   transition: var(--transition-smooth);
+  backdrop-filter: blur(10px);
 }
 
 .card-base:hover {
-  box-shadow: var(--shadow-glow);
-  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(147, 51, 234, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  border-color: rgba(147, 51, 234, 0.2);
 }
 
 .btn-primary {

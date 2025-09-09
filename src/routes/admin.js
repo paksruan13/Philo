@@ -33,4 +33,8 @@ router.delete('/inventory/shirts/sizes/:size', authenticationToken, requireRole(
 // Points management
 router.post('/teams/:teamId/reset-points', authenticationToken, requireRole(['ADMIN']), adminController.resetTeamPoints);
 
+// Config management
+router.get('/config', authenticationToken, requireRole(['ADMIN']), adminController.getConfig);
+router.put('/config', authenticationToken, requireRole(['ADMIN']), adminController.updateConfig);
+
 module.exports = router;

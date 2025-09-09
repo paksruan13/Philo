@@ -99,6 +99,7 @@ export const API_ROUTES = {
     activityDetail: (activityId) => `${API_BASE_URL}/admin/activities/${activityId}`,
     sales: `${API_BASE_URL}/admin/sales`,
     stats: `${API_BASE_URL}/admin/stats`,
+    config: `${API_BASE_URL}/admin/config`,
   },
 
   // Coach endpoints
@@ -133,13 +134,17 @@ export const API_ROUTES = {
     teams: `${API_BASE_URL}/leaderboard/teams`,
     students: `${API_BASE_URL}/leaderboard/students`,
     list: `${API_BASE_URL}/leaderboard`,
+    statistics: `${API_BASE_URL}/leaderboard/statistics`,
   },
 
   // Announcements endpoints
   announcements: {
+    global: `${API_BASE_URL}/announcements/global`,
+    createGlobal: `${API_BASE_URL}/announcements/global`,
     forTeam: (teamId) => `${API_BASE_URL}/announcements/teams/${teamId}`,
     create: (teamId) => `${API_BASE_URL}/announcements/teams/${teamId}`,
     delete: (teamId, announcementId) => `${API_BASE_URL}/announcements/teams/${teamId}/${announcementId}`,
+    deleteGlobal: (announcementId) => `${API_BASE_URL}/announcements/global/${announcementId}`,
   },
 };
 
