@@ -32,6 +32,7 @@ model Team {
   id                  String               @id @default(uuid())
   name                String               @unique
   teamCode            String               @unique
+  groupMeLink         String?
   isActive            Boolean              @default(true)
   totalPoints         Int                  @default(0)
   createdAt           DateTime             @default(now())
@@ -200,6 +201,8 @@ model Activity {
   requirements        Json?
   categoryType        ActivityCategoryType  @default(OTHER)
   submissions         ActivitySubmission[]
+  startDate           DateTime?            // Optional start date for the activity
+  endDate             DateTime?            // Optional end date for the activity
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   createdById         String?
