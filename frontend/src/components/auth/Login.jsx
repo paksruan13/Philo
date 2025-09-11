@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import ChangePassword from './ChangePassword';
 
-const Login = ({ onSwitchToRegister, onSuccess, isModal = false }) => {
+const Login = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,9 +28,7 @@ const Login = ({ onSwitchToRegister, onSuccess, isModal = false }) => {
       
       setEmail('');
       setPassword('');
-      if (onSuccess) {
-        onSuccess();
-      }
+      navigate('/dashboard');
     } else {
       setError(result.error || 'Login failed');
       setLoading(false);
@@ -37,139 +37,116 @@ const Login = ({ onSwitchToRegister, onSuccess, isModal = false }) => {
     setLoading(false);
   };
 
-  const formContent = (
-    <form className="space-y-6" onSubmit={handleSubmit}>
-      {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl text-sm transition-smooth">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg">⚠️</span>
-            <span>{error}</span>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      <div className="min-h-screen flex">
+        <div className="w-2/3 flex items-center justify-center p-12 bg-white">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+              <p className="text-gray-600 mt-2">Sign in to your Project Phi account</p>
+            </div>
+            
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <span>⚠️</span>
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/register')}
+                    className="text-purple-600 font-medium hover:text-purple-700"
+                  >
+                    Register here
+                  </button>
+                </p>
+              </div>
+            </form>
           </div>
         </div>
-      )}
-      
-      <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-semibold text-foreground">
-          Email Address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-          placeholder="Enter your email"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <label htmlFor="password" className="block text-sm font-semibold text-foreground">
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-          placeholder="Enter your password"
-        />
-      </div>
-
-      <div className="pt-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary w-full h-12 flex items-center justify-center space-x-2 text-lg font-semibold hover-scale focus-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground"></div>
-              <span>Signing in...</span>
-            </>
-          ) : (
-            <>
-              <span>✨</span>
-              <span>Sign In</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      <div className="text-center pt-4">
-        <p className="text-muted-foreground text-sm">
-          Don't have an account?{' '}
-          <button
-            type="button"
-            onClick={onSwitchToRegister}
-            className="text-primary hover:text-primary/80 font-semibold transition-smooth hover:underline"
-          >
-            Sign up here
-          </button>
-        </p>
-      </div>
-    </form>
-  );
-
-  if (isModal) {
-    return (
-      <>
-        {formContent}
+        
+        <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
+          <div className="text-center text-white w-full">
+            <h2 className="text-4xl font-bold mb-6">Project Phi</h2>
+            <p className="text-xl mb-8 text-white/90">
+              Join the community of teams competing, collaborating, and making a difference together.
+            </p>
+            <div className="space-y-4 text-left">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🏆</span>
+                <span>Compete on the leaderboard</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🛒</span>
+                <span>Shop and support your team</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📸</span>
+                <span>Submit activities and earn points</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {showPasswordChange && (
           <ChangePassword 
             mustChange={true} 
             onClose={() => setShowPasswordChange(false)} 
           />
         )}
-      </>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background Decoration */}
-      <div className="absolute inset-0 bg-gradient-primary opacity-5"></div>
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-secondary opacity-30"></div>
-      
-      <div className="relative z-10 w-full max-w-md">
-        {/* Login Card */}
-        <div className="card-base p-8 space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center shadow-glow">
-              <span className="text-2xl text-primary-foreground">🎓</span>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gradient-primary">
-                Welcome Back
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Sign in to continue your journey with Project Phi
-              </p>
-            </div>
-          </div>
-          
-          {formContent}
-        </div>
-        
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-muted-foreground">
-            By signing in, you agree to our terms and privacy policy
-          </p>
-        </div>
       </div>
-      
-      {showPasswordChange && (
-        <ChangePassword 
-          mustChange={true} 
-          onClose={() => setShowPasswordChange(false)} 
-        />
-      )}
     </div>
   );
 };

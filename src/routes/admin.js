@@ -3,6 +3,10 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const saleController = require('../controllers/saleController');
 const { authenticationToken, requireRole } = require('../middleware/auth');
+const { adminLimiter } = require('../middleware/rateLimiting');
+
+// Apply admin-specific rate limiting
+router.use(adminLimiter);
 
 // User management
 router.get('/users', authenticationToken, requireRole(['ADMIN']), adminController.getAllUsers);

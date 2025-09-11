@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Login from './auth/Login';
-import Register from './auth/Register';
 import JoinTeamForm from './student/JoinTeamForm';
 
 // Component for individual students without a team
@@ -38,46 +36,16 @@ const IndividualStudentNotice = () => {
 };
 
 const Layout = () => {
-  const [showLogin, setShowLogin] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
   const { user, loading, logout, isCoach, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Handle opening login modal
   const handleLoginClick = () => {
-    setShowLogin(true);
-    setShowRegister(false);
+    navigate('/login');
   };
 
   const handleRegisterClick = () => {
-    setShowRegister(true);
-    setShowLogin(false);
-  };
-
-  const handleCloseModals = () => {
-    setShowLogin(false);
-    setShowRegister(false);
-  };
-
-  const handleSwitchToRegister = () => {
-    setShowLogin(false);
-    setShowRegister(true);
-  };
-
-  const handleSwitchToLogin = () => {
-    setShowRegister(false);
-    setShowLogin(true);
-  };
-
-  const handleLoginSuccess = () => {
-    handleCloseModals();
-    navigate('/dashboard');
-  };
-
-  const handleRegisterSuccess = () => {
-    handleCloseModals();
-    navigate('/dashboard');
+    navigate('/register');
   };
 
   // Helper function to check if a path is active
@@ -234,57 +202,7 @@ const Layout = () => {
         <Outlet />
       </main>
 
-      {/* Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex justify-end">
-              <button
-                onClick={handleCloseModals}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="mt-3">
-              <h2 className="text-center text-2xl font-bold text-gray-900 mb-6">
-                Sign in to Project Phi
-              </h2>
-              <Login 
-                onSwitchToRegister={handleSwitchToRegister}
-                onSuccess={handleLoginSuccess}
-                isModal={true}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Register Modal */}
-      {showRegister && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white max-h-screen overflow-y-auto">
-            <div className="flex justify-end">
-              <button
-                onClick={handleCloseModals}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="mt-3">
-              <h2 className="text-center text-2xl font-bold text-gray-900 mb-6">
-                Join Project Phi
-              </h2>
-              <Register 
-                onSwitchToLogin={handleSwitchToLogin}
-                onSuccess={handleRegisterSuccess}
-                isModal={true}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

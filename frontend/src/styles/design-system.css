@@ -82,7 +82,8 @@
   --radius-full: 9999px;
 }
 
-/* Dark Mode Support */
+/* Dark Mode Support - Disabled for consistent navbar colors */
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: 222.2 84% 4.9%;
@@ -96,6 +97,7 @@
     --input: 217.2 32.6% 17.5%;
   }
 }
+*/
 
 /* Utility Classes for Red Purple Gold Theme */
 .text-primary { color: hsl(var(--primary)); }

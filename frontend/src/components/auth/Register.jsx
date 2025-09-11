@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
-const Register = ({ onSwitchToLogin, onSuccess, isModal = false }) => {
+const Register = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [teamCode, setTeamCode] = useState('');
-  const [showTeamCode, setShowTeamCode] = useState(false); // Toggle for team code field
+  const [showTeamCode, setShowTeamCode] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -35,250 +37,202 @@ const Register = ({ onSwitchToLogin, onSuccess, isModal = false }) => {
     let result;
 
     if (showTeamCode && teamCode.trim()) {
-      // Register with team code (uses team registration endpoint)
-      await registerWithTeam(name, email, password, teamCode.trim().toUpperCase());
-      return;
+      // Register with team code
+      result = await registerWithTeam(name, email, password, teamCode.trim().toUpperCase());
     } else {
-      // Regular individual registration (defaults to STUDENT role, no team)
+      // Regular individual registration
       result = await register(name, email, password, 'STUDENT', null);
+    }
 
-      if (result.success) {
-      // Registration successful - modal will close automatically
-        setName('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        setTeamCode('');
-        setShowTeamCode(false);
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        setError(result.error || 'Registration failed');
-      }
-      setLoading(false);
-      }
+    if (result && result.success) {
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setTeamCode('');
+      navigate('/dashboard');
+    } else {
+      setError(result?.error || 'Registration failed');
+    }
+    
+    setLoading(false);
   };
 
   const formContent = (
     <form className="space-y-6" onSubmit={handleSubmit}>
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl text-sm transition-smooth">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           <div className="flex items-center space-x-2">
-            <span className="text-lg">⚠️</span>
+            <span>⚠️</span>
             <span>{error}</span>
           </div>
         </div>
       )}
       
-      <div className="space-y-2">
-        <label htmlFor="name" className="block text-sm font-semibold text-foreground">
-          Full Name
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-          placeholder="Enter your full name"
-        />
-      </div>
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder="Enter your full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
 
-      <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-semibold text-foreground">
-          Email Address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-          placeholder="Enter your email"
-        />
-      </div>
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="password" className="block text-sm font-semibold text-foreground">
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
             Password
           </label>
           <input
             id="password"
             name="password"
             type="password"
+            autoComplete="new-password"
             required
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder="Create a password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-            placeholder="Create password"
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="block text-sm font-semibold text-foreground">
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
             Confirm Password
           </label>
           <input
             id="confirmPassword"
             name="confirmPassword"
             type="password"
+            autoComplete="new-password"
             required
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground"
-            placeholder="Confirm password"
           />
         </div>
-      </div>
 
-      {/* Team Code Toggle */}
-      <div className="bg-secondary/30 border border-border/30 rounded-xl p-4 space-y-3">
-        <label className="flex items-center space-x-3 cursor-pointer">
+        <div className="flex items-center">
           <input
+            id="hasTeamCode"
+            name="hasTeamCode"
             type="checkbox"
+            className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
             checked={showTeamCode}
-            onChange={(e) => {
-              setShowTeamCode(e.target.checked);
-              if (!e.target.checked) {
-                setTeamCode('');
-              }
-            }}
-            className="w-5 h-5 text-primary bg-card border-border rounded focus:ring-primary/20 focus:ring-2 transition-smooth"
+            onChange={(e) => setShowTeamCode(e.target.checked)}
           />
-          <span className="text-sm font-semibold text-foreground flex items-center space-x-2">
-            <span>🏆</span>
-            <span>I have a team code</span>
-          </span>
-        </label>
-        <p className="text-xs text-muted-foreground ml-8">
-          Check this if you have a team code to join an existing team
-        </p>
+          <label htmlFor="hasTeamCode" className="ml-2 block text-sm text-gray-900">
+            I have a team code
+          </label>
+        </div>
 
-        {/* Team Code Input - Only show when checkbox is checked */}
         {showTeamCode && (
-          <div className="mt-3 space-y-2">
-            <label htmlFor="teamCode" className="block text-sm font-semibold text-foreground">
+          <div>
+            <label htmlFor="teamCode" className="block text-sm font-medium text-gray-700 mb-2">
               Team Code
             </label>
             <input
               id="teamCode"
               name="teamCode"
               type="text"
-              required={showTeamCode}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent uppercase"
+              placeholder="Enter your team code"
               value={teamCode}
               onChange={(e) => setTeamCode(e.target.value.toUpperCase())}
-              placeholder="Enter your team code (e.g. ALPH123)"
-              className="w-full px-4 py-3 bg-card border border-border rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-smooth text-foreground placeholder-muted-foreground font-mono"
             />
-            <p className="text-xs text-muted-foreground flex items-center space-x-1">
-              <span>💡</span>
-              <span>Get your team code from your coach or team leader</span>
-            </p>
           </div>
         )}
       </div>
 
-      <div className="pt-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary w-full h-12 flex items-center justify-center space-x-2 text-lg font-semibold hover-scale focus-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground"></div>
-              <span>Creating account...</span>
-            </>
-          ) : (
-            <>
-              <span>{showTeamCode ? '🏆' : '🎯'}</span>
-              <span>{showTeamCode ? 'Join Team & Create Account' : 'Create Account'}</span>
-            </>
-          )}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-red-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors disabled:opacity-50"
+      >
+        {loading ? 'Creating Account...' : 'Create Account'}
+      </button>
 
-      <div className="text-center pt-4">
-        <p className="text-muted-foreground text-sm">
+      <div className="text-center">
+        <p className="text-sm text-gray-600">
           Already have an account?{' '}
           <button
             type="button"
-            onClick={onSwitchToLogin}
-            className="text-primary hover:text-primary/80 font-semibold transition-smooth hover:underline"
+            onClick={() => navigate('/login')}
+            className="text-red-600 font-medium hover:text-red-700"
           >
             Sign in here
           </button>
         </p>
       </div>
-
-      {/* Info Box */}
-      <div className="bg-secondary/30 border border-border/30 rounded-xl p-4 mt-6">
-        <p className="font-semibold text-foreground text-sm mb-2 flex items-center space-x-2">
-          <span>📝</span>
-          <span>Registration Info</span>
-        </p>
-        <ul className="space-y-1 text-xs text-muted-foreground">
-          <li className="flex items-start space-x-2">
-            <span className="text-primary">•</span>
-            <span><strong>Without team code:</strong> Join as individual student</span>
-          </li>
-          <li className="flex items-start space-x-2">
-            <span className="text-primary">•</span>
-            <span><strong>With team code:</strong> Automatically join your team</span>
-          </li>
-          <li className="flex items-start space-x-2">
-            <span className="text-primary">•</span>
-            <span>You can join a team later from your profile</span>
-          </li>
-        </ul>
-      </div>
     </form>
   );
 
-  if (isModal) {
-    return formContent;
-  }
-
+  // Full screen layout with 2/3 + 1/3 split
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background Decoration */}
-      <div className="absolute inset-0 bg-gradient-accent opacity-5"></div>
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-secondary opacity-30"></div>
-      
-      <div className="relative z-10 w-full max-w-lg">
-        {/* Register Card */}
-        <div className="card-base p-8 space-y-6">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center shadow-glow">
-              <span className="text-2xl text-primary-foreground">🚀</span>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gradient-accent">
-                Join Project Phi
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Create your account and start your journey with us
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      <div className="min-h-screen flex">
+      {/* Left Side - Registration Form (2/3) */}
+      <div className="w-2/3 flex items-center justify-center p-12 bg-white">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Join Project Phi</h1>
+            <p className="text-gray-600 mt-2">Create your account and start your journey</p>
           </div>
           
           {formContent}
         </div>
-        
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-muted-foreground">
-            By creating an account, you agree to our terms and privacy policy
+      </div>
+      
+      {/* Right Side - Color Palette (1/3) */}
+      <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
+        <div className="text-center text-white w-full">
+          <h2 className="text-4xl font-bold mb-6">Get Started</h2>
+          <p className="text-xl mb-8 text-white/90">
+            Join thousands of students and teams making an impact together.
           </p>
+          <div className="space-y-4 text-left">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">🎯</span>
+              <span>Set goals and achieve them</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">🤝</span>
+              <span>Connect with your team</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">🏆</span>
+              <span>Track your progress</span>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

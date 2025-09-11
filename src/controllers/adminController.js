@@ -24,8 +24,13 @@ const getAllTeams = async (req, res) => {
 
 const createTeam = async (req, res) => {
   try {
-    const { name, coachId } = req.body;
-    const team = await teamService.createTeamWithCode({ name, coachId: coachId || null });
+    const { name, coachId, groupMeLink } = req.body;
+    console.log('🔍 Creating team with data:', { name, coachId, groupMeLink });
+    const team = await teamService.createTeamWithCode({ 
+      name, 
+      coachId: coachId || null,
+      groupMeLink: groupMeLink || null
+    });
 
     res.status(201).json({
       message: 'Team created successfully',
@@ -40,12 +45,14 @@ const createTeam = async (req, res) => {
 const updateTeam = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, coachId, isActive } = req.body;
+    const { name, coachId, isActive, groupMeLink } = req.body;
+    console.log('🔍 Updating team with data:', { id, name, coachId, isActive, groupMeLink });
     
     const team = await teamService.updateTeam(id, {
       name,
       coachId: coachId || null,
-      isActive
+      isActive,
+      groupMeLink: groupMeLink || null
     });
 
     res.json({
@@ -130,17 +137,34 @@ const getAllActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
   try {
-    const { title, description, points, type, categoryId, requirements, isPublished, allowOnlinePurchase, allowPhotoUpload } = req.body;
+    const { 
+      title, 
+      description, 
+      points, 
+      type, 
+      categoryId, 
+      categoryType, 
+      requirements, 
+      isPublished, 
+      allowOnlinePurchase, 
+      allowPhotoUpload,
+      startDate,
+      endDate 
+    } = req.body;
+    
     const activity = await activityService.createActivity({
       title,
       description,
       points,
       type,
       categoryId,
+      categoryType,
       requirements: requirements || {},
       isPublished: isPublished || false,
       allowOnlinePurchase: allowOnlinePurchase || false,
-      allowPhotoUpload: allowPhotoUpload || false
+      allowPhotoUpload: allowPhotoUpload || false,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null
     }, req.user.id);
 
     res.status(201).json(activity);
@@ -153,7 +177,21 @@ const createActivity = async (req, res) => {
 const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, points, type, categoryId, requirements, isPublished, isActive, allowOnlinePurchase, allowPhotoUpload } = req.body;
+    const { 
+      title, 
+      description, 
+      points, 
+      type, 
+      categoryId, 
+      categoryType, 
+      requirements, 
+      isPublished, 
+      isActive, 
+      allowOnlinePurchase, 
+      allowPhotoUpload,
+      startDate,
+      endDate 
+    } = req.body;
 
     const activity = await activityService.updateActivity(id, {
       title,
@@ -161,11 +199,14 @@ const updateActivity = async (req, res) => {
       points,
       type,
       categoryId,
+      categoryType,
       requirements,
       isPublished,
       isActive,
       allowOnlinePurchase: allowOnlinePurchase || false,
-      allowPhotoUpload: allowPhotoUpload || false
+      allowPhotoUpload: allowPhotoUpload || false,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null
     });
 
     res.json(activity);

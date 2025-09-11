@@ -415,34 +415,44 @@ const ActivitySummary = ({ activities, stats, onActivitySubmit }) => (
                         <span>Available Activities</span>
                     </h4>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {activities.slice(0, 3).map(activity => (
-                            <div key={activity.id} className="bg-secondary/30 rounded-lg p-3 space-y-2">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-foreground truncate">
-                                            {activity.title}
+                        {activities.slice(0, 3).map((activity, index) => {
+                            const colorSchemes = [
+                                'from-blue-400/20 to-cyan-400/20 border-blue-300/30',
+                                'from-green-400/20 to-emerald-400/20 border-green-300/30',
+                                'from-purple-400/20 to-pink-400/20 border-purple-300/30'
+                            ];
+                            const currentScheme = colorSchemes[index % colorSchemes.length];
+                            
+                            return (
+                                <div key={activity.id} className={`bg-gradient-to-r ${currentScheme} border rounded-lg p-3 space-y-2 hover:shadow-md transition-smooth`}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-foreground truncate">
+                                                {activity.title}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground flex items-center space-x-1">
+                                                <span>⭐</span>
+                                                <span>{activity.points} points</span>
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {activity.points} points
-                                        </div>
+                                        <button
+                                            onClick={() => onActivitySubmit(activity.id)}
+                                            className={`px-3 py-1 rounded-full text-xs font-semibold transition-smooth shadow-sm ${
+                                                activity.submissionStatus === 'NOT_SUBMITTED' 
+                                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700' 
+                                                    : activity.submissionStatus === 'PENDING'
+                                                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white'
+                                                    : activity.submissionStatus === 'APPROVED'
+                                                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                                                    : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                                            }`}
+                                        >
+                                            {activity.submissionStatus === 'NOT_SUBMITTED' ? 'Submit' : activity.submissionStatus}
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => onActivitySubmit(activity.id)}
-                                        className={`px-2 py-1 rounded text-xs font-semibold transition-smooth ${
-                                            activity.submissionStatus === 'NOT_SUBMITTED' 
-                                                ? 'bg-primary/20 text-primary hover:bg-primary/30' 
-                                                : activity.submissionStatus === 'PENDING'
-                                                ? 'bg-amber-100 text-amber-700'
-                                                : activity.submissionStatus === 'APPROVED'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-700'
-                                        }`}
-                                    >
-                                        {activity.submissionStatus === 'NOT_SUBMITTED' ? 'Submit' : activity.submissionStatus}
-                                    </button>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             ) : (
@@ -512,7 +522,7 @@ const TeamMembersCard = ({ members }) => {
                                 {member.contributions && (
                                     <div className="text-right space-y-1">
                                         <div className="badge-base bg-primary/20 text-primary text-xs">
-                                            {member.contributions.points || 0} pts
+                                            {(member.contributions.totalPoints || member.contributions.activityPoints || member.contributions.points || 0)} pts
                                         </div>
                                         <div className="text-xs text-muted-foreground">
                                             ${((member.contributions.donations || 0) + 
