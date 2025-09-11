@@ -49,6 +49,8 @@ const TeamManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching coaches:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,6 +83,29 @@ const TeamManagement = () => {
       console.error('Error:', error);
     }
   };
+
+  const assignCoach = async (teamId, coachId) => {
+    try {
+    const response = await fetch(API_ROUTES.teams.assignCoach(teamId), {  
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ coachId })
+    });
+    
+    if (response.ok) {
+      fetchTeams();
+    } else {
+      const errorData = await response.json();
+      setError(errorData.error || 'Failed to assign coach');
+    }
+  } catch (error) {
+    setError('Error assigning coach');
+    console.error('Error:', error);
+  }
+};
 
   const handleEditTeam = (team) => {
     setEditingTeam({
@@ -120,6 +145,30 @@ const TeamManagement = () => {
     }
   };
 
+  const handleResetPoints = async (team) => {
+    if (window.confirm(`Are you sure you want to reset all points for ${team.name}? This action cannot be undone.`)) {
+      try {
+        const response = await fetch(API_ROUTES.teams.resetPoints(team.id), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          fetchTeams();
+          setError('');
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to reset points');
+        }
+      } catch (error) {
+        setError('Error resetting points');
+        console.error('Error:', error);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -130,6 +179,7 @@ const TeamManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="border-b border-gray-200 pb-4">
         <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
         <p className="mt-1 text-sm text-gray-600">
@@ -137,6 +187,7 @@ const TeamManagement = () => {
         </p>
       </div>
 
+      {/* Actions Bar */}
       <div className="flex justify-between items-center">
         <button
           onClick={() => setShowCreateModal(true)}
@@ -146,12 +197,14 @@ const TeamManagement = () => {
         </button>
       </div>
 
+      {/* Error Message */}
       {error && (
         <div className="mx-6 mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
       )}
 
+      {/* Teams Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -199,7 +252,7 @@ const TeamManagement = () => {
                   {team.coach ? team.coach.name : 'No Coach'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {team._count ? team._count.members : 0} members
+                  {team._count.members} members
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -227,6 +280,12 @@ const TeamManagement = () => {
                     >
                       Edit
                     </button>
+                    <button
+                      onClick={() => handleResetPoints(team)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Reset Points
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -235,6 +294,7 @@ const TeamManagement = () => {
         </table>
       </div>
 
+      {/* Create Team Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -286,6 +346,10 @@ const TeamManagement = () => {
                   />
                   <p className="text-xs text-gray-500 mt-1">Enter the GroupMe group invite link for team chat</p>
                 </div>
+
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
+                  💡 A unique team code will be automatically generated for registration.
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -311,6 +375,7 @@ const TeamManagement = () => {
         </div>
       )}
 
+      {/* Edit Team Modal */}
       {editingTeam && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -328,6 +393,15 @@ const TeamManagement = () => {
                     onChange={(e) => setEditingTeam({...editingTeam, name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Team Code
+                  </label>
+                  <div className="bg-gray-100 px-3 py-2 rounded text-sm font-mono text-gray-600">
+                    {editingTeam.teamCode} (Cannot be changed)
+                  </div>
                 </div>
 
                 <div>
