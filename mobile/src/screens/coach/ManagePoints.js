@@ -11,6 +11,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
@@ -240,16 +241,18 @@ const ManagePoints = ({ navigation }) => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Ionicons name="chevron-back" size={20} color="#6366f1" />
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Manage Points ⭐</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}> Points Manager</Text>
+          </View>
           <TouchableOpacity 
             style={styles.newPointsButton} 
-            onPress={() => setShowPointsForm(!showPointsForm)}
+            onPress={() => setShowPointsForm(true)}
           >
-            <Text style={styles.newPointsButtonText}>
-              {showPointsForm ? 'Cancel' : '+ Award'}
-            </Text>
+            <Ionicons name="add" size={16} color="#ffffff" />
+            <Text style={styles.newPointsButtonText}>Award</Text>
           </TouchableOpacity>
         </View>
 
@@ -266,116 +269,48 @@ const ManagePoints = ({ navigation }) => {
           </View>
         ) : null}
 
-        {/* Award Points Form */}
-        {showPointsForm && (
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Award Manual Points</Text>
-            
-            {/* Student Selection - Like UserManagement */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Select Student *</Text>
-              <TouchableOpacity
-                style={[styles.dropdownButton, !pointsForm.userId && styles.required]}
-                onPress={() => setShowStudentDropdown(!showStudentDropdown)}
-              >
-                <Text style={[styles.dropdownText, !pointsForm.userId && styles.placeholderText]}>
-                  {pointsForm.userId 
-                    ? `${getSelectedStudent()?.name} (${getSelectedStudent()?.team?.name || 'No Team'})`
-                    : 'Choose a student...'
-                  }
-                </Text>
-                <Text style={styles.dropdownArrow}>{showStudentDropdown ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              
-              {showStudentDropdown && (
-                <View style={styles.pickerContainer}>
-                  {students.map((student) => (
-                    <TouchableOpacity
-                      key={student.id}
-                      style={[
-                        styles.roleOption,
-                        pointsForm.userId === student.id && styles.roleOptionSelected
-                      ]}
-                      onPress={() => {
-                        handleFormChange('userId', student.id);
-                        setShowStudentDropdown(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.roleOptionText,
-                        pointsForm.userId === student.id && styles.roleOptionTextSelected
-                      ]}>
-                        {student.name} ({student.team?.name || 'No Team'})
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Activity Description */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Activity Description *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={pointsForm.activityDescription}
-                onChangeText={(value) => handleFormChange('activityDescription', value)}
-                placeholder="e.g., Helped with fundraising event"
-                multiline={true}
-                numberOfLines={2}
-              />
-            </View>
-
-            {/* Points */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Points to Award *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={pointsForm.points}
-                onChangeText={(value) => handleFormChange('points', value)}
-                placeholder="Enter points (e.g., 50)"
-                keyboardType="numeric"
-              />
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                styles.submitButton, 
-                (!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points) && styles.submitButtonDisabled
-              ]}
-              onPress={handleAwardPoints}
-              disabled={!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points}
-            >
-              <Text style={styles.submitButtonText}>Award Points</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Points History */}
         <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Points History ({pointsHistory.length})</Text>
+          <View style={styles.historySectionHeader}>
+            <View style={styles.historyIconContainer}>
+              <Ionicons name="time" size={18} color="#6366f1" />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>📊 Recent Awards</Text>
+              <Text style={styles.sectionSubtitle}>{pointsHistory.length} point awards recorded</Text>
+            </View>
+          </View>
           {pointsHistory.length > 0 ? (
             <View style={styles.historyContainer}>
               {pointsHistory.map((entry) => (
                 <View key={entry.id} style={styles.historyItem}>
                   <View style={styles.historyContent}>
+                    <View style={styles.historyAvatar}>
+                      <Text style={styles.historyAvatarText}>
+                        {entry.user?.name?.charAt(0)?.toUpperCase()}
+                      </Text>
+                    </View>
                     <View style={styles.historyMain}>
                       <Text style={styles.studentName}>{entry.user?.name}</Text>
                       <Text style={styles.activityDescription}>{entry.activityDescription}</Text>
                       <Text style={styles.timestamp}>
-                        {new Date(entry.createdAt).toLocaleDateString()}
+                        📅 {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
                       </Text>
                     </View>
                     <View style={styles.historyActions}>
                       <View style={styles.pointsBadge}>
-                        <Text style={styles.pointsText}>+{entry.points} pts</Text>
+                        <Ionicons name="star" size={12} color="#ffffff" />
+                        <Text style={styles.pointsText}>+{entry.points}</Text>
                       </View>
                       <TouchableOpacity
                         style={styles.deleteButton}
                         onPress={() => handleDeletePoints(entry.id)}
                       >
-                        <Text style={styles.deleteButtonText}>Delete</Text>
+                        <Ionicons name="trash" size={12} color="#ffffff" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -394,6 +329,140 @@ const ManagePoints = ({ navigation }) => {
         
         <View style={styles.footerSpace} />
       </ScrollView>
+
+      {/* Award Points Modal */}
+      <Modal
+        visible={showPointsForm}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderContent}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="star" size={22} color="#f59e0b" />
+              </View>
+              <View>
+                <Text style={styles.modalTitle}>⭐ Award Points</Text>
+                <Text style={styles.modalSubtitle}>Recognize outstanding achievements</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowPointsForm(false);
+                setShowStudentDropdown(false);
+                setPointsForm({ userId: '', activityDescription: '', points: '' });
+              }}
+            >
+              <Ionicons name="close" size={18} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Student Selection */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>👤 Select Student *</Text>
+              <TouchableOpacity
+                style={[styles.dropdownButton, !pointsForm.userId && styles.required]}
+                onPress={() => setShowStudentDropdown(!showStudentDropdown)}
+              >
+                <Text style={[styles.dropdownText, !pointsForm.userId && styles.placeholderText]}>
+                  {pointsForm.userId 
+                    ? `${getSelectedStudent()?.name} (${getSelectedStudent()?.team?.name || 'No Team'})`
+                    : 'Choose a student...'
+                  }
+                </Text>
+                <Ionicons 
+                  name={showStudentDropdown ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+              
+              {showStudentDropdown && (
+                <View style={styles.pickerContainer}>
+                  {students.map((student) => (
+                    <TouchableOpacity
+                      key={student.id}
+                      style={[
+                        styles.roleOption,
+                        pointsForm.userId === student.id && styles.roleOptionSelected
+                      ]}
+                      onPress={() => {
+                        handleFormChange('userId', student.id);
+                        setShowStudentDropdown(false);
+                      }}
+                    >
+                      <View style={styles.studentOptionContent}>
+                        <View style={styles.studentOptionAvatar}>
+                          <Text style={styles.studentOptionAvatarText}>
+                            {student.name?.charAt(0)?.toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.studentOptionInfo}>
+                          <Text style={[
+                            styles.roleOptionText,
+                            pointsForm.userId === student.id && styles.roleOptionTextSelected
+                          ]}>
+                            {student.name}
+                          </Text>
+                          <Text style={styles.studentOptionTeam}>
+                            {student.team?.name || 'No Team'} • {student.points || 0} pts
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Activity Description */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>📝 Activity Description *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={pointsForm.activityDescription}
+                onChangeText={(value) => handleFormChange('activityDescription', value)}
+                placeholder="e.g., Outstanding performance in fundraising event"
+                multiline={true}
+                numberOfLines={2}
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+
+            {/* Points */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>🏆 Points to Award *</Text>
+              <View style={styles.pointsInputContainer}>
+                <Ionicons name="star" size={18} color="#f59e0b" style={styles.pointsIcon} />
+                <TextInput
+                  style={styles.pointsInput}
+                  value={pointsForm.points}
+                  onChangeText={(value) => handleFormChange('points', value)}
+                  placeholder="Enter points (e.g., 50)"
+                  keyboardType="numeric"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton, 
+                (!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points) && styles.submitButtonDisabled
+              ]}
+              onPress={handleAwardPoints}
+              disabled={!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points}
+            >
+              <Ionicons name="trophy" size={16} color="#ffffff" />
+              <Text style={styles.submitButtonText}>Award Points</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -401,7 +470,7 @@ const ManagePoints = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   scrollContainer: {
     flex: 1,
@@ -410,11 +479,12 @@ const styles = {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+    fontSize: FontSizes.lg,
+    color: '#64748b',
+    fontWeight: '500',
   },
 
   // Header
@@ -424,237 +494,205 @@ const styles = {
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     padding: Spacing.sm,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
   },
   backButtonText: {
-    fontSize: FontSizes.md,
-    color: Colors.primary,
+    fontSize: FontSizes.sm,
+    color: '#6366f1',
     fontWeight: '600',
   },
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
+  headerTitleContainer: {
+    alignItems: 'center',
     flex: 1,
-    textAlign: 'center',
+  },
+  title: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   newPointsButton: {
-    backgroundColor: Colors.success,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#22c55e',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   newPointsButtonText: {
-    color: Colors.surface,
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: FontSizes.sm,
   },
 
   // Messages
   errorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FECACA',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
     borderWidth: 1,
     borderRadius: 8,
     padding: Spacing.md,
     margin: Spacing.lg,
   },
   errorText: {
-    color: '#DC2626',
+    color: '#dc2626',
     fontSize: FontSizes.sm,
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#A7F3D0',
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
     borderWidth: 1,
     borderRadius: 8,
     padding: Spacing.md,
     margin: Spacing.lg,
   },
   successText: {
-    color: '#065F46',
+    color: '#059669',
     fontSize: FontSizes.sm,
     textAlign: 'center',
   },
 
-  // Form Section
-  formSection: {
-    backgroundColor: Colors.surface,
+  // History Section
+  historySection: {
+    backgroundColor: '#ffffff',
     margin: Spacing.lg,
     padding: Spacing.lg,
     borderRadius: 12,
-    ...Styles.shadow,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  historySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  historyIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: FontSizes.lg,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+    color: '#1f2937',
+    marginBottom: 2,
   },
-
-  // Form Elements - Using UserManagement styles
-  formGroup: {
-    marginBottom: Spacing.lg,
-  },
-  formLabel: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: Spacing.md,
-    backgroundColor: Colors.surface,
-  },
-  dropdownText: {
-    flex: 1,
-    fontSize: FontSizes.md,
-    color: Colors.textPrimary,
-  },
-  placeholderText: {
-    color: Colors.textSecondary,
-  },
-  dropdownArrow: {
+  sectionSubtitle: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginLeft: Spacing.sm,
-  },
-  required: {
-    borderColor: Colors.error,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    marginTop: Spacing.sm,
-    backgroundColor: Colors.surface,
-    maxHeight: 200,
-  },
-  roleOption: {
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  roleOptionSelected: {
-    backgroundColor: Colors.primaryLight,
-  },
-  roleOptionText: {
-    fontSize: FontSizes.md,
-    color: Colors.textPrimary,
-  },
-  roleOptionTextSelected: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: Spacing.md,
-    fontSize: FontSizes.md,
-    backgroundColor: Colors.surface,
-    color: Colors.textPrimary,
-  },
-  submitButton: {
-    backgroundColor: Colors.success,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: Spacing.md,
-  },
-  submitButtonDisabled: {
-    backgroundColor: Colors.textSecondary,
-  },
-  submitButtonText: {
-    color: Colors.surface,
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-  },
-
-  // History Section
-  historySection: {
-    backgroundColor: Colors.surface,
-    margin: Spacing.lg,
-    padding: Spacing.lg,
-    borderRadius: 12,
-    ...Styles.shadow,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   historyContainer: {
     marginTop: Spacing.md,
   },
   historyItem: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#f8fafc',
     borderRadius: 8,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.success,
+    borderLeftColor: '#22c55e',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   historyContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  historyAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  historyAvatarText: {
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
   },
   historyMain: {
     flex: 1,
-    marginRight: Spacing.md,
   },
   studentName: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: '#1f2937',
     marginBottom: Spacing.xs,
   },
   activityDescription: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    color: '#6b7280',
     marginBottom: Spacing.xs,
   },
   timestamp: {
     fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    color: '#9ca3af',
   },
   historyActions: {
     alignItems: 'flex-end',
+    gap: Spacing.xs,
   },
   pointsBadge: {
-    backgroundColor: Colors.success,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#22c55e',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: Spacing.sm,
   },
   pointsText: {
-    color: Colors.surface,
-    fontSize: FontSizes.sm,
+    color: '#ffffff',
+    fontSize: FontSizes.xs,
     fontWeight: 'bold',
   },
   deleteButton: {
-    backgroundColor: Colors.error,
+    backgroundColor: '#ef4444',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteButtonText: {
-    color: Colors.surface,
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-  },
-
-  // Empty State
   emptyState: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -662,17 +700,209 @@ const styles = {
   emptyText: {
     fontSize: FontSizes.lg,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: '#6b7280',
     marginBottom: Spacing.sm,
   },
   emptySubtext: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    color: '#6b7280',
     textAlign: 'center',
   },
-
   footerSpace: {
     height: 50,
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  modalContent: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+
+  // Form Elements
+  formGroup: {
+    marginBottom: Spacing.lg,
+  },
+  formLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: Spacing.sm,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: Spacing.md,
+    backgroundColor: '#ffffff',
+  },
+  dropdownText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    color: '#1f2937',
+  },
+  placeholderText: {
+    color: '#9ca3af',
+  },
+  required: {
+    borderColor: '#ef4444',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    marginTop: Spacing.sm,
+    backgroundColor: '#ffffff',
+    maxHeight: 200,
+  },
+  roleOption: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  roleOptionSelected: {
+    backgroundColor: '#f0f9ff',
+  },
+  studentOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  studentOptionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentOptionAvatarText: {
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
+  },
+  studentOptionInfo: {
+    flex: 1,
+  },
+  roleOptionText: {
+    fontSize: FontSizes.sm,
+    color: '#1f2937',
+    fontWeight: '500',
+  },
+  roleOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  studentOptionTeam: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: Spacing.md,
+    fontSize: FontSizes.sm,
+    backgroundColor: '#ffffff',
+    color: '#1f2937',
+  },
+  pointsInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: Spacing.md,
+  },
+  pointsIcon: {
+    marginRight: Spacing.sm,
+  },
+  pointsInput: {
+    flex: 1,
+    padding: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: '#1f2937',
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#22c55e',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 8,
+    marginTop: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   },
 };
 

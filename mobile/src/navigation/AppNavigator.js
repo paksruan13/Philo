@@ -27,9 +27,6 @@ import AnnouncementManagement from '../screens/admin/AnnouncementManagement';
 import SettingsManagement from '../screens/admin/SettingsManagement';
 
 // Import coach management screens
-import TeamOverview from '../screens/coach/TeamOverview';
-import SubmissionManagement from '../screens/coach/SubmissionManagement';
-
 import ProductSales from '../screens/coach/ProductSales';
 import ManagePoints from '../screens/coach/ManagePoints';
 import Announcements from '../screens/coach/Announcements';
@@ -54,10 +51,8 @@ const AdminStackNavigator = () => (
 const CoachStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="CoachDashboardMain" component={CoachDashboard} />
-    <Stack.Screen name="TeamOverview" component={TeamOverview} />
     <Stack.Screen name="ManagePoints" component={ManagePoints} />
     <Stack.Screen name="Announcements" component={Announcements} />
-    <Stack.Screen name="SubmissionManagement" component={SubmissionManagement} />
     <Stack.Screen name="ProductSales" component={ProductSales} />
   </Stack.Navigator>
 );

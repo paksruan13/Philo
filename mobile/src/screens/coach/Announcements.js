@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
@@ -279,14 +280,19 @@ const Announcements = ({ navigation }) => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Ionicons name="chevron-back" size={20} color="#6366f1" />
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Announcements 📢</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>📢 Announcements</Text>
+            <Text style={styles.subtitle}>Team communication</Text>
+          </View>
           <TouchableOpacity 
             style={styles.newAnnouncementButton} 
             onPress={() => setShowAnnouncementForm(true)}
           >
-            <Text style={styles.newAnnouncementButtonText}>+ New</Text>
+            <Ionicons name="add" size={16} color="#ffffff" />
+            <Text style={styles.newAnnouncementButtonText}>Create</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,39 +312,56 @@ const Announcements = ({ navigation }) => {
         {/* Team Info */}
         {teamData && (
           <View style={styles.teamInfoSection}>
-            <Text style={styles.teamInfoTitle}>Managing announcements for:</Text>
-            <Text style={styles.teamName}>{teamData.name}</Text>
+            <View style={styles.teamInfoHeader}>
+              <Ionicons name="people" size={16} color="#6366f1" />
+              <Text style={styles.teamInfoTitle}>Sent to: {teamData.name}</Text>
+            </View>
           </View>
         )}
 
         {/* Announcements List */}
         <View style={styles.announcementsSection}>
-          <Text style={styles.sectionTitle}>Team Announcements ({announcements.length})</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Ionicons name="megaphone" size={18} color="#8b5cf6" />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>📺 Recent Updates</Text>
+              <Text style={styles.sectionSubtitle}>{announcements.length} announcements</Text>
+            </View>
+          </View>
           {announcements.length > 0 ? (
             <View style={styles.announcementsContainer}>
               {announcements.map((announcement) => (
                 <View key={announcement.id} style={styles.announcementCard}>
                   <View style={styles.announcementHeader}>
-                    <Text style={styles.announcementTitle}>{announcement.title}</Text>
+                    <View style={styles.announcementTitleContainer}>
+                      <Text style={styles.announcementTitle}>{announcement.title}</Text>
+                      <Text style={styles.announcementMeta}>
+                        {announcement.createdBy?.name || 'Coach'} • {new Date(announcement.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                    </View>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDeleteAnnouncement(announcement.id)}
                     >
-                      <Text style={styles.deleteButtonText}>✕</Text>
+                      <Ionicons name="trash" size={16} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.announcementContent}>{announcement.content}</Text>
-                  <Text style={styles.announcementMeta}>
-                    By {announcement.createdBy?.name || 'Coach'} • {new Date(announcement.createdAt).toLocaleDateString()}
-                  </Text>
                 </View>
               ))}
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No Announcements Yet</Text>
+              <Ionicons name="megaphone-outline" size={48} color="#d1d5db" />
+              <Text style={styles.emptyText}>No Announcements</Text>
               <Text style={styles.emptySubtext}>
-                Create your first announcement to communicate with your team.
+                Create your first team announcement
               </Text>
             </View>
           )}
@@ -355,7 +378,15 @@ const Announcements = ({ navigation }) => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Announcement</Text>
+            <View style={styles.modalHeaderContent}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="megaphone" size={22} color="#8b5cf6" />
+              </View>
+              <View>
+                <Text style={styles.modalTitle}>📢 New Announcement</Text>
+                <Text style={styles.modalSubtitle}>Share team updates</Text>
+              </View>
+            </View>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => {
@@ -363,33 +394,27 @@ const Announcements = ({ navigation }) => {
                 setNewAnnouncement({ title: '', content: '' });
               }}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={18} color="#6b7280" />
             </TouchableOpacity>
           </View>
 
-          {/* Error display in modal */}
-          {error ? (
-            <View style={styles.modalErrorContainer}>
-              <Text style={styles.modalErrorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             {/* Title Input */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Title *</Text>
+              <Text style={styles.formLabel}>📝 Title *</Text>
               <TextInput
                 style={[styles.textInput, !newAnnouncement.title.trim() && styles.required]}
                 value={newAnnouncement.title}
                 onChangeText={(value) => handleFormChange('title', value)}
-                placeholder="Announcement title..."
+                placeholder="Enter announcement title..."
                 maxLength={100}
+                placeholderTextColor="#9ca3af"
               />
             </View>
 
             {/* Content Input */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Content *</Text>
+              <Text style={styles.formLabel}>💬 Message *</Text>
               <TextInput
                 style={[
                   styles.textArea, 
@@ -397,15 +422,13 @@ const Announcements = ({ navigation }) => {
                 ]}
                 value={newAnnouncement.content}
                 onChangeText={(value) => handleFormChange('content', value)}
-                placeholder="Announcement content..."
+                placeholder="Write your message here..."
                 multiline={true}
                 numberOfLines={6}
                 textAlignVertical="top"
                 maxLength={500}
+                placeholderTextColor="#9ca3af"
               />
-              <Text style={styles.characterCount}>
-                {newAnnouncement.content.length}/500 characters
-              </Text>
             </View>
 
             {/* Submit Button */}
@@ -417,7 +440,8 @@ const Announcements = ({ navigation }) => {
               onPress={handleCreateAnnouncement}
               disabled={!newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
             >
-              <Text style={styles.submitButtonText}>Post Announcement</Text>
+              <Ionicons name="send" size={16} color="#ffffff" />
+              <Text style={styles.submitButtonText}>Publish</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
@@ -429,7 +453,7 @@ const Announcements = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   scrollContainer: {
     flex: 1,
@@ -438,11 +462,12 @@ const styles = {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+    fontSize: FontSizes.lg,
+    color: '#64748b',
+    fontWeight: '500',
   },
 
   // Header
@@ -452,145 +477,217 @@ const styles = {
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     padding: Spacing.sm,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
   },
   backButtonText: {
-    fontSize: FontSizes.md,
-    color: Colors.primary,
+    fontSize: FontSizes.sm,
+    color: '#6366f1',
     fontWeight: '600',
   },
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
+  headerTitleContainer: {
+    alignItems: 'center',
     flex: 1,
-    textAlign: 'center',
+  },
+  title: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   newAnnouncementButton: {
-    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#8b5cf6',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   newAnnouncementButtonText: {
-    color: Colors.surface,
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: FontSizes.sm,
   },
 
   // Messages
   errorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FECACA',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
     borderWidth: 1,
     borderRadius: 8,
     padding: Spacing.md,
     margin: Spacing.lg,
   },
   errorText: {
-    color: '#DC2626',
+    color: '#dc2626',
     fontSize: FontSizes.sm,
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#A7F3D0',
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
     borderWidth: 1,
     borderRadius: 8,
     padding: Spacing.md,
     margin: Spacing.lg,
   },
   successText: {
-    color: '#065F46',
+    color: '#059669',
     fontSize: FontSizes.sm,
     textAlign: 'center',
   },
 
   // Team Info Section
   teamInfoSection: {
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: '#f0f9ff',
     margin: Spacing.lg,
     padding: Spacing.md,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    borderLeftColor: '#6366f1',
+  },
+  teamInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   teamInfoTitle: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
-  teamName: {
-    fontSize: FontSizes.md,
-    fontWeight: 'bold',
-    color: Colors.primary,
+    color: '#6366f1',
+    fontWeight: '600',
   },
 
   // Announcements Section
   announcementsSection: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#ffffff',
     margin: Spacing.lg,
     padding: Spacing.lg,
     borderRadius: 12,
-    ...Styles.shadow,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  sectionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: FontSizes.lg,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   announcementsContainer: {
     marginTop: Spacing.md,
   },
   announcementCard: {
-    backgroundColor: '#EBF8FF',
-    borderRadius: 8,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   announcementHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  announcementTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: 'bold',
-    color: '#1E40AF',
+  announcementTitleContainer: {
     flex: 1,
     marginRight: Spacing.sm,
   },
-  deleteButton: {
-    backgroundColor: Colors.error,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButtonText: {
-    color: Colors.surface,
-    fontSize: FontSizes.xs,
-    fontWeight: 'bold',
-  },
-  announcementContent: {
-    fontSize: FontSizes.sm,
-    color: '#1E3A8A',
-    marginBottom: Spacing.sm,
-    lineHeight: 20,
+  announcementTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.3,
   },
   announcementMeta: {
     fontSize: FontSizes.xs,
-    color: '#3B82F6',
+    color: '#64748b',
+    fontWeight: '500',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  announcementContent: {
+    fontSize: FontSizes.sm,
+    color: '#475569',
+    lineHeight: 22,
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
 
   // Empty State
@@ -601,64 +698,73 @@ const styles = {
   emptyText: {
     fontSize: FontSizes.lg,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: '#6b7280',
     marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
   },
   emptySubtext: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    color: '#6b7280',
     textAlign: 'center',
   },
 
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    padding: Spacing.lg,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
     fontSize: FontSizes.lg,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.error,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeButtonText: {
-    fontSize: FontSizes.lg,
-    color: Colors.surface,
-    fontWeight: 'bold',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   modalContent: {
     flex: 1,
     padding: Spacing.lg,
-  },
-  modalErrorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: Spacing.md,
-    margin: Spacing.lg,
-  },
-  modalErrorText: {
-    color: '#DC2626',
-    fontSize: FontSizes.sm,
-    textAlign: 'center',
   },
 
   // Form Elements
@@ -666,53 +772,55 @@ const styles = {
     marginBottom: Spacing.lg,
   },
   formLabel: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: '#374151',
     marginBottom: Spacing.sm,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: Spacing.md,
-    fontSize: FontSizes.md,
-    backgroundColor: Colors.surface,
-    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
+    backgroundColor: '#ffffff',
+    color: '#1f2937',
   },
   textArea: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: Spacing.md,
-    fontSize: FontSizes.md,
-    backgroundColor: Colors.surface,
-    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
+    backgroundColor: '#ffffff',
+    color: '#1f2937',
     minHeight: 120,
   },
   required: {
-    borderColor: Colors.error,
-  },
-  characterCount: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
-    textAlign: 'right',
-    marginTop: Spacing.xs,
+    borderColor: '#ef4444',
   },
   submitButton: {
-    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#8b5cf6',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderRadius: 8,
-    alignItems: 'center',
     marginTop: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: Colors.textSecondary,
+    backgroundColor: '#9ca3af',
   },
   submitButtonText: {
-    color: Colors.surface,
-    fontSize: FontSizes.md,
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
     fontWeight: '600',
   },
 
