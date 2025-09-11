@@ -61,24 +61,6 @@ const ProfileScreen = () => {
             value={user?.email}
             icon="✉️"
           />
-          
-          <ProfileItem
-            label="Role"
-            value={user?.role}
-            icon="🎯"
-          />
-          
-          <ProfileItem
-            label="Team Code"
-            value={user?.teamCode}
-            icon="👥"
-          />
-          
-          <ProfileItem
-            label="Total Points"
-            value={user?.totalPoints?.toString() || '0'}
-            icon="🏆"
-          />
         </View>
 
         {/* Settings Section */}
@@ -88,18 +70,6 @@ const ProfileScreen = () => {
           <TouchableOpacity style={styles.settingItem}>
             <Text style={styles.settingIcon}>🔔</Text>
             <Text style={styles.settingText}>Notifications</Text>
-            <Text style={styles.settingArrow}>›</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingIcon}>🎨</Text>
-            <Text style={styles.settingText}>Appearance</Text>
-            <Text style={styles.settingArrow}>›</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingIcon}>🔒</Text>
-            <Text style={styles.settingText}>Privacy & Security</Text>
             <Text style={styles.settingArrow}>›</Text>
           </TouchableOpacity>
           
