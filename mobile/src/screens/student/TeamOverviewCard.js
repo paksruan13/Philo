@@ -78,6 +78,8 @@ const TeamOverviewCard = ({ team, stats }) => {
           <View style={styles.mainStat}>
             <Text style={styles.pointsValue}>{stats.totalPoints || 0}</Text>
             <Text style={styles.pointsLabel}>Total Points</Text>
+            <Text style={styles.raisedAmount}>${stats.totalRaised?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.raisedLabel}>Total Raised</Text>
           </View>
 
           {/* Secondary Stats */}
@@ -101,26 +103,6 @@ const TeamOverviewCard = ({ team, stats }) => {
                 <Text style={styles.statLabel}>Members</Text>
               </View>
             </View>
-          </View>
-        </View>
-
-        {/* Progress Indicator */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressInfo}>
-            <Text style={styles.progressLabel}>Team Progress</Text>
-            <Text style={styles.progressPercentage}>
-              {stats.rank ? Math.max(0, Math.round(((stats.totalTeams - stats.rank + 1) / stats.totalTeams) * 100)) : 0}%
-            </Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: `${stats.rank ? Math.max(0, Math.round(((stats.totalTeams - stats.rank + 1) / stats.totalTeams) * 100)) : 0}%` 
-                }
-              ]} 
-            />
           </View>
         </View>
       </LinearGradient>
@@ -234,6 +216,20 @@ const styles = {
     marginBottom: 4,
   },
   pointsLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  raisedAmount: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#f59e0b',
+    marginBottom: 4,
+  },
+  raisedLabel: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
     fontWeight: '600',

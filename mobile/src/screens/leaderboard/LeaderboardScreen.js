@@ -9,6 +9,7 @@ import {
   FlatList,
   Image,
   Animated,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -26,6 +27,10 @@ const LeaderboardScreen = () => {
   const [totalTeams, setTotalTeams] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [showActivityDetails, setShowActivityDetails] = useState(false);
+  const flashingItemsRef = React.useRef(new Set());
 
 
 
@@ -96,37 +101,56 @@ const LeaderboardScreen = () => {
                            activity.createdAt ? new Date(activity.createdAt) : null;
           
           const endDate = activity.endDate ? new Date(activity.endDate) : null;
-          const now = new Date();
           
-          // Determine if activity is upcoming, ongoing, or past
+          // Get current time in PST
+          const now = new Date();
+          const pstOffset = -8; // PST is UTC-8
+          const pstNow = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
+          
+          // Convert event dates to PST for comparison
+          const eventDatePST = eventDate ? new Date(eventDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
+          const endDatePST = endDate ? new Date(endDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
+          
+          // Determine if activity is upcoming, ongoing, or past (using PST)
           let status = 'upcoming';
-          if (endDate && now > endDate) {
+          if (endDatePST && pstNow > endDatePST) {
             status = 'past';
-          } else if (eventDate && now >= eventDate && (!endDate || now <= endDate)) {
+          } else if (eventDatePST && pstNow >= eventDatePST && (!endDatePST || pstNow <= endDatePST)) {
             status = 'ongoing';
           }
+          
+          // Check if event is today (using PST)
+          const isToday = eventDatePST && 
+            eventDatePST.toDateString() === pstNow.toDateString();
+          
+          const displayDate = isToday ? 'TODAY' : 
+            (eventDate ? eventDate.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric',
+              timeZone: 'America/Los_Angeles' // Force PST timezone
+            }) : 'TBD');
           
           return {
             id: activity.id || index,
             title: activity.name || activity.title || 'Activity',
-            date: eventDate ? eventDate.toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            }) : 'TBD',
+            date: displayDate,
             time: eventDate ? eventDate.toLocaleTimeString('en-US', { 
               hour: 'numeric', 
               minute: '2-digit',
-              hour12: true 
+              hour12: true,
+              timeZone: 'America/Los_Angeles' // Force PST timezone
             }) : 'TBD',
             endDate: endDate ? endDate.toLocaleDateString('en-US', { 
               month: 'short', 
-              day: 'numeric' 
+              day: 'numeric',
+              timeZone: 'America/Los_Angeles' // Force PST timezone
             }) : null,
             endTime: endDate ? endDate.toLocaleTimeString('en-US', { 
               hour: 'numeric', 
               minute: '2-digit',
-              hour12: true 
+              hour12: true,
+              timeZone: 'America/Los_Angeles' // Force PST timezone
             }) : null,
             location: activity.location || 'Online',
             attendees: activity.submissions?.length || 0,
@@ -135,7 +159,8 @@ const LeaderboardScreen = () => {
             points: activity.points || 0,
             description: activity.description || '',
             status: status,
-            isActive: activity.isActive && activity.isPublished
+            isActive: activity.isActive && activity.isPublished,
+            isToday: isToday
           };
         });
         
@@ -209,12 +234,23 @@ const LeaderboardScreen = () => {
     }
   };
 
+
+
   const getRankColor = (rank) => {
     switch (rank) {
-      case 1: return '#FFD700'; // Gold
-      case 2: return '#C0C0C0'; // Silver
-      case 3: return '#CD7F32'; // Bronze
-      default: return '#0891b2'; // Cyan
+      case 1: return '#FF6B6B'; // Vibrant coral red
+      case 2: return '#4ECDC4'; // Turquoise teal
+      case 3: return '#45B7D1'; // Sky blue
+      default: return '#6C5CE7'; // Purple
+    }
+  };
+
+  const getRankGradient = (rank) => {
+    switch (rank) {
+      case 1: return ['#FF6B6B', '#FF8E53']; // Coral to orange gradient
+      case 2: return ['#4ECDC4', '#44A08D']; // Teal gradient  
+      case 3: return ['#45B7D1', '#96C93D']; // Blue to green gradient
+      default: return ['#6C5CE7', '#A29BFE']; // Purple gradient
     }
   };
 
@@ -370,101 +406,171 @@ const LeaderboardScreen = () => {
     );
   };
 
+  // Status Badge Helper Function
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'ongoing':
+        return {
+          text: 'HAPPENING NOW',
+          backgroundColor: '#10b981',
+          textColor: 'white'
+        };
+      case 'past':
+        return {
+          text: 'ENDED',
+          backgroundColor: '#6b7280',
+          textColor: 'white'
+        };
+      default:
+        return {
+          text: 'UPCOMING',
+          backgroundColor: '#f59e0b',
+          textColor: 'white'
+        };
+    }
+  };
+
+  // Animated Status Badge Component
+  const AnimatedStatusBadge = React.memo(({ item, statusBadge }) => {
+    const flashAnimation = React.useRef(new Animated.Value(1)).current;
+    const hasStartedFlashing = React.useRef(false);
+    const animationRef = React.useRef(null);
+    
+    React.useEffect(() => {
+      // Only start flashing for ongoing items that haven't started yet
+      if (item.status === 'ongoing' && !hasStartedFlashing.current) {
+        hasStartedFlashing.current = true;
+        
+        // Use setTimeout to defer animation start to avoid insertion effect warnings
+        const timeoutId = setTimeout(() => {
+          // Start flashing animation
+          const flashSequence = Animated.sequence([
+            Animated.timing(flashAnimation, {
+              toValue: 0.3,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(flashAnimation, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]);
+          
+          // Repeat flashing for 5 seconds (approximately 8 flashes)
+          const flashLoop = Animated.loop(flashSequence, { iterations: 8 });
+          animationRef.current = flashLoop;
+          
+          flashLoop.start(() => {
+            // Stop flashing after 5 seconds
+            flashAnimation.setValue(1);
+            animationRef.current = null;
+          });
+        }, 0);
+        
+        return () => {
+          clearTimeout(timeoutId);
+          if (animationRef.current) {
+            animationRef.current.stop();
+            flashAnimation.setValue(1);
+          }
+        };
+      }
+    }, [item.status, item.id, flashAnimation]);
+
+    // Reset flashing state when item status changes from ongoing
+    React.useEffect(() => {
+      if (item.status !== 'ongoing') {
+        hasStartedFlashing.current = false;
+        if (animationRef.current) {
+          animationRef.current.stop();
+          animationRef.current = null;
+        }
+        flashAnimation.setValue(1);
+      }
+    }, [item.status, flashAnimation]);
+
+    return (
+      <Animated.View 
+        style={[
+          newStyles.statusBadge,
+          { 
+            backgroundColor: statusBadge.backgroundColor,
+            opacity: item.status === 'ongoing' ? flashAnimation : 1
+          }
+        ]}
+      >
+        <Text style={[
+          newStyles.statusText,
+          { color: statusBadge.textColor }
+        ]}>
+          {statusBadge.text}
+        </Text>
+      </Animated.View>
+    );
+  });
+
   // Upcoming Events Section Component
   const UpcomingEventsSection = ({ events }) => {
-    const renderEventCard = ({ item }) => (
-      <TouchableOpacity style={newStyles.eventCard} activeOpacity={0.9}>
-        <View style={newStyles.eventHeader}>
-          <View style={newStyles.eventTitleRow}>
+
+    const renderEventCard = ({ item }) => {
+      const statusBadge = getStatusBadge(item.status);
+      
+      return (
+        <TouchableOpacity style={newStyles.eventCard} activeOpacity={0.9}>
+          <View style={newStyles.eventHeader}>
             <Text style={newStyles.eventTitle}>{item.title}</Text>
-            {item.trending && (
-              <View style={newStyles.trendingBadge}>
-                <Ionicons name="trending-up" size={12} color="#f59e0b" />
+            <AnimatedStatusBadge item={item} statusBadge={statusBadge} />
+          </View>
+          
+          <View style={newStyles.eventDetails}>
+            <View style={newStyles.eventDetailRow}>
+              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
+              <View style={newStyles.eventDateTimeContainer}>
+                <Text style={[
+                  newStyles.eventDateText,
+                  item.isToday && newStyles.todayText
+                ]}>
+                  {item.date}
+                </Text>
+                <Text style={newStyles.eventTimeText}>{item.time}</Text>
+              </View>
+            </View>
+            
+            {item.points > 0 && (
+              <View style={newStyles.eventDetailRow}>
+                <Ionicons name="trophy-outline" size={16} color="#6b7280" />
+                <Text style={newStyles.eventDetailText}>{item.points} points</Text>
               </View>
             )}
           </View>
-          <View style={newStyles.categoryBadge}>
-            <Text style={newStyles.categoryText}>{item.category}</Text>
-          </View>
-        </View>
-        
-        <View style={newStyles.eventDetails}>
-          <View style={newStyles.eventDetailRow}>
-            <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-            <Text style={newStyles.eventDetailText}>
-              {item.date} • {item.time}
-              {item.endDate && item.endDate !== item.date && ` - ${item.endDate}`}
-              {item.endDate && item.endDate === item.date && item.endTime && ` - ${item.endTime}`}
-            </Text>
-          </View>
-          
-          {/* Activity Status Indicator */}
-          {item.status && (
-            <View style={newStyles.eventDetailRow}>
-              <Ionicons 
-                name={
-                  item.status === 'ongoing' ? 'radio-button-on' : 
-                  item.status === 'past' ? 'checkmark-circle' : 
-                  'time-outline'
-                } 
-                size={16} 
-                color={
-                  item.status === 'ongoing' ? '#10b981' : 
-                  item.status === 'past' ? '#6b7280' : 
-                  '#f59e0b'
-                } 
-              />
-              <Text style={[
-                newStyles.eventDetailText,
-                {
-                  color: item.status === 'ongoing' ? '#10b981' : 
-                         item.status === 'past' ? '#6b7280' : 
-                         '#f59e0b'
-                }
-              ]}>
-                {item.status === 'ongoing' ? 'Active Now' : 
-                 item.status === 'past' ? 'Completed' : 
-                 'Upcoming'}
-              </Text>
-            </View>
-          )}
-          
-          <View style={newStyles.eventDetailRow}>
-            <Ionicons name="location-outline" size={16} color="#6b7280" />
-            <Text style={newStyles.eventDetailText}>{item.location}</Text>
-          </View>
-          <View style={newStyles.eventDetailRow}>
-            <Ionicons name="people-outline" size={16} color="#6b7280" />
-            <Text style={newStyles.eventDetailText}>{item.attendees} submissions</Text>
-          </View>
-          {item.points > 0 && (
-            <View style={newStyles.eventDetailRow}>
-              <Ionicons name="trophy-outline" size={16} color="#6b7280" />
-              <Text style={newStyles.eventDetailText}>{item.points} points</Text>
-            </View>
-          )}
-        </View>
 
-        <TouchableOpacity style={newStyles.joinButton} activeOpacity={0.8}>
-          <LinearGradient
-            colors={['#0891b2', '#06b6d4']}
-            style={newStyles.joinButtonGradient}
+          <TouchableOpacity 
+            style={newStyles.staticJoinButton}
+            onPress={() => {
+              setSelectedActivity(item);
+              setShowActivityDetails(true);
+            }}
           >
-            <Ionicons name="flash" size={16} color="white" />
-            <Text style={newStyles.joinButtonText}>View Activity</Text>
-          </LinearGradient>
+            <LinearGradient
+              colors={['#FF6B6B', '#FF8E53']}
+              style={newStyles.staticJoinButtonGradient}
+            >
+              <Ionicons name="arrow-forward" size={16} color="white" />
+              <Text style={newStyles.staticJoinButtonText}>View Activity</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
-    );
+      );
+    };
 
     return (
       <View style={newStyles.sectionContainer}>
         <View style={newStyles.sectionHeader}>
-          <Text style={newStyles.sectionTitle}>Available Activities</Text>
-          <TouchableOpacity style={newStyles.viewAllButton}>
-            <Text style={newStyles.viewAllText}>View All</Text>
-            <Ionicons name="chevron-forward" size={16} color="#0891b2" />
-          </TouchableOpacity>
+          <View style={newStyles.sectionTitleRow}>
+            <Ionicons name="flash" size={24} color="#FF6B6B" />
+            <Text style={newStyles.sectionTitle}>Activities</Text>
+          </View>
         </View>
         
         {events.length === 0 ? (
@@ -489,30 +595,168 @@ const LeaderboardScreen = () => {
     );
   };
 
-  // Leaderboard Section Component
+  // Activity Details Modal Component
+  const ActivityDetailsModal = () => {
+    if (!selectedActivity) return null;
+
+    const statusBadge = getStatusBadge(selectedActivity.status);
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showActivityDetails}
+        onRequestClose={() => setShowActivityDetails(false)}
+      >
+        <TouchableOpacity 
+          style={newStyles.activityModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowActivityDetails(false)}
+        >
+          <TouchableOpacity 
+            style={newStyles.activityModalContent}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <View style={newStyles.activityModalHeader}>
+              <View style={newStyles.activityModalTitleRow}>
+                <Ionicons name="flash" size={24} color="#FF6B6B" />
+                <Text style={newStyles.activityModalTitle}>Activity Details</Text>
+              </View>
+              <TouchableOpacity 
+                style={newStyles.activityCloseButton}
+                onPress={() => setShowActivityDetails(false)}
+              >
+                <Ionicons name="close" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={newStyles.activityModalScrollView}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={newStyles.activityDetailsContainer}>
+                {/* Title */}
+                <Text style={newStyles.activityModalActivityTitle}>
+                  {selectedActivity.title}
+                </Text>
+
+                {/* Time */}
+                <View style={newStyles.activityInfoCard}>
+                  <Text style={newStyles.activityInfoLabel}>Time</Text>
+                  <Text style={newStyles.activityInfoValue}>
+                    Starts: {selectedActivity.date} at {selectedActivity.time}
+                  </Text>
+                  {selectedActivity.endDate && selectedActivity.endTime && (
+                    <Text style={newStyles.activityInfoSubValue}>
+                      Ends: {selectedActivity.endDate} at {selectedActivity.endTime}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Points */}
+                {selectedActivity.points > 0 && (
+                  <View style={newStyles.activityInfoCard}>
+                    <Text style={newStyles.activityInfoLabel}>Points</Text>
+                    <Text style={newStyles.activityInfoValue}>
+                      {selectedActivity.points} points
+                    </Text>
+                  </View>
+                )}
+
+                {/* Description */}
+                {selectedActivity.description && (
+                  <View style={newStyles.activityDescriptionCard}>
+                    <Text style={newStyles.activityDescriptionLabel}>Description</Text>
+                    <Text style={newStyles.activityDescriptionText}>
+                      {selectedActivity.description}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
+  // Leaderboard Section Component - Podium Style
   const LeaderboardSection = ({ teams }) => {
-    const renderLeaderboardItem = ({ item, index }) => {
+    const safeTeams = teams || [];
+    const topThreeTeams = safeTeams.slice(0, 3);
+    
+    const renderPodiumTeam = (team, rank) => {
+      const isUserTeam = team.name === user?.teamName || team.id === user?.teamId;
+      
+      return (
+        <View style={newStyles.podiumColumn}>
+          {/* Rank Icon with Gradient Background */}
+          <LinearGradient
+            colors={getRankGradient(rank)}
+            style={newStyles.rankIconContainer}
+          >
+            <Ionicons name={getRankIcon(rank)} size={24} color="white" />
+          </LinearGradient>
+          
+          {/* Team Card */}
+          <View style={[
+            newStyles.teamCard,
+            isUserTeam && newStyles.userTeamCard
+          ]}>
+            <View style={[newStyles.teamAvatarPodium, { backgroundColor: getRankColor(rank) }]}>
+              <Ionicons name="people" size={18} color="white" />
+            </View>
+            
+            <Text style={[
+              newStyles.teamNamePodium,
+              isUserTeam && { color: '#FF6B6B' }
+            ]} numberOfLines={1}>
+              {team?.name || 'Team'}
+            </Text>
+            
+            <Text style={newStyles.teamPointsPodium}>
+              {team?.totalScore || 0} pts
+            </Text>
+          </View>
+          
+          {/* Podium Base with Gradient */}
+          <LinearGradient
+            colors={getRankGradient(rank)}
+            style={[
+              newStyles.podiumBase,
+              {
+                height: rank === 1 ? 70 : rank === 2 ? 55 : 45,
+              }
+            ]}
+          >
+            <Text style={newStyles.rankNumber}>{rank}</Text>
+          </LinearGradient>
+        </View>
+      );
+    };
+
+    const renderFullLeaderboardItem = ({ item, index }) => {
       const rank = index + 1;
       const isUserTeam = item.name === user?.teamName || item.id === user?.teamId;
       
       return (
         <View style={[
-          newStyles.leaderboardItem,
+          newStyles.fullLeaderboardItem,
           isUserTeam && newStyles.userTeamItem
         ]}>
           <View style={[
             newStyles.rankBadge,
             { backgroundColor: getRankColor(rank) }
           ]}>
-            <Ionicons 
-              name={getRankIcon(rank)} 
-              size={16} 
-              color="white" 
-            />
+            <Text style={newStyles.rankText}>{rank}</Text>
           </View>
           
-          <View style={newStyles.teamAvatar}>
-            <Ionicons name="people" size={20} color="#0891b2" />
+          <View style={[
+            newStyles.teamAvatar,
+            isUserTeam && { backgroundColor: 'rgba(255, 107, 107, 0.15)' }
+          ]}>
+            <Ionicons name="people" size={18} color={isUserTeam ? "#FF6B6B" : "#6b7280"} />
           </View>
           
           <View style={newStyles.teamDetails}>
@@ -520,12 +764,15 @@ const LeaderboardScreen = () => {
               newStyles.teamName,
               isUserTeam && newStyles.userTeamName
             ]}>
-              {item.name} {isUserTeam && '(You)'}
+              {item?.name || 'Team Name'} 
+              {isUserTeam && <Text style={newStyles.youBadge}> (You)</Text>}
             </Text>
           </View>
           
           <View style={newStyles.pointsSection}>
-            <Text style={newStyles.teamPoints}>{item.totalScore || 0}</Text>
+            <Text style={[newStyles.teamPoints, isUserTeam && { color: '#FF6B6B' }]}>
+              {item?.totalScore || 0}
+            </Text>
             <Text style={newStyles.pointsUnit}>pts</Text>
           </View>
         </View>
@@ -533,37 +780,108 @@ const LeaderboardScreen = () => {
     };
 
     return (
-      <View style={newStyles.sectionContainer}>
-        <View style={newStyles.sectionHeader}>
-          <View style={newStyles.sectionTitleRow}>
-            <Ionicons name="trophy" size={20} color="#0891b2" />
-            <Text style={newStyles.sectionTitle}>Leaderboard</Text>
+      <>
+        <View style={newStyles.sectionContainer}>
+          <View style={newStyles.sectionHeader}>
+            <View style={newStyles.sectionTitleRow}>
+              <Ionicons name="trophy" size={24} color="#FFD700" />
+              <Text style={newStyles.sectionTitle}>Leaderboard</Text>
+            </View>
+            <TouchableOpacity 
+              style={newStyles.viewAllButton}
+              onPress={() => setShowFullLeaderboard(true)}
+            >
+              <Text style={newStyles.viewAllText}>View Full</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0891b2" />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={newStyles.viewAllButton}>
-            <Text style={newStyles.viewAllText}>View Full</Text>
-            <Ionicons name="chevron-forward" size={16} color="#0891b2" />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={newStyles.leaderboardContainer}>
-          {teams.length === 0 ? (
+          
+          {safeTeams.length === 0 ? (
             <View style={newStyles.emptyLeaderboard}>
-              <Ionicons name="trophy-outline" size={48} color="#d1d5db" />
+              <Ionicons name="trophy-outline" size={64} color="#d1d5db" />
               <Text style={newStyles.emptyText}>No teams yet</Text>
               <Text style={newStyles.emptySubtext}>
                 Teams will appear here as they join the competition
               </Text>
             </View>
           ) : (
-            <FlatList
-              data={teams.slice(0, 5)} // Show top 5
-              renderItem={renderLeaderboardItem}
-              keyExtractor={(item) => item.id?.toString() || item.name}
-              scrollEnabled={false}
-            />
+            <View style={newStyles.podiumContainer}>
+              <View style={newStyles.podiumRow}>
+                {/* 2nd Place - Left */}
+                {topThreeTeams.length >= 2 ? (
+                  <View key={`podium-2nd`} style={newStyles.podiumPosition}>
+                    {renderPodiumTeam(topThreeTeams[1], 2)}
+                  </View>
+                ) : (
+                  <View style={newStyles.podiumPosition} />
+                )}
+                
+                {/* 1st Place - Center (Tallest) */}
+                {topThreeTeams.length >= 1 ? (
+                  <View key={`podium-1st`} style={newStyles.podiumPosition}>
+                    {renderPodiumTeam(topThreeTeams[0], 1)}
+                  </View>
+                ) : (
+                  <View style={newStyles.podiumPosition} />
+                )}
+                
+                {/* 3rd Place - Right */}
+                {topThreeTeams.length >= 3 ? (
+                  <View key={`podium-3rd`} style={newStyles.podiumPosition}>
+                    {renderPodiumTeam(topThreeTeams[2], 3)}
+                  </View>
+                ) : (
+                  <View style={newStyles.podiumPosition} />
+                )}
+              </View>
+            </View>
           )}
         </View>
-      </View>
+
+        {/* Full Leaderboard Modal */}
+        <Modal
+          animationType="none"
+          transparent={true}
+          visible={showFullLeaderboard}
+          onRequestClose={() => setShowFullLeaderboard(false)}
+        >
+          <TouchableOpacity 
+            style={newStyles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFullLeaderboard(false)}
+          >
+            <TouchableOpacity 
+              style={newStyles.modalContent}
+              activeOpacity={1}
+              onPress={() => {}}
+            >
+              <View style={newStyles.modalHeader}>
+                <View style={newStyles.modalTitleRow}>
+                  <Ionicons name="trophy" size={24} color="#FF6B6B" />
+                  <Text style={newStyles.modalTitle}>Full Leaderboard</Text>
+                </View>
+                <TouchableOpacity 
+                  style={newStyles.closeButton}
+                  onPress={() => setShowFullLeaderboard(false)}
+                >
+                  <Ionicons name="close" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                style={newStyles.modalScrollView}
+                showsVerticalScrollIndicator={false}
+              >
+                {safeTeams.map((team, index) => (
+                  <View key={team.id || team.name || index}>
+                    {renderFullLeaderboardItem({ item: team, index })}
+                  </View>
+                ))}
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      </>
     );
   };
 
@@ -609,6 +927,12 @@ const LeaderboardScreen = () => {
             }
             showsVerticalScrollIndicator={false}
           >
+            {/* Leaderboard Section - Top 3 Podium */}
+            <LeaderboardSection teams={leaderboardData} />
+            
+            {/* Upcoming Events Section */}
+            <UpcomingEventsSection events={upcomingEvents} />
+            
             {/* Quick Stats Grid */}
             <QuickStatsGrid 
               statistics={statistics} 
@@ -616,16 +940,13 @@ const LeaderboardScreen = () => {
               totalTeams={totalTeams}
             />
             
-            {/* Upcoming Events Section */}
-            <UpcomingEventsSection events={upcomingEvents} />
-            
-            {/* Leaderboard Section */}
-            <LeaderboardSection teams={leaderboardData} />
-            
             {/* Bottom spacing */}
             <View style={newStyles.bottomSpacing} />
           </ScrollView>
         </SafeAreaView>
+        
+        {/* Activity Details Modal */}
+        <ActivityDetailsModal />
       </LinearGradient>
     </View>
   );
@@ -859,6 +1180,7 @@ const newStyles = {
 
   eventCard: {
     width: 280,
+    height: 180, // Fixed height for consistent button position
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
@@ -870,6 +1192,7 @@ const newStyles = {
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    justifyContent: 'space-between', // Distribute content evenly
   },
 
   eventHeader: {
@@ -879,50 +1202,38 @@ const newStyles = {
     marginBottom: 12,
   },
 
-  eventTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
   eventTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
     flex: 1,
+    paddingRight: 8,
   },
 
-  trendingBadge: {
-    marginLeft: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    justifyContent: 'center',
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 80,
     alignItems: 'center',
   },
 
-  categoryBadge: {
-    backgroundColor: '#0891b2',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-
-  categoryText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: '600',
+  statusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   eventDetails: {
-    marginBottom: 16,
+    flex: 1, // Take up available space between header and button
+    justifyContent: 'flex-start',
+    marginBottom: 24, // Increased space between details and button
   },
 
   eventDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8, // Increased spacing between detail rows
   },
 
   eventDetailText: {
@@ -931,64 +1242,280 @@ const newStyles = {
     marginLeft: 8,
   },
 
-  joinButton: {
-    borderRadius: 8,
-    overflow: 'hidden',
+  eventDateTimeContainer: {
+    marginLeft: 8,
   },
 
-  joinButtonGradient: {
+  eventDateText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+
+  eventTimeText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+
+  todayText: {
+    color: '#10b981',
+    fontWeight: '800',
+  },
+
+  staticJoinButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 'auto', // Push to bottom of card
+  },
+
+  staticJoinButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-
-  joinButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    marginLeft: 6,
-  },
-
-  // Leaderboard Styles
-  leaderboardContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.6)',
-    overflow: 'hidden',
-  },
-
-  leaderboardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+
+  staticJoinButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 14,
+    marginLeft: 8,
+    letterSpacing: -0.2,
+  },
+
+  // Podium Leaderboard Styles - iOS Native Feel
+  podiumContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 24,
+    padding: 24,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    // iOS-style backdrop blur simulation
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    // Subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+
+  podiumRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-end',
+    paddingHorizontal: 8,
+    paddingTop: 16,
+  },
+
+  podiumPosition: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+
+  podiumColumn: {
+    alignItems: 'center',
+    width: '100%',
+  },
+
+  rankIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  teamCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    width: '100%',
+    alignItems: 'center',
+    // iOS card shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+
+  userTeamCard: {
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    borderColor: 'rgba(255, 107, 107, 0.25)',
+    borderWidth: 1.5,
+  },
+
+  teamAvatarPodium: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    // iOS icon shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+
+  teamNamePodium: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1D1D1F', // iOS system text color
+    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: -0.2,
+  },
+
+  teamPointsPodium: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6D6D70', // iOS secondary text
+    textAlign: 'center',
+    letterSpacing: -0.1,
+  },
+
+  podiumBase: {
+    width: '90%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // iOS podium shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  rankNumber: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: 'white',
+    // iOS number shadow
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    letterSpacing: -0.5,
+  },
+
+  // Full Leaderboard Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 20,
+  },
+
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '85%',
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(229, 231, 235, 0.3)',
+    backgroundColor: '#fafafa',
   },
 
-  userTeamItem: {
-    backgroundColor: 'rgba(8, 145, 178, 0.05)',
-  },
-
-  rankBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
+  modalTitleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
   },
 
-  teamAvatar: {
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginLeft: 8,
+  },
+
+  closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(8, 145, 178, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    backgroundColor: 'rgba(107, 114, 128, 0.08)',
+  },
+
+  modalScrollView: {
+    maxHeight: 450,
+  },
+
+  fullLeaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(229, 231, 235, 0.2)',
+  },
+
+  userTeamItem: {
+    backgroundColor: 'rgba(8, 145, 178, 0.06)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#0891b2',
+  },
+
+  rankBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+
+
+
+  rankText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: 'white',
+  },
+
+  teamAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
 
   teamDetails: {
@@ -997,12 +1524,20 @@ const newStyles = {
 
   teamName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#111827',
+    lineHeight: 22,
   },
 
   userTeamName: {
-    color: '#0891b2',
+    color: '#FF6B6B',
+  },
+
+  youBadge: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B6B',
+    fontStyle: 'italic',
   },
 
   pointsSection: {
@@ -1010,14 +1545,15 @@ const newStyles = {
   },
 
   teamPoints: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#111827',
   },
 
   pointsUnit: {
     fontSize: 12,
     color: '#6b7280',
+    fontWeight: '500',
   },
 
   // Empty States
@@ -1049,6 +1585,191 @@ const newStyles = {
 
   bottomSpacing: {
     height: 20,
+  },
+
+  // Activity Details Modal Styles
+  activityModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+
+  activityModalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    minHeight: '50%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+
+  activityModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(229, 231, 235, 0.3)',
+  },
+
+  activityModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  activityModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginLeft: 8,
+  },
+
+  activityCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(107, 114, 128, 0.08)',
+  },
+
+  activityModalScrollView: {
+    flex: 1,
+  },
+
+  activityDetailsContainer: {
+    padding: 24,
+    paddingTop: 16,
+  },
+
+  activityTitleSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+
+  activityModalActivityTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 20,
+    lineHeight: 32,
+  },
+
+  activityModalStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+
+  activityModalStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  activityInfoCard: {
+    backgroundColor: 'rgba(248, 250, 252, 0.8)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 231, 235, 0.4)',
+  },
+
+  activityInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  activityInfoText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  activityInfoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+
+  activityInfoValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 22,
+  },
+
+  activityInfoSubValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  activityDescriptionCard: {
+    backgroundColor: 'rgba(255, 247, 237, 0.8)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+
+  activityDescriptionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+
+  activityDescriptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#78350f',
+    lineHeight: 22,
+  },
+
+  activityModalActions: {
+    padding: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(229, 231, 235, 0.3)',
+    backgroundColor: '#fafafa',
+  },
+
+  activityActionButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+
+  activityActionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+
+  activityActionText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+    marginLeft: 8,
+    letterSpacing: -0.2,
   },
 };
 
