@@ -8,20 +8,19 @@ const getApiBaseUrl = () => {
     const { Platform } = require('react-native');
     
     // Computer's IP address for mobile development
-    const HOST = '137.159.147.158'; 
+    const HOST = 'localhost'; // Changed from incorrect IP to localhost
     
     if (Platform.OS === 'ios') {
-      // For iOS Simulator and physical devices, use the computer's IP
-      console.log('🍎 iOS detected - using host IP:', `http://${HOST}:4243/api`);
+      // For iOS Simulator, use localhost
+      console.log('🍎 iOS detected - using localhost:', `http://${HOST}:4243/api`);
       return `http://${HOST}:4243/api`;
     } else if (Platform.OS === 'android') {
-      // Try host IP first for physical devices, fallback to emulator address
-      console.log('🤖 Android detected - trying host IP first:', `http://${HOST}:4243/api`);
-      // Note: If this fails, the user should manually change to 'http://10.0.2.2:4243/api' for Android Emulator
-      return `http://${HOST}:4243/api`;
+      // For Android Emulator, use special IP
+      console.log('🤖 Android detected - using emulator IP:', 'http://10.0.2.2:4243/api');
+      return 'http://10.0.2.2:4243/api';
     } else {
-      // Web/other platforms or fallback
-      console.log('🌐 Web/Other platform - using host IP:', `http://${HOST}:4243/api`);
+      // Web/other platforms use localhost
+      console.log('🌐 Web/Other platform - using localhost:', `http://${HOST}:4243/api`);
       return `http://${HOST}:4243/api`;
     }
   } else {

@@ -10,7 +10,7 @@ import { Colors, FontSizes } from '../styles/theme';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
-import StudentDashboard from '../screens/student/StudentDashboard';
+import StudentDashboard from '../screens/dashboard/StudentDashboard';
 import AdminDashboard from '../screens/dashboard/AdminDashboard';
 import CoachDashboard from '../screens/dashboard/CoachDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
