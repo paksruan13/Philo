@@ -393,14 +393,28 @@ const getActivitiesWithSubmissionStatus = async (userId) => {
 const getDashboardData = async (userId) => {
   const user = await prisma.user.findUnique({
     where: {id: userId},
-    include: {team: true}
+    include: {
+      team: true,
+      coachedTeams: true
+    }
   });
-  if (!user?.team) {
+  
+  // Check if user is part of a team (as student) or coaches a team
+  let teamId = null;
+  if (user?.team) {
+    // User is a student
+    teamId = user.teamId;
+  } else if (user?.coachedTeams && user.coachedTeams.length > 0) {
+    // User is a coach
+    teamId = user.coachedTeams[0].id;
+  }
+  
+  if (!teamId) {
     throw new Error('User is not part of a team');
   }
 
   // Get team with full details including shirt sales
-  const fullTeamData = await getTeamWithDetails(user.teamId);
+  const fullTeamData = await getTeamWithDetails(teamId);
   
   if (!fullTeamData) {
     throw new Error('Team not found');

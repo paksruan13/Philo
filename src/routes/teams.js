@@ -6,7 +6,7 @@ const teamController = require('../controllers/teamController');
 const { authenticationToken, requireRole } = require('../middleware/auth');
 
 //Student Routes
-router.get('/my-team', authenticationToken, requireRole(['STUDENT']), teamController.getMyTeamDashboard);
+router.get('/my-team', authenticationToken, requireRole(['STUDENT', 'COACH']), teamController.getMyTeamDashboard);
 router.get('/my-team/activities', authenticationToken, requireRole(['STUDENT']), teamController.getMyTeamActivities);
 
 //Public Routes
