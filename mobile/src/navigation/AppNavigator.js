@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontSizes } from '../styles/theme';
@@ -15,6 +16,7 @@ import AdminDashboard from '../screens/dashboard/AdminDashboard';
 import CoachDashboard from '../screens/dashboard/CoachDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import GroupMeScreen from '../screens/groupme/GroupMeScreen';
 
 // Import admin management screens
 import UserManagement from '../screens/admin/UserManagement';
@@ -78,21 +80,32 @@ const MainTabNavigator = () => {
           backgroundColor: Colors.card,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          paddingTop: 8,
+          paddingTop: 12,
           paddingBottom: 25,
-          height: 80,
+          height: 70,
         },
-        tabBarLabelStyle: {
-          fontSize: FontSizes.xs,
-          fontWeight: '600',
-          marginTop: 4,
-        },
+        tabBarShowLabel: false, // Remove labels
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.mutedForeground,
         headerShown: false,
       }}
     >
-      {/* Dashboard Tab - Different based on role */}
+      {/* Leaderboard Tab - Far Left */}
+      <Tab.Screen
+        name="Leaderboard"
+        component={LeaderboardScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons 
+              name={focused ? "trophy" : "trophy-outline"} 
+              size={26} 
+              color={focused ? '#FF6B6B' : color} 
+            />
+          ),
+        }}
+      />
+
+      {/* Dashboard Tab - Second position */}
       <Tab.Screen
         name="Dashboard"
         component={
@@ -102,33 +115,42 @@ const MainTabNavigator = () => {
           getDashboardComponent(user?.role)
         }
         options={{
-          tabBarLabel: 'Dashboard',
           tabBarIcon: ({ focused, color }) => (
-            <Text style={{ fontSize: 24, color }}>🎯</Text>
+            <Ionicons 
+              name={focused ? "grid" : "grid-outline"} 
+              size={26} 
+              color={focused ? '#0891b2' : color} 
+            />
           ),
         }}
       />
 
-      {/* Leaderboard Tab */}
+      {/* GroupMe Tab - Third position */}
       <Tab.Screen
-        name="Leaderboard"
-        component={LeaderboardScreen}
+        name="GroupMe"
+        component={GroupMeScreen}
         options={{
-          tabBarLabel: 'Leaderboard',
           tabBarIcon: ({ focused, color }) => (
-            <Text style={{ fontSize: 24, color }}>🏆</Text>
+            <Ionicons 
+              name={focused ? "chatbubbles" : "chatbubbles-outline"} 
+              size={26} 
+              color={focused ? '#00D4FF' : color} 
+            />
           ),
         }}
       />
 
-      {/* Profile Tab */}
+      {/* Profile Tab - Far Right */}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile',
           tabBarIcon: ({ focused, color }) => (
-            <Text style={{ fontSize: 24, color }}>👤</Text>
+            <Ionicons 
+              name={focused ? "person" : "person-outline"} 
+              size={26} 
+              color={focused ? '#8b5cf6' : color} 
+            />
           ),
         }}
       />

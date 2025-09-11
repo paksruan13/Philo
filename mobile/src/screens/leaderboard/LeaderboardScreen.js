@@ -538,7 +538,7 @@ const LeaderboardScreen = () => {
             </View>
             
             {item.points > 0 && (
-              <View style={newStyles.eventDetailRow}>
+              <View style={[newStyles.eventDetailRow, { marginBottom: 16 }]}>
                 <Ionicons name="trophy-outline" size={16} color="#6b7280" />
                 <Text style={newStyles.eventDetailText}>{item.points} points</Text>
               </View>
@@ -691,22 +691,18 @@ const LeaderboardScreen = () => {
       
       return (
         <View style={newStyles.podiumColumn}>
-          {/* Rank Icon with Gradient Background */}
-          <LinearGradient
-            colors={getRankGradient(rank)}
-            style={newStyles.rankIconContainer}
-          >
-            <Ionicons name={getRankIcon(rank)} size={24} color="white" />
-          </LinearGradient>
-          
           {/* Team Card */}
           <View style={[
             newStyles.teamCard,
             isUserTeam && newStyles.userTeamCard
           ]}>
-            <View style={[newStyles.teamAvatarPodium, { backgroundColor: getRankColor(rank) }]}>
-              <Ionicons name="people" size={18} color="white" />
-            </View>
+            {/* Rank Icon with Gradient Background - moved to where people icon was */}
+            <LinearGradient
+              colors={getRankGradient(rank)}
+              style={newStyles.rankIconContainer}
+            >
+              <Ionicons name={getRankIcon(rank)} size={24} color="white" />
+            </LinearGradient>
             
             <Text style={[
               newStyles.teamNamePodium,
@@ -1180,7 +1176,7 @@ const newStyles = {
 
   eventCard: {
     width: 280,
-    height: 180, // Fixed height for consistent button position
+    height: 200, // Increased height for better spacing
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
@@ -1227,7 +1223,7 @@ const newStyles = {
   eventDetails: {
     flex: 1, // Take up available space between header and button
     justifyContent: 'flex-start',
-    marginBottom: 24, // Increased space between details and button
+    marginBottom: 16, // Balanced space between details and button
   },
 
   eventDetailRow: {

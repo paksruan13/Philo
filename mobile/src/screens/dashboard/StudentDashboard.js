@@ -17,9 +17,8 @@ import { API_ROUTES, fetchWithTimeout } from '../../services/api';
 
 // Import components
 import TeamOverviewCard from '../student/TeamOverviewCard';
-import FinancialSummary from '../student/FinancialSummary';
 import TeamMembersCard from '../student/TeamMembersCard';
-import PhotoGallery from '../student/PhotoGallery';
+import AnnouncementsCard from '../student/AnnouncementsCard';
 
 const StudentDashboard = ({ navigation }) => {
   const [teamData, setTeamData] = useState(null);
@@ -48,9 +47,36 @@ const StudentDashboard = ({ navigation }) => {
         throw new Error('Failed to fetch team data');
       }
 
-      const data = await response.json();
-      console.log('✅ Team dashboard data:', data);
-      setTeamData(data);
+      const teamData = await response.json();
+      console.log('✅ Team dashboard data:', teamData);
+
+      // Calculate total raised from team's donations
+      if (teamData.stats && teamData.donations) {
+        const totalRaised = teamData.donations.reduce((total, donation) => {
+          return total + (parseFloat(donation.amount) || 0);
+        }, 0);
+        
+        teamData.stats.totalRaised = totalRaised;
+        console.log(`✅ Calculated team total raised from donations: $${totalRaised.toFixed(2)}`);
+        console.log(`📊 Number of donations: ${teamData.donations.length}`);
+      } else if (teamData.recentDonations) {
+        // Fallback to recentDonations if donations array doesn't exist
+        const totalRaised = teamData.recentDonations.reduce((total, donation) => {
+          return total + (parseFloat(donation.amount) || 0);
+        }, 0);
+        
+        if (teamData.stats) {
+          teamData.stats.totalRaised = totalRaised;
+        }
+        console.log(`✅ Calculated team total raised from recentDonations: $${totalRaised.toFixed(2)}`);
+      } else {
+        console.log('⚠️ No donations data found in team payload');
+        if (teamData.stats) {
+          teamData.stats.totalRaised = teamData.stats.totalRaised || 0;
+        }
+      }
+
+      setTeamData(teamData);
       setError('');
     } catch (error) {
       console.error('❌ Error fetching team dashboard:', error);
@@ -93,10 +119,6 @@ const StudentDashboard = ({ navigation }) => {
             <Text style={styles.roleText}>Team Member</Text>
           </View>
         </View>
-        
-        <TouchableOpacity style={styles.notificationButton}>
-          <Ionicons name="notifications-outline" size={24} color="white" />
-        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
@@ -213,23 +235,15 @@ const StudentDashboard = ({ navigation }) => {
               <View style={styles.heroCard}>
                 <TeamOverviewCard team={teamData.team} stats={teamData.stats} />
               </View>
-              
-              {/* Financial Summary */}
+
+              {/* Announcements */}
               <View style={styles.modernCard}>
-                <FinancialSummary 
-                  stats={teamData.stats} 
-                  recentDonations={teamData.recentDonations} 
-                />
+                <AnnouncementsCard teamId={teamData.team?.id} />
               </View>
 
               {/* Team Members */}
               <View style={styles.modernCard}>
                 <TeamMembersCard members={teamData.team?.members} />
-              </View>
-
-              {/* Photo Gallery */}
-              <View style={styles.modernCard}>
-                <PhotoGallery photos={teamData.photos} />
               </View>
             </View>
             
