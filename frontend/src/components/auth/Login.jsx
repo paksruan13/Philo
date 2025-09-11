@@ -40,6 +40,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
       <div className="min-h-screen flex">
+        {/* Left Side - Login Form (2/3) */}
         <div className="w-2/3 flex items-center justify-center p-12 bg-white">
           <div className="w-full max-w-md">
             <div className="text-center mb-8">
@@ -117,6 +118,7 @@ const Login = () => {
           </div>
         </div>
         
+        {/* Right Side - Color Palette (1/3) */}
         <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
           <div className="text-center text-white w-full">
             <h2 className="text-4xl font-bold mb-6">Project Phi</h2>
@@ -126,6 +128,55 @@ const Login = () => {
             <div className="space-y-4 text-left">
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">🏆</span>
+                <span>Compete on the leaderboard</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🛒</span>
+                <span>Shop and support your team</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📸</span>
+                <span>Submit activities and earn points</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {showPasswordChange && (
+          <ChangePassword 
+            mustChange={true} 
+            onClose={() => setShowPasswordChange(false)} 
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      <div className="min-h-screen flex">
+        {/* Left Side - Login Form (2/3) */}
+        <div className="w-2/3 flex items-center justify-center p-12 bg-white">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+              <p className="text-gray-600 mt-2">Sign in to your Project Phi account</p>
+            </div>
+            
+            {formContent}
+          </div>
+        </div>
+        
+        {/* Right Side - Color Palette (1/3) */}
+        <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
+          <div className="text-center text-white w-full">
+            <h2 className="text-4xl font-bold mb-6">Project Phi</h2>
+            <p className="text-xl mb-8 text-white/90">
+              Join the community of teams competing, collaborating, and making a difference together.
+            </p>
+            <div className="space-y-4 text-left">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">�</span>
                 <span>Compete on the leaderboard</span>
               </div>
               <div className="flex items-center space-x-3">
