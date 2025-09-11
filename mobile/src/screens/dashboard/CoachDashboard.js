@@ -11,8 +11,12 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
+
+const API_BASE_URL = 'http://localhost:4243/api'; // Add this for direct API calls
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -24,6 +28,7 @@ const CoachDashboard = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [students, setStudents] = useState([]);
   const [teamStats, setTeamStats] = useState({});
+  const [teamData, setTeamData] = useState(null);
   const [showAllStudents, setShowAllStudents] = useState(false);
 
   const fetchTeamData = async () => {
@@ -33,23 +38,106 @@ const CoachDashboard = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('🏆 Fetching coach dashboard data from:', API_ROUTES.coach.students);
-      const response = await fetchWithTimeout(API_ROUTES.coach.students, { headers }, 15000);
+      // First, get current user info with coached teams
+      console.log('🏆 Fetching user data to get coached teams...');
+      const userRes = await fetchWithTimeout(API_ROUTES.auth.me, { headers }, 15000);
       
-      if (response.ok) {
-        const studentsData = await response.json();
-        setStudents(studentsData || []);
+      if (!userRes.ok) {
+        const errorText = await userRes.text();
+        throw new Error(`Failed to fetch user data: ${userRes.status} - ${errorText}`);
+      }
+      
+      const userData = await userRes.json();
+      
+      // Check if user has coached teams
+      if (!userData.user.coachedTeams || userData.user.coachedTeams.length === 0) {
+        console.error('Coach is not assigned to any team');
+        return;
+      }
+
+      // Get the first coached team
+      const coachedTeam = userData.user.coachedTeams[0];
+      console.log('=== COACHED TEAM BASIC DATA ===');
+      console.log('Team ID:', coachedTeam.id);
+      console.log('Team name:', coachedTeam.name);
+      console.log('===============================');
+      setTeamData(coachedTeam);
+
+      // Now fetch leaderboard data (same as LeaderboardScreen) to get complete team stats
+      console.log('📊 Fetching leaderboard data to get complete team stats...');
+      const leaderboardResponse = await fetchWithTimeout(API_ROUTES.LEADERBOARD.GET, { headers }, 15000);
+      
+      if (leaderboardResponse.ok) {
+        const leaderboardData = await leaderboardResponse.json();
+        console.log('=== LEADERBOARD DATA RESPONSE ===');
+        console.log('Full leaderboard response:', JSON.stringify(leaderboardData, null, 2));
         
-        // Calculate team stats
-        const stats = {
-          totalStudents: studentsData.length,
-          totalPoints: studentsData.reduce((sum, student) => sum + (student.points || 0), 0),
-          totalDonations: studentsData.reduce((sum, student) => sum + (student.totalDonations || 0), 0),
-        };
-        setTeamStats(stats);
+        // Find our coached team in the leaderboard data
+        const ourTeamData = leaderboardData.find(team => team.id === coachedTeam.id);
+        
+        if (ourTeamData) {
+          console.log('=== OUR TEAM FROM LEADERBOARD ===');
+          console.log('Team name:', ourTeamData.name);
+          console.log('Total score/points:', ourTeamData.totalScore);
+          console.log('Member count:', ourTeamData.memberCount);
+          console.log('Stats object:', JSON.stringify(ourTeamData.stats, null, 2));
+          console.log('Total donations:', ourTeamData.stats?.totalDonations);
+          console.log('================================');
+          
+          // Set team stats from leaderboard data (this has the complete calculated stats)
+          const leaderboardStats = {
+            totalStudents: ourTeamData.memberCount || 0,
+            totalPoints: ourTeamData.totalScore || 0,
+            totalDonations: ourTeamData.stats?.totalDonations || 0,
+          };
+          
+          console.log('🎯 Final stats from leaderboard:', leaderboardStats);
+          setTeamStats(leaderboardStats);
+        } else {
+          console.error('Team not found in leaderboard data');
+          // Fallback to basic team data
+          setTeamStats({
+            totalStudents: 0,
+            totalPoints: 0,
+            totalDonations: 0,
+          });
+        }
+      } else {
+        console.error('Failed to fetch leaderboard data:', leaderboardResponse.status);
+        // Fallback to basic team data
+        setTeamStats({
+          totalStudents: 0,
+          totalPoints: 0,
+          totalDonations: 0,
+        });
+      }
+
+      // Still fetch team members for the modal display
+      console.log('👥 Fetching team members for modal display...');
+      const membersResponse = await fetchWithTimeout(
+        API_ROUTES.teams.members(coachedTeam.id), 
+        { headers }, 
+        15000
+      );
+      
+      if (membersResponse.ok) {
+        const membersData = await membersResponse.json();
+        console.log('Members data for modal:', membersData.length, 'members');
+        
+        // Filter to only show students (not coaches or admins)
+        const studentMembers = membersData.filter(member => member.role === 'STUDENT');
+        setStudents(studentMembers || []);
+      } else {
+        console.error('Failed to fetch team members for modal');
+        setStudents([]);
       }
     } catch (error) {
       console.error('Error fetching team data:', error);
+      setTeamStats({
+        totalStudents: 0,
+        totalPoints: 0,
+        totalDonations: 0,
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -82,111 +170,86 @@ const CoachDashboard = ({ navigation }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Coach Dashboard 🏆</Text>
-          <Text style={styles.subtitle}>Team Management & Performance</Text>
-        </View>
-
-        {/* Team Stats Card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Team Statistics</Text>
-          <View style={styles.statsCard}>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{teamStats.totalStudents || 0}</Text>
-                <Text style={styles.statLabel}>Total Students</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={styles.headerText}>
+                <Text style={styles.greeting}>Welcome back, Coach!</Text>
+                <Text style={styles.subtitle}>{teamData ? teamData.name : 'Loading team...'}</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{teamStats.totalPoints || 0}</Text>
-                <Text style={styles.statLabel}>Total Points</Text>
+              <View style={styles.headerIcon}>
+                <Ionicons name="shield-checkmark" size={28} color="#059669" />
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>${(teamStats.totalDonations || 0).toFixed(2)}</Text>
-                <Text style={styles.statLabel}>Team Donations</Text>
+            </View>
+            <View style={styles.quickStatsRow}>
+              <View style={styles.quickStat}>
+                <Ionicons name="people" size={18} color="#059669" />
+                <Text style={styles.quickStatNumber}>{teamStats.totalStudents || 0}</Text>
+                <Text style={styles.quickStatLabel}>Members</Text>
+              </View>
+              <View style={styles.quickStat}>
+                <Ionicons name="star" size={18} color="#d97706" />
+                <Text style={styles.quickStatNumber}>{teamStats.totalPoints || 0}</Text>
+                <Text style={styles.quickStatLabel}>Points</Text>
+              </View>
+              <View style={styles.quickStat}>
+                <Ionicons name="cash" size={18} color="#7c3aed" />
+                <Text style={styles.quickStatNumber}>${(teamStats.totalDonations || 0).toFixed(0)}</Text>
+                <Text style={styles.quickStatLabel}>Raised</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Student List Card */}
+        {/* Quick Actions */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>👥 Team Members</Text>
-            {students.length > 3 && (
-              <TouchableOpacity 
-                style={styles.seeAllButton}
-                onPress={() => setShowAllStudents(true)}
-              >
-                <Text style={styles.seeAllText}>See All ({students.length})</Text>
-              </TouchableOpacity>
-            )}
+            <Ionicons name="rocket" size={24} color="#6b21a8" />
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
           </View>
-          <View style={styles.studentsCard}>
-            {students.length > 0 ? (
-              students.slice(0, 3).map((student) => (
-                <View key={student.id} style={styles.studentItem}>
-                  <View style={styles.studentAvatar}>
-                    <Text style={styles.avatarText}>
-                      {student.name?.charAt(0)?.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.studentInfo}>
-                    <Text style={styles.studentName}>{student.name}</Text>
-                    <Text style={styles.studentEmail}>{student.email}</Text>
-                  </View>
-                  <View style={styles.studentStats}>
-                    <Text style={styles.studentPoints}>{student.points || 0} pts</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>No team members found</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Management Actions */}
-        <View style={styles.actionSection}>
-          <Text style={styles.sectionTitle}>🚀 Coach Tools</Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => setShowAllStudents(true)}
             >
-              <Text style={styles.actionIcon}>👥</Text>
-              <Text style={styles.actionText}>All Students</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="people-outline" size={24} color="#6b21a8" />
+              </View>
+              <Text style={styles.actionText}>View All Students</Text>
+              <Text style={styles.actionSubtext}>Manage team members</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('ManagePoints')}
             >
-              <Text style={styles.actionIcon}>⭐</Text>
-              <Text style={styles.actionText}>Manage Points</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="star-outline" size={24} color="#6b21a8" />
+              </View>
+              <Text style={styles.actionText}>Award Points</Text>
+              <Text style={styles.actionSubtext}>Manage student points</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('Announcements')}
             >
-              <Text style={styles.actionIcon}>📢</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="megaphone-outline" size={24} color="#6b21a8" />
+              </View>
               <Text style={styles.actionText}>Announcements</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('SubmissionManagement')}
-            >
-              <Text style={styles.actionIcon}>📋</Text>
-              <Text style={styles.actionText}>Submission Management</Text>
+              <Text style={styles.actionSubtext}>Send team updates</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('ProductSales')}
             >
-              <Text style={styles.actionIcon}>🛍️</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="storefront-outline" size={24} color="#6b21a8" />
+              </View>
               <Text style={styles.actionText}>Product Sales</Text>
+              <Text style={styles.actionSubtext}>Manage inventory</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -195,7 +258,7 @@ const CoachDashboard = ({ navigation }) => {
         <View style={styles.footerSpace} />
       </ScrollView>
 
-      {/* All Students Overlay */}
+      {/* All Students Modal */}
       <Modal
         visible={showAllStudents}
         animationType="slide"
@@ -203,19 +266,28 @@ const CoachDashboard = ({ navigation }) => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>All Team Members ({students.length})</Text>
+            <View style={styles.modalHeaderContent}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="people" size={22} color="#6366f1" />
+              </View>
+              <View>
+                <Text style={styles.modalTitle}>👥 Team Members</Text>
+                <Text style={styles.modalSubtitle}>{teamData?.name || 'Team'} • {students.length} members</Text>
+              </View>
+            </View>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => setShowAllStudents(false)}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={18} color="#6b7280" />
             </TouchableOpacity>
           </View>
           <FlatList
-            data={students}
+            data={students.sort((a, b) => a.name?.localeCompare(b.name))}
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.modalList}
-            renderItem={({ item: student }) => (
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item: student, index }) => (
               <View style={styles.modalStudentItem}>
                 <View style={styles.studentAvatar}>
                   <Text style={styles.avatarText}>
@@ -224,13 +296,12 @@ const CoachDashboard = ({ navigation }) => {
                 </View>
                 <View style={styles.modalStudentInfo}>
                   <Text style={styles.studentName}>{student.name}</Text>
-                  <Text style={styles.studentEmail}>{student.email}</Text>
                 </View>
                 <View style={styles.modalStudentStats}>
-                  <Text style={styles.studentPoints}>{student.points || 0} pts</Text>
-                  <Text style={styles.studentLastActive}>
-                    Last active: {student.lastActive ? new Date(student.lastActive).toLocaleDateString() : 'Never'}
-                  </Text>
+                  <View style={styles.donationBadge}>
+                    <Ionicons name="cash" size={14} color="#059669" />
+                    <Text style={styles.donationAmount}>${(student.donations || 0).toFixed(2)}</Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -244,168 +315,270 @@ const CoachDashboard = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   loadingText: {
     fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
-  },
-
-  header: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-
-  greeting: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
-  },
-
-  subtitle: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
+    color: '#64748b',
     fontWeight: '500',
   },
 
-  actionSection: {
+  headerContainer: {
+    backgroundColor: '#ffffff',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  header: {
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+  },
+
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  headerText: {
+    flex: 1,
+  },
+
+  greeting: {
+    fontSize: FontSizes.xl,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '400',
+  },
+
+  headerIcon: {
+    marginLeft: Spacing.md,
+  },
+
+  quickStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  quickStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  quickStatNumber: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginTop: Spacing.xs,
+    marginBottom: 2,
+  },
+
+  quickStatLabel: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+
+  section: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  sectionTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+
+  performanceCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  performanceStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+
+  performanceStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  performanceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+
+  performanceLabel: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '500',
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+
+  performanceValue: {
+    fontSize: FontSizes.xl,
+    fontWeight: 'bold',
+    color: '#1f2937',
   },
 
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: Spacing.md,
   },
 
   actionButton: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: Spacing.lg,
     alignItems: 'center',
-    width: cardWidth,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
+    width: (screenWidth - Spacing.lg * 3) / 2,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
 
-  actionIcon: {
-    fontSize: FontSizes.xl,
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
 
   actionText: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+  },
+
+  actionSubtext: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontWeight: '400',
+  },
+
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    gap: Spacing.xs,
+  },
+
+  seeAllText: {
+    color: '#ffffff',
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.foreground,
-    textAlign: 'center',
   },
 
-  sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: Spacing.md,
-  },
-
-  footerSpace: {
-    height: Spacing.xl,
-  },
-
-  // Team Stats Styles
-  section: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-
-  statsCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.md,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-
-  statItem: {
-    alignItems: 'center',
-  },
-
-  statNumber: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-
-  statLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.muted,
-    marginTop: Spacing.xs,
-  },
-
-  // Student List Styles
   studentsCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.md,
-    shadowColor: Colors.shadow,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
 
   studentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#f1f5f9',
+  },
+
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+
+  rankText: {
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
+    color: '#6b21a8',
   },
 
   studentAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#8b5cf6',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
   },
 
   avatarText: {
-    color: 'white',
+    color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
   },
 
   studentInfo: {
@@ -413,104 +586,157 @@ const styles = {
   },
 
   studentName: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.base,
     fontWeight: '600',
-    color: Colors.foreground,
+    color: '#1f2937',
+    marginBottom: 2,
   },
 
   studentEmail: {
     fontSize: FontSizes.sm,
-    color: Colors.muted,
+    color: '#6b7280',
+    fontWeight: '400',
   },
 
   studentStats: {
     alignItems: 'flex-end',
   },
 
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+
   studentPoints: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.primary,
+    color: '#92400e',
   },
 
-  seeAllButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 16,
-  },
-
-  seeAllText: {
-    color: 'white',
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
   },
 
   emptyText: {
+    fontSize: FontSizes.lg,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+
+  emptySubtext: {
+    fontSize: FontSizes.sm,
+    color: '#9ca3af',
     textAlign: 'center',
-    color: Colors.muted,
-    fontSize: FontSizes.md,
-    fontStyle: 'italic',
+    fontWeight: '400',
+  },
+
+  footerSpace: {
+    height: Spacing.xl,
   },
 
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.md,
+    padding: Spacing.lg,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   modalTitle: {
     fontSize: FontSizes.lg,
     fontWeight: 'bold',
-    color: Colors.foreground,
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '500',
   },
 
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.destructive || '#FF3B30',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  closeButtonText: {
-    fontSize: FontSizes.lg,
-    color: 'white',
-    fontWeight: 'bold',
-    lineHeight: FontSizes.lg,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
 
   modalList: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
+    gap: Spacing.md,
   },
 
   modalStudentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
-    padding: Spacing.md,
+    backgroundColor: '#ffffff',
+    padding: Spacing.lg,
     borderRadius: 12,
-    marginBottom: Spacing.sm,
-    shadowColor: Colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+
+  modalRankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+
+  modalRankText: {
+    fontSize: FontSizes.xs,
+    fontWeight: 'bold',
+    color: '#3b82f6',
   },
 
   modalStudentInfo: {
@@ -520,12 +746,32 @@ const styles = {
 
   modalStudentStats: {
     alignItems: 'flex-end',
+    gap: Spacing.xs,
   },
 
   studentLastActive: {
     fontSize: FontSizes.xs,
-    color: Colors.muted,
-    marginTop: Spacing.xs,
+    color: '#6b7280',
+    marginTop: 2,
+    fontWeight: '400',
+  },
+
+  donationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    gap: 6,
+  },
+
+  donationAmount: {
+    fontSize: FontSizes.sm,
+    color: '#059669',
+    fontWeight: '600',
   },
 };
 
