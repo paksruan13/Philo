@@ -133,6 +133,9 @@ return (
                   Points
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Schedule
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status & Features
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -163,6 +166,39 @@ return (
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {activity.points} pts
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {activity.startDate && (
+                        <div className="flex items-center text-green-600 mb-1">
+                          <span className="text-xs">Start:</span>
+                          <span className="ml-1 text-xs">
+                            {new Date(activity.startDate).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {activity.endDate && (
+                        <div className="flex items-center text-red-600">
+                          <span className="text-xs">End:</span>
+                          <span className="ml-1 text-xs">
+                            {new Date(activity.endDate).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {!activity.startDate && !activity.endDate && (
+                        <span className="text-xs text-gray-500">No schedule set</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-1">
@@ -265,7 +301,9 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
         isPublished: activity?.isPublished || false,
         allowOnlinePurchase: activity?.allowOnlinePurchase || false,
         allowPhotoUpload: activity?.allowPhotoUpload || false,
-        allowSubmission: activity?.allowSubmission || false
+        allowSubmission: activity?.allowSubmission || false,
+        startDate: activity?.startDate ? new Date(activity.startDate).toISOString().slice(0, 16) : '',
+        endDate: activity?.endDate ? new Date(activity.endDate).toISOString().slice(0, 16) : ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -276,18 +314,37 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
         setError('');
 
         try {
+            // Validate date range
+            if (formData.startDate && formData.endDate) {
+                const startDate = new Date(formData.startDate);
+                const endDate = new Date(formData.endDate);
+                if (endDate <= startDate) {
+                    setError('End date must be after start date');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const url = activity
             ? API_ROUTES.admin.activityDetail(activity.id)
             : API_ROUTES.admin.activities;
 
             const method = activity ? 'PUT' : 'POST';
+            
+            // Prepare form data with proper date formatting
+            const submitData = {
+                ...formData,
+                startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+                endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null
+            };
+            
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(submitData)
             });
 
             if(response.ok) {
@@ -363,6 +420,29 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
                 required
                 min="0"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Start Date & Time</label>
+              <input
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional: When the activity begins</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">End Date & Time</label>
+              <input
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional: When the activity ends</p>
             </div>
           </div>
 

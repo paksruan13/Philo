@@ -212,9 +212,9 @@ const HeroWithStatistics = ({ statistics }) => {
                             <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                                 Donation Goal
                             </div>
-                            <div className="w-full bg-secondary/30 rounded-full h-3 mt-3">
+                            <div className="w-3/4 mx-auto bg-secondary/30 rounded-full h-3 mt-3 border-2 border-yellow-500/60 shadow-inner">
                                 <div 
-                                    className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-1000"
+                                    className="bg-gradient-to-r from-yellow-500 to-orange-600 h-full rounded-full transition-all duration-1000 shadow-sm"
                                     style={{ width: `${isLoading ? 0 : stats.progressPercentage}%` }}
                                 ></div>
                             </div>
