@@ -459,6 +459,7 @@ const getDashboardData = async (userId) => {
       name: fullTeamData.name,
       teamCode: fullTeamData.teamCode,
       coach: fullTeamData.coach,
+      groupMeLink: fullTeamData.groupMeLink,
       members: membersWithContributions, // Include contributions with shirt purchases
     },
     stats: {

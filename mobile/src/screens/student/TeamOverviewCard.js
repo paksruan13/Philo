@@ -35,7 +35,7 @@ const TeamOverviewCard = ({ team, stats }) => {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0891b2', '#06b6d4']}
+        colors={['#8b5cf6', '#e11d48']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradientBackground}
@@ -44,10 +44,10 @@ const TeamOverviewCard = ({ team, stats }) => {
         <View style={styles.header}>
           <View style={styles.teamIconContainer}>
             <LinearGradient
-              colors={['#f59e0b', '#eab308']}
+              colors={['#ec4899', '#f43f5e']}
               style={styles.teamIcon}
             >
-              <Ionicons name="people" size={24} color="white" />
+              <Ionicons name="basketball" size={24} color="white" />
             </LinearGradient>
           </View>
           
@@ -66,10 +66,6 @@ const TeamOverviewCard = ({ team, stats }) => {
               )}
             </View>
           </View>
-
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="white" />
-          </TouchableOpacity>
         </View>
 
         {/* Stats Grid */}
@@ -96,7 +92,7 @@ const TeamOverviewCard = ({ team, stats }) => {
 
             <View style={styles.statItem}>
               <View style={styles.membersBadge}>
-                <Ionicons name="people-outline" size={16} color="#0891b2" />
+                <Ionicons name="people-outline" size={16} color="white" />
               </View>
               <View style={styles.statContent}>
                 <Text style={styles.statValue}>{team.members?.length || 0}</Text>
@@ -226,7 +222,7 @@ const styles = {
   raisedAmount: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#f59e0b',
+    color: '#10b981',
     marginBottom: 4,
   },
   raisedLabel: {
@@ -266,7 +262,7 @@ const styles = {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'white',
+    backgroundColor: '#22d3ee',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -321,7 +317,7 @@ const styles = {
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#10b981',
     borderRadius: 2,
   },
 };
