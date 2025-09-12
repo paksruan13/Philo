@@ -1,14 +1,13 @@
 {
   "expo": {
-    "name": "Project Phi",
-    "slug": "project-phi",
+    "name": "SigEp Bounce",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "project-phi",
-    "privacy": "unlisted",
+    "scheme": "sigepbounce",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,11 +15,20 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.projectphi.app",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.sigepbounce.app",
+      "buildNumber": "2025.09.12.6",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload product images.",
-        "NSCameraUsageDescription": "This app needs access to your camera to take product photos."
+        "NSCameraUsageDescription": "This app needs access to your camera to take product photos.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "api.sigepbounce.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSExceptionMinimumTLSVersion": "1.0"
+            }
+          }
+        }
       }
     },
     "android": {
@@ -28,7 +36,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.projectphi.app",
+      "package": "com.sigepbounce.app",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -40,16 +48,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "fonts": [
-      {
-        "family": "BitcountGridDouble",
-        "source": "./assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf"
-      }
-    ],
     "extra": {
       "eas": {
         "projectId": "d29cfd38-f0ff-40a4-911d-862662d01179"
       }
-    }
+    },
+    "owner": "pacoruan04"
   }
 }
