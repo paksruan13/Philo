@@ -2,46 +2,63 @@ const { prisma } = require('../config/database');
 
 const calculateLeaderboard = async () => {
   const teams = await prisma.team.findMany({
-    include: {
-      donations: { select: { amount: true } },
-      shirtSales: { select: { quantity: true } },
-      photos: { select: { approved: true } },
-      _count: {
+    select: {
+      id: true,
+      name: true,
+      totalPoints: true,
+      createdAt: true,
+      _count:{ 
         select: {
+          members: true,
           donations: true,
-          shirtSales: true,
           photos: true,
+          shirtSales: true,
+          activitySubmissions: {where: {status: 'APPROVED'}}
         }
+      },
+      donations: {
+        select: {amount: true}
+      },
+      shirtSales: {
+        select: {quantity: true}
+      },
+      photos: {
+        where: {approved: true}
+      },
+      activitySubmissions: {
+        where: {status: 'APPROVED'},
+        select: {pointsAwarded: true}
       }
     }
   });
 
-  const leaderboard = await Promise.all(teams.map(async team => {
-    const totalDonations = team.donations.reduce((sum, donation) => sum + donation.amount, 0);
-    const totalShirtPoints = team.shirtSales.reduce((sum, sale) => sum + (sale.quantity * 10), 0);
-    const approvedPhotos = team.photos.filter(photo => photo.approved);
-    const totalPhotoPoints = approvedPhotos.length * 50;
-    const totalScore = totalDonations + totalShirtPoints + totalPhotoPoints;
-    
-    const memberCount = await prisma.user.count({
-      where: { teamId: team.id },
-    });
+const leaderboard = teams.map((team, index) => {
+  const totalDonations = team.donations.reduce((sum, d) => sum + d.amount, 0);
+  const donationCount = team._count.donations;
+  const shirtSaleCount = team._count.shirtSales;
+  const totalShirtSales = team.shirtSales.reduce((sum, s) => sum + s.quantity, 0);  
+  const approvedPhotosCount = team.photos.length;
+  const activityPoints = team.activitySubmissions.reduce((sum, s) => sum + (s.pointsAwarded || 0), 0);
 
-    return {
-      id: team.id,
-      name: team.name,
-      totalScore,
+  return {
+    id: team.id,
+    name: team.name,
+    totalScore: team.totalPoints,
+    rank: 0,
+    memberCount: team._count.members,
+    stats: {
       totalDonations,
-      totalShirtPoints,
-      donationCount: team._count.donations,
-      shirtSaleCount: team._count.shirtSales,
-      totalPhotoPoints,
-      approvedPhotosCount: approvedPhotos.length,
+      donationCount,
+      shirtSaleCount,
+      totalShirtSales,
+      approvedPhotosCount,
+      activityPoints,
       photoCount: team._count.photos,
-      memberCount,
-      createdAt: team.createdAt
-    };
-  }));
+      activitySubmissions: team._count.activitySubmissions,
+    },
+    createdAt: team.createdAt
+  };
+});
 
   leaderboard.sort((a, b) => b.totalScore - a.totalScore);
   
@@ -55,13 +72,53 @@ const emitLeaderboardUpdate = async (io) => {
   try {
     const leaderboard = await calculateLeaderboard();
     io.to('leaderboard').emit('leaderboard-update', leaderboard);
-    console.log('Leaderboard update emitted to clients');
   } catch (err) {
     console.error('Error emitting leaderboard update:', err);
   }
 };
 
+const getStatistics = async () => {
+  try {
+    // Get total donations (now includes both regular donations and external sales)
+    const totalDonationsResult = await prisma.donation.aggregate({
+      _sum: {
+        amount: true
+      }
+    });
+
+    // Get donation goal from config
+    const donationGoalConfig = await prisma.appConfig.findUnique({
+      where: { key: 'donationGoal' }
+    });
+
+    // Get team count
+    const teamCount = await prisma.team.count({
+      where: { isActive: true }
+    });
+
+    const totalRaised = totalDonationsResult._sum.amount || 0;
+    const donationGoal = donationGoalConfig ? parseFloat(donationGoalConfig.value) : 50000;
+    const progressPercentage = Math.min((totalRaised / donationGoal) * 100, 100);
+
+    return {
+      teamCount,
+      totalRaised,
+      donationGoal,
+      progressPercentage
+    };
+  } catch (error) {
+    console.error('Error calculating statistics:', error);
+    return {
+      teamCount: 0,
+      totalRaised: 0,
+      donationGoal: 50000,
+      progressPercentage: 0
+    };
+  }
+};
+
 module.exports = {
   calculateLeaderboard,
-  emitLeaderboardUpdate
+  emitLeaderboardUpdate,
+  getStatistics
 };

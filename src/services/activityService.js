@@ -1,30 +1,12 @@
 const { prisma } = require('../config/database');
 
-const getAllCategories = async () => {
-  return await prisma.activityCategory.findMany({
-    include: {
-      activities: {
-        select: { id: true, title: true, isPublished: true }
-      }
-    },
-    orderBy: { name: 'asc' }
-  });
-};
-
-const createCategory = async (categoryData) => {
-  return await prisma.activityCategory.create({
-    data: categoryData
-  });
-};
-
 const getAllActivities = async () => {
   const activities = await prisma.activity.findMany({
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       },
-      submission: {
+      submissions: {
         select: { id: true, status: true }
       }
     },
@@ -33,9 +15,9 @@ const getAllActivities = async () => {
 
   return activities.map(activity => ({
     ...activity,
-    submissionCount: activity.submission.length,
-    pendingCount: activity.submission.filter(s => s.status === 'PENDING').length,
-    approvedCount: activity.submission.filter(s => s.status === 'APPROVED').length
+    submissionCount: activity.submissions.length,
+    pendingCount: activity.submissions.filter(s => s.status === 'PENDING').length,
+    approvedCount: activity.submissions.filter(s => s.status === 'APPROVED').length
   }));
 };
 
@@ -46,7 +28,6 @@ const createActivity = async (activityData, createdById) => {
       createdById
     },
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       }
@@ -59,13 +40,36 @@ const updateActivity = async (activityId, updateData) => {
     where: { id: activityId },
     data: updateData,
     include: {
-      category: true,
       createdBy: {
         select: { id: true, name: true }
       }
     }
   });
 };
+
+const deleteActivity = async (activityId) => {
+  const activity = await prisma.activity.findUnique({
+    where: {id: activityId},
+    include: {
+      submissions: {
+        select: {id: true}
+      }
+    }
+  });
+  if (!activity) {
+    throw new Error('Activity not found');
+  }
+  if (activity.submissions.length > 0) {
+    console.warn(`Deleting activity with ${activity.submissions.length} submissions`);
+    await prisma.activitySubmission.deleteMany({
+      where: {activityId: activityId}
+    });
+  }
+  const deletedActivity = await prisma.activity.delete({
+    where: {id: activityId}
+  });
+  return deletedActivity
+}
 
 const getPublishedActivities = async (userId) => {
   return await prisma.activity.findMany({
@@ -74,8 +78,7 @@ const getPublishedActivities = async (userId) => {
       isActive: true
     },
     include: {
-      category: true,
-      submission: {
+      submissions: {
         where: { userId },
         select: { id: true, status: true, pointsAwarded: true, createdAt: true }
       }
@@ -91,9 +94,6 @@ const getActivityById = async (activityId, userId = null) => {
       createdBy: {
         select: { name: true, email: true }
       },
-      category: {
-        select: { name: true, description: true }
-      }
     }
   });
 
@@ -225,7 +225,6 @@ const getUserSubmissions = async (userId, page = 1, limit = 10) => {
   }
 }
 
-
 const validateSubmissionData = (activity, submissionData) => {
   const errors = [];
   if(!submissionData || typeof submissionData !== 'object') {
@@ -271,11 +270,7 @@ const validateSubmissionData = (activity, submissionData) => {
   return errors;
 }
 
-
-
 module.exports = {
-  getAllCategories,
-  createCategory,
   getAllActivities,
   createActivity,
   updateActivity,
@@ -284,5 +279,6 @@ module.exports = {
   submitActivity,
   updateSubmission,
   getUserSubmissions,
-  validateSubmissionData
+  validateSubmissionData,
+  deleteActivity
 };

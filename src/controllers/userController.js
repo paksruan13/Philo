@@ -72,8 +72,59 @@ const getAllCoaches = async (req, res) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { name, email, role, teamId, isActive } = req.body;
+  try {
+    const updateduser = await prisma.user.update({
+      where: { id },
+      data: {
+        name, email, role, isActive, team: teamId ? { connect : { id: teamId } } : { disconnect: true }
+      },
+      include:{ 
+        team: true
+      }
+    });
+
+    if (role === 'COACH' && teamId) {
+      await prisma.team.update({
+        where: { id: teamId },
+        data: { coachId : id }
+      });
+    }
+
+    if (role !== 'COACH') {
+      const teamsCoached = await prisma.team.findMany({
+        where: { coachId: id },
+        select: { id: true }
+      });
+      if (teamsCoached.length > 0) {
+        await prisma.team.updateMany({
+          where: { coachId: id },
+          data: { coachId: null }
+        }); 
+      }
+    }
+    if (req.app.get('io')) {
+      await emitLeaderboardUpdate(req.app.get('io'));
+    }
+    const finalUser = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        team: true,
+        coachedTeams: true
+      }
+    });
+    res.json(finalUser);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   createUser,
   getAllUsers,
-  getAllCoaches
+  getAllCoaches,
+  updateUser
 };

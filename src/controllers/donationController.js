@@ -1,4 +1,5 @@
 const donationService = require('../services/donationService');
+const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 
 const createDonation = async (req, res) => {
   const { amount, currency = 'usd', userId, teamId } = req.body;
@@ -17,7 +18,13 @@ const createDonation = async (req, res) => {
     };
 
     const donation = await donationService.createDonation(donationData);
-    res.status(201).json(donation);
+
+    const points = Math.round(amount * pointsService.POINTS_CONFIG.DONATION_MULTIPLIER);
+    await pointsService.addPoints(teamId, points, `Donation: $${amount}`);
+    const io = req.app.get('io');
+    if (io) {
+      await emitLeaderboardUpdate(io);
+    }
   } catch (err) {
     console.error('Error creating donation:', err);
     res.status(500).json({ error: err.message });

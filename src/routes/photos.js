@@ -2,13 +2,19 @@ const express = require('express');
 const router = express.Router();
 const photoController = require('../controllers/photoController');
 const upload = require('../middleware/upload');
-const { authenticationToken } = require('../middleware/auth');
+const { authenticationToken, requireRole } = require('../middleware/auth');
+const adminCoachAuth = requireRole(['COACH', 'ADMIN', 'STUDENT']);
 
-router.post('/', authenticationToken, upload.single('file'), photoController.uploadPhoto);
-router.get('/', authenticationToken, photoController.getAllPhotos);
-router.get('/pending', authenticationToken, photoController.getPendingPhotos);
-router.get('/approved', authenticationToken, photoController.getApprovedPhotos);
-router.put('/:id/approve', authenticationToken, photoController.approvePhoto);
-router.put('/:id/reject', authenticationToken, photoController.rejectPhoto);
+router.use(authenticationToken)
+
+router.post('/', upload.single('file'), adminCoachAuth, photoController.uploadPhoto);
+router.post('/product', upload.single('file'), adminCoachAuth, photoController.uploadProductImage);
+router.get('/team/:teamId', adminCoachAuth, photoController.getTeamPhotos);
+router.get('/:id/view', adminCoachAuth, photoController.getSignedUrl);
+
+router.get('/pending', adminCoachAuth, photoController.getPendingPhotos);
+router.get('/approved', adminCoachAuth, photoController.getApprovedPhotos);
+router.put('/:id/approve', adminCoachAuth, photoController.approvePhoto);
+router.put('/:id/reject', adminCoachAuth, photoController.rejectPhoto);
 
 module.exports = router;

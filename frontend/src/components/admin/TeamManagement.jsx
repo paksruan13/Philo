@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState([]);
@@ -7,7 +8,7 @@ const TeamManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
-  const [newTeam, setNewTeam] = useState({ name: '', coachId: '' });
+  const [newTeam, setNewTeam] = useState({ name: '', coachId: '', groupMeLink: '' });
   const [error, setError] = useState('');
   const { token } = useAuth();
 
@@ -18,7 +19,7 @@ const TeamManagement = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/teams/admin', {
+      const response = await fetch(API_ROUTES.teams.admin, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -31,12 +32,14 @@ const TeamManagement = () => {
     } catch (error) {
       setError('Error fetching teams');
       console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchCoaches = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/users/coaches', {
+      const response = await fetch(API_ROUTES.users.coaches, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -53,22 +56,23 @@ const TeamManagement = () => {
 
   const createTeam = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/teams', {
+      const response = await fetch(API_ROUTES.teams.create, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           name: newTeam.name,
-          coachId: newTeam.coachId || null
+          coachId: newTeam.coachId || null,
+          groupMeLink: newTeam.groupMeLink || null
         })
       });
-
+      
       if (response.ok) {
-        await fetchTeams();
+        fetchTeams();
         setShowCreateModal(false);
-        setNewTeam({ name: '', coachId: '' });
+        setNewTeam({ name: '', coachId: '', groupMeLink: '' });
         setError('');
       } else {
         const errorData = await response.json();
@@ -80,45 +84,19 @@ const TeamManagement = () => {
     }
   };
 
-  const updateTeam = async (teamId, teamData) => {
-    try {
-      const response = await fetch(`http://localhost:4243/api/teams/admin/${teamId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(teamData)
-      });
-
-      if (response.ok) {
-        await fetchTeams();
-        setEditingTeam(null);
-        setError('');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to update team');
-      }
-    } catch (error) {
-      setError('Error updating team');
-      console.error('Error:', error);
-    }
-  };
-
   const assignCoach = async (teamId, coachId) => {
-  try {
-    const response = await fetch(`http://localhost:4243/api/teams/${teamId}/coach`, {  
+    try {
+    const response = await fetch(API_ROUTES.teams.assignCoach(teamId), {  
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ coachId })
     });
-
+    
     if (response.ok) {
-      await fetchTeams();
-      setError('');
+      fetchTeams();
     } else {
       const errorData = await response.json();
       setError(errorData.error || 'Failed to assign coach');
@@ -132,41 +110,88 @@ const TeamManagement = () => {
   const handleEditTeam = (team) => {
     setEditingTeam({
       ...team,
-      coachId: team.coachId || ''
+      coachId: team.coachId || '',
+      groupMeLink: team.groupMeLink || ''
     });
   };
 
-  const handleSaveTeam = () => {
-    if (editingTeam) {
-      updateTeam(editingTeam.id, {
-        name: editingTeam.name,
-        coachId: editingTeam.coachId || null,
-        isActive: editingTeam.isActive
+  const handleSaveTeam = async () => {
+    try {
+      const response = await fetch(API_ROUTES.teams.update(editingTeam.id), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editingTeam.name,
+          coachId: editingTeam.coachId || null,
+          groupMeLink: editingTeam.groupMeLink || null,
+          isActive: editingTeam.isActive
+        })
       });
+
+      if (response.ok) {
+        fetchTeams();
+        setEditingTeam(null);
+        setError('');
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to update team');
+      }
+    } catch (error) {
+      setError('Error updating team');
+      console.error('Error:', error);
+    }
+  };
+
+  const handleResetPoints = async (team) => {
+    if (window.confirm(`Are you sure you want to reset all points for ${team.name}? This action cannot be undone.`)) {
+      try {
+        const response = await fetch(API_ROUTES.teams.resetPoints(team.id), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          fetchTeams();
+          setError('');
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to reset points');
+        }
+      } catch (error) {
+        setError('Error resetting points');
+        console.error('Error:', error);
+      }
     }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-lg text-gray-600">Loading teams...</div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Team Management</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Create teams, assign coaches, and manage team codes
-          </p>
-        </div>
+      <div className="border-b border-gray-200 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Create teams, assign coaches, and manage team codes
+        </p>
+      </div>
+
+      {/* Actions Bar */}
+      <div className="flex justify-between items-center">
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           + Create Team
         </button>
@@ -198,6 +223,9 @@ const TeamManagement = () => {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                GroupMe
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -233,13 +261,32 @@ const TeamManagement = () => {
                     {team.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {team.groupMeLink ? (
+                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      💬 Configured
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 text-gray-500 rounded-full">
+                      📱 Not Set
+                    </span>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleEditTeam(team)}
-                    className="text-blue-600 hover:text-blue-900"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditTeam(team)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleResetPoints(team)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Reset Points
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -286,6 +333,20 @@ const TeamManagement = () => {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GroupMe Invite Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={newTeam.groupMeLink}
+                    onChange={(e) => setNewTeam({...newTeam, groupMeLink: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://groupme.com/join_group/..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter the GroupMe group invite link for team chat</p>
+                </div>
+
                 <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
                   💡 A unique team code will be automatically generated for registration.
                 </div>
@@ -295,7 +356,7 @@ const TeamManagement = () => {
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
-                    setNewTeam({ name: '', coachId: '' });
+                    setNewTeam({ name: '', coachId: '', groupMeLink: '' });
                   }}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                 >
@@ -359,6 +420,20 @@ const TeamManagement = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GroupMe Invite Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={editingTeam.groupMeLink || ''}
+                    onChange={(e) => setEditingTeam({...editingTeam, groupMeLink: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://groupme.com/join_group/..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter the GroupMe group invite link for team chat</p>
                 </div>
 
                 <div>

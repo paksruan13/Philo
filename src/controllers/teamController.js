@@ -103,7 +103,9 @@ const getAdminTeams = async(req, res) => {
 const updateAdminTeam = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, coachId, isActive } = req.body;
+    const { name, coachId, isActive, groupMeLink } = req.body;
+    
+    console.log('🔍 Updating team with data:', { id, name, coachId, isActive, groupMeLink });
     
     const result = await prisma.$transaction(async (tx) => {
       const currentTeam = await tx.team.findUnique({
@@ -124,7 +126,8 @@ const updateAdminTeam = async (req, res) => {
         data: { 
           name, 
           coachId: coachId || null, 
-          isActive: isActive !== undefined ? isActive : true
+          isActive: isActive !== undefined ? isActive : true,
+          groupMeLink: groupMeLink || null
         },
         include: {
           coach: {
@@ -197,6 +200,49 @@ const getMyTeamActivities = async ( req, res ) => {
   }
 }
 
+const getTeamMembers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    
+    // Verify access for coaches
+    if (user.role === 'COACH') {
+      const team = await prisma.team.findUnique({
+        where: { id },
+        select: { coachId: true, name: true }
+      });
+      
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+      
+      if (team.coachId !== user.id) {
+        return res.status(403).json({ error: 'Access denied to this team' });
+      }
+    }
+    
+    const members = await prisma.user.findMany({
+      where: { 
+        teamId: id,
+        isActive: true 
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+};
+
 module.exports = {
   getAllTeams,
   getTeamScore,
@@ -205,5 +251,6 @@ module.exports = {
   updateAdminTeam,
   getAdminTeams,
   getMyTeamDashboard,
-  getMyTeamActivities
+  getMyTeamActivities,
+  getTeamMembers
 };

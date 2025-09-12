@@ -1,6 +1,7 @@
 // frontend/src/components/common/PhotoUpload.jsx
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const PhotoUpload = ({ value, onChange, required = false, submitMode = false }) => {
   const { token, user } = useAuth();
@@ -39,7 +40,7 @@ const PhotoUpload = ({ value, onChange, required = false, submitMode = false }) 
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:4243/api/photos/', {
+      const response = await fetch(API_ROUTES.photos.upload, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
