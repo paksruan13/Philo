@@ -90,10 +90,21 @@ app.use('/api', routes);
 // Security error handler (must be last middleware)
 app.use(createErrorHandler(securityLogger));
 
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${port}`);
   console.log(`📊 Health check: http://localhost:${port}/health`);
   console.log(`🌐 API endpoint: http://localhost:${port}/api`);
+  
+  // Wait a moment for database to be fully ready, then create test admin
+  setTimeout(async () => {
+    try {
+      const createTestAdmin = require('../scripts/create-test-admin');
+      await createTestAdmin();
+      console.log('✅ Test admin account verified/created for App Store review');
+    } catch (error) {
+      console.error('❌ Failed to create test admin account:', error.message);
+    }
+  }, 5000); // Wait 5 seconds for database to be ready
   
   // Run security audit on startup
   if (process.env.NODE_ENV !== 'test') {
