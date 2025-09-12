@@ -54,6 +54,7 @@ const LeaderboardScreen = () => {
 
   const fetchData = async () => {
     try {
+      console.log('🔄 LeaderboardScreen: Starting fetchData...');
       
       const headers = {
         'Content-Type': 'application/json',
@@ -61,7 +62,17 @@ const LeaderboardScreen = () => {
       
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔑 LeaderboardScreen: Token available, length:', token.length);
+      } else {
+        console.log('❌ LeaderboardScreen: No token available');
       }
+      
+      console.log('📡 LeaderboardScreen: Making API requests to:');
+      console.log('  - Leaderboard:', API_ROUTES.LEADERBOARD.GET);
+      console.log('  - Statistics:', `${API_ROUTES.LEADERBOARD.GET}/statistics`);
+      console.log('  - Activities:', API_ROUTES.activities.list);
+      console.log('  - Teams:', API_ROUTES.teams.list);
+      console.log('  - My Team:', API_ROUTES.teams.myTeam);
       
       // Fetch all data in parallel including user's team data
       const [leaderboardResponse, statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([
@@ -85,33 +96,47 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
+          console.error('❌ LeaderboardScreen: My Team API error:', err);
           return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
+
+      console.log('📥 LeaderboardScreen: API Response status codes:');
+      console.log('  - Leaderboard:', leaderboardResponse.status);
+      console.log('  - Statistics:', statsResponse.status);
+      console.log('  - Activities:', activitiesResponse.status);
+      console.log('  - Teams:', teamsResponse.status);
+      console.log('  - My Team:', teamResponse.status || 'No token');
 
       // Process API responses
 
       // Process user's team data
       if (teamResponse.ok) {
         const userTeamData = await teamResponse.json();
+        console.log('✅ LeaderboardScreen: My Team data received:', userTeamData);
         setTeamData(userTeamData);
       } else {
+        console.log('❌ LeaderboardScreen: My Team fetch failed:', teamResponse.status);
         setTeamData(null);
       }
       
       // Process leaderboard data
       if (leaderboardResponse.ok) {
         const leaderboardData = await leaderboardResponse.json();
+        console.log('✅ LeaderboardScreen: Leaderboard data received:', leaderboardData.length, 'teams');
         setLeaderboardData(Array.isArray(leaderboardData) ? leaderboardData : []);
       } else {
+        console.error('❌ LeaderboardScreen: Leaderboard fetch failed:', leaderboardResponse.status);
         setLeaderboardData([]);
       }
 
       // Process statistics data
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
+        console.log('✅ LeaderboardScreen: Statistics data received:', statsData);
         setStatistics(statsData);
       } else {
+        console.error('❌ LeaderboardScreen: Statistics fetch failed:', statsResponse.status);
         setStatistics(null);
       }
 
@@ -311,7 +336,17 @@ const LeaderboardScreen = () => {
             newStyles.teamCheerText,
             fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
           ]}>
-            Go {teamData?.team?.name || user?.teamName || 'Team'}!
+            Go {(() => {
+              const teamName = teamData?.team?.name || user?.teamName || 'Team';
+              console.log('🏆 LeaderboardScreen: Team name for header:', {
+                teamDataTeamName: teamData?.team?.name,
+                userTeamName: user?.teamName,
+                finalTeamName: teamName,
+                teamData: teamData,
+                user: user
+              });
+              return teamName;
+            })()}!
           </Text>
         </View>
       </View>
