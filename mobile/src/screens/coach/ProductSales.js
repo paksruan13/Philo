@@ -274,10 +274,15 @@ const ProductSales = ({ navigation }) => {
       setError('');
       setSuccess('');
 
+      console.log('🛍️ PRODUCT SALE - Starting handleSubmitSale');
+      console.log('Sale form data:', saleForm);
+
       const selectedProduct = getSelectedProduct();
       if (!selectedProduct) {
         throw new Error('Product not found');
       }
+
+      console.log('Selected product:', selectedProduct);
 
       const requestBody = {
         productId: saleForm.productId,
@@ -297,6 +302,10 @@ const ProductSales = ({ navigation }) => {
         requestBody.userId = saleForm.studentId;
       }
 
+      console.log('🛍️ PRODUCT SALE - Request body:', requestBody);
+      console.log('🛍️ PRODUCT SALE - API URL:', API_ROUTES.productSales.sell);
+      console.log('🛍️ PRODUCT SALE - Token present:', !!token);
+
       const response = await fetchWithTimeout(API_ROUTES.productSales.sell, {
         method: 'POST',
         headers: {
@@ -306,12 +315,18 @@ const ProductSales = ({ navigation }) => {
         body: JSON.stringify(requestBody)
       }, 15000);
 
+      console.log('🛍️ PRODUCT SALE - Response status:', response.status);
+      console.log('🛍️ PRODUCT SALE - Response ok:', response.ok);
+
       if (!response.ok) {
+        console.log('🛍️ PRODUCT SALE - API Error Response:', response.status, response.statusText);
         const errorData = await response.json();
+        console.log('🛍️ PRODUCT SALE - Error data:', errorData);
         throw new Error(errorData.message || 'Failed to complete sale');
       }
 
       const saleData = await response.json();
+      console.log('🛍️ PRODUCT SALE - Success response:', saleData);
 
       // Store sale details for confirmation
       const customerName = saleForm.isExternalSale 
@@ -353,16 +368,13 @@ const ProductSales = ({ navigation }) => {
 
       setSuccess('Sale completed successfully!');
     } catch (err) {
-      console.error('Error creating sale:', err);
-      console.error('Sale API URL:', API_ROUTES.productSales.sell);
-      console.error('Sale data sent:', {
-        productId: saleForm.productId,
-        size: saleForm.size,
-        userId: saleForm.studentId,
-        paymentMethod: saleForm.paymentMethod,
-        quantity: parseInt(saleForm.quantity),
-        amountPaid: selectedProduct?.price * saleForm.quantity
-      });
+      console.error('🛍️ PRODUCT SALE - Error creating sale:', err);
+      console.error('🛍️ PRODUCT SALE - Error message:', err.message);
+      console.error('🛍️ PRODUCT SALE - Error stack:', err.stack);
+      console.error('🛍️ PRODUCT SALE - Sale API URL:', API_ROUTES.productSales.sell);
+      console.error('🛍️ PRODUCT SALE - Sale form data:', saleForm);
+      console.error('🛍️ PRODUCT SALE - Token present:', !!token);
+      console.error('🛍️ PRODUCT SALE - Selected product:', selectedProduct);
       setError(err.message || 'Failed to complete sale');
     } finally {
       setLoading(false);
