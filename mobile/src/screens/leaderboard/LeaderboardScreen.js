@@ -72,10 +72,10 @@ const LeaderboardScreen = () => {
         fetch(`${API_ROUTES.LEADERBOARD.GET}/statistics`, { headers }),
         
         // Fetch activities for upcoming events count
-        fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/activities`, { headers }),
+        fetch(`${API_ROUTES.activities.list}`, { headers }),
         
         // Fetch total teams count
-        fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/teams`, { headers }),
+        fetch(`${API_ROUTES.teams.admin}`, { headers }),
         
         // Fetch user's team data
         token ? fetchWithTimeout(API_ROUTES.teams.myTeam, {
