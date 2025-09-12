@@ -16,8 +16,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
-
-const API_BASE_URL = 'http://localhost:4243/api'; // Add this for direct API calls
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');

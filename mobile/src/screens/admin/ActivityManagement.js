@@ -174,7 +174,7 @@ const ActivityManagement = ({ navigation }) => {
 
   const fetchActivities = async () => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities`, {
+      const response = await fetch(`${API_ROUTES.admin.activities}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -209,7 +209,7 @@ const ActivityManagement = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/activities/${activityId}`, {
+              const response = await fetch(`${API_ROUTES.activities.delete(activityId)}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`
@@ -661,8 +661,8 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
       }
 
       const url = activity
-        ? `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities/${activity.id}`
-        : `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities`;
+        ? `${API_ROUTES.admin.activityDetail(activity.id)}`
+        : `${API_ROUTES.admin.activities}`;
 
       const method = activity ? 'PUT' : 'POST';
 

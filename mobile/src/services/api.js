@@ -16,13 +16,12 @@ const getApiBaseUrl = () => {
       return `http://${HOST}:4243/api`;
     }
   } else {
-    // TODO: Update this with your actual production API URL when deployed
-    // For now, this is a placeholder - update before building for production
-    return 'https://api.projectphi.app/api';
+    // Production API URL - temporarily using HTTP until SSL is set up
+    return 'http://api.sigepbounce.com/api';
   }
 };
 
-const API_BASE_URL = 'https://api.sigepbounce.com/api';
+const API_BASE_URL = getApiBaseUrl();
 
 export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   const controller = new AbortController();
