@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d84fbf4e-fbfb-49f8-8860-16b3d2092191"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.pacoruan04.projectphi",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
