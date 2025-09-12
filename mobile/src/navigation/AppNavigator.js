@@ -113,8 +113,7 @@ const MainTabNavigator = () => {
             user?.role === 'ADMIN' ? AdminStackNavigator : 
             user?.role === 'COACH' ? CoachStackNavigator : 
             user?.role === 'STAFF' ? StaffStackNavigator :
-            user?.role === 'STUDENT' ? StudentStackNavigator :
-            getDashboardComponent(user?.role)
+            StudentStackNavigator
           }
           options={{
             tabBarIcon: ({ focused, color }) => (
@@ -176,21 +175,6 @@ const MainTabNavigator = () => {
       />
     </Tab.Navigator>
   );
-};
-
-const getDashboardComponent = (role) => {
-  switch (role) {
-    case 'STUDENT':
-      return StudentDashboard;
-    case 'COACH':
-      return CoachDashboard;
-    case 'ADMIN':
-      return AdminDashboard;
-    case 'STAFF':
-      return StaffDashboard;
-    default:
-      return StudentDashboard;
-  }
 };
 
 const AuthStack = () => (
