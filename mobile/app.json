@@ -16,11 +16,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sigepbounce.app",
-      "buildNumber": "2025.09.12.2",
+      "buildNumber": "2025.09.12.3",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload product images.",
         "NSCameraUsageDescription": "This app needs access to your camera to take product photos.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "api.sigepbounce.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSExceptionMinimumTLSVersion": "1.0"
+            }
+          }
+        }
       }
     },
     "android": {
