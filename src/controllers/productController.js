@@ -1,18 +1,10 @@
-const { prisma } = require('../config/database');
+const productService = require('../services/productService');
+const productSaleService = require('../services/productSaleService');
 
 // Get all products with their inventory
 const getAllProducts = async (req, res) => {
   try {
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      include: {
-        inventory: {
-          orderBy: { size: 'asc' }
-        }
-      },
-      orderBy: { type: 'asc' }
-    });
-
+    const products = await productService.getAllProducts();
     res.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -29,25 +21,7 @@ const updateProductInventory = async (req, res) => {
       return res.status(400).json({ error: 'Product ID, size, and quantity are required' });
     }
 
-    const inventory = await prisma.productInventory.upsert({
-      where: {
-        productId_size: {
-          productId,
-          size
-        }
-      },
-      update: {
-        quantity: parseInt(quantity)
-      },
-      create: {
-        productId,
-        size,
-        quantity: parseInt(quantity)
-      },
-      include: {
-        product: true
-      }
-    });
+    const inventory = await productService.updateProductInventory(productId, size, quantity);
 
     res.json({
       message: 'Inventory updated successfully',
@@ -62,49 +36,16 @@ const updateProductInventory = async (req, res) => {
 // Create new product
 const createProduct = async (req, res) => {
   try {
-    const { name, type, price, points, sizes } = req.body;
+    const { name, type, price, points, sizes, imageUrl, description } = req.body;
 
     if (!name || !type || !price) {
       return res.status(400).json({ error: 'Name, type, and price are required' });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Create the product
-      const product = await tx.product.create({
-        data: {
-          name,
-          type,
-          price: parseFloat(price),
-          points: parseInt(points) || 10,
-          isActive: true
-        }
-      });
-
-      // Create inventory records for each size
-      if (sizes && typeof sizes === 'object') {
-        const inventoryData = Object.entries(sizes)
-          .filter(([size, quantity]) => quantity > 0)
-          .map(([size, quantity]) => ({
-            productId: product.id,
-            size,
-            quantity: parseInt(quantity)
-          }));
-
-        if (inventoryData.length > 0) {
-          await tx.productInventory.createMany({
-            data: inventoryData
-          });
-        }
-      }
-
-      // Return product with inventory
-      return await tx.product.findUnique({
-        where: { id: product.id },
-        include: {
-          inventory: true
-        }
-      });
-    });
+    const result = await productService.createProduct(
+      { name, type, price, points, imageUrl, description },
+      sizes
+    );
 
     res.status(201).json({
       message: 'Product created successfully',
@@ -122,15 +63,8 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
     const { name, type, price, points, isActive } = req.body;
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(type && { type }),
-        ...(price && { price: parseFloat(price) }),
-        ...(points && { points: parseInt(points) }),
-        ...(isActive !== undefined && { isActive })
-      }
+    const product = await productService.updateProduct(id, {
+      name, type, price, points, isActive
     });
 
     res.json({
@@ -146,26 +80,26 @@ const updateProduct = async (req, res) => {
 // Get product sales history
 const getProductSales = async (req, res) => {
   try {
-    const sales = await prisma.productSale.findMany({
-      include: {
-        product: true,
-        user: {
-          select: { name: true }
-        },
-        team: {
-          select: { name: true }
-        },
-        coach: {
-          select: { name: true }
-        }
-      },
-      orderBy: { soldAt: 'desc' }
-    });
-
+    const sales = await productSaleService.getAllProductSales();
     res.json(sales);
   } catch (error) {
     console.error('Error fetching product sales:', error);
     res.status(500).json({ error: 'Failed to fetch sales' });
+  }
+};
+
+// Delete product
+const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await productService.deleteProduct(id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    if (error.message.includes('not found') || error.message.includes('Cannot delete')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to delete product' });
   }
 };
 
@@ -174,5 +108,6 @@ module.exports = {
   updateProductInventory,
   createProduct,
   updateProduct,
-  getProductSales
+  getProductSales,
+  deleteProduct
 };

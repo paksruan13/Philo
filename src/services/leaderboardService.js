@@ -79,7 +79,7 @@ const emitLeaderboardUpdate = async (io) => {
 
 const getStatistics = async () => {
   try {
-    // Get total donations across all teams (includes all revenue sources)
+    // Get total donations (now includes both regular donations and external sales)
     const totalDonationsResult = await prisma.donation.aggregate({
       _sum: {
         amount: true

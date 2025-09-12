@@ -56,8 +56,8 @@ const changePassword = async (req, res) => {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+    if (!newPassword || newPassword.length < 5) {
+      return res.status(400).json({ error: 'New password must be at least 5 characters long' });
     }
 
     await authService.changePassword(userId, currentPassword, newPassword);

@@ -4,48 +4,31 @@
 // For React Native, we need different URLs for different platforms
 const getApiBaseUrl = () => {
   if (__DEV__) {
-    // In development mode
     const { Platform } = require('react-native');
     
-    // Computer's IP address for mobile development
-    const HOST = 'localhost'; // Changed from incorrect IP to localhost
+    const HOST = 'localhost';
     
     if (Platform.OS === 'ios') {
-      // For iOS Simulator, use localhost
-      console.log('🍎 iOS detected - using localhost:', `http://${HOST}:4243/api`);
       return `http://${HOST}:4243/api`;
     } else if (Platform.OS === 'android') {
-      // For Android Emulator, use special IP
-      console.log('🤖 Android detected - using emulator IP:', 'http://10.0.2.2:4243/api');
       return 'http://10.0.2.2:4243/api';
     } else {
-      // Web/other platforms use localhost
-      console.log('🌐 Web/Other platform - using localhost:', `http://${HOST}:4243/api`);
       return `http://${HOST}:4243/api`;
     }
   } else {
-    // Production
-    return 'https://your-production-url.com/api';
+    // TODO: Update this with your actual production API URL when deployed
+    // For now, this is a placeholder - update before building for production
+    return 'https://api.projectphi.app/api';
   }
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Debug logging for network configuration
-if (__DEV__) {
-  const { Platform } = require('react-native');
-  console.log('🌐 Mobile Network Config:');
-  console.log('📱 Platform:', Platform.OS);
-  console.log('🔗 API Base URL:', API_BASE_URL);
-}
-
-// Enhanced fetch function with timeout and better error handling
 export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
   try {
-    console.log(`🌐 Making request to: ${url}`);
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
@@ -55,11 +38,9 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
       },
     });
     clearTimeout(timeoutId);
-    console.log(`✅ Response received: ${response.status} ${response.statusText}`);
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error(`❌ Network error for ${url}:`, error.message);
     
     if (error.name === 'AbortError') {
       throw new Error('Request timed out. Please check your network connection.');
@@ -74,11 +55,9 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
 // Network connectivity test function
 export const testNetworkConnectivity = async () => {
   try {
-    console.log('🔍 Testing network connectivity...');
     const response = await fetchWithTimeout(`${API_BASE_URL}/health`, {}, 5000);
     return response.ok;
   } catch (error) {
-    console.error('Network connectivity test failed:', error);
     return false;
   }
 };
@@ -175,6 +154,7 @@ export const API_ROUTES = {
   // Photos endpoints
   photos: {
     upload: `${API_BASE_URL}/photos/`,
+    productUpload: `${API_BASE_URL}/photos/product`,
   },
 
   // Leaderboard endpoints  
@@ -241,6 +221,7 @@ export const API_ROUTES = {
     users: `${API_BASE_URL}/admin/users`,
     updateUser: (userId) => `${API_BASE_URL}/admin/users/${userId}`,
     teams: `${API_BASE_URL}/admin/teams`,
+    coaches: `${API_BASE_URL}/admin/coaches`,
     activities: `${API_BASE_URL}/admin/activities`,
     activityDetail: (activityId) => `${API_BASE_URL}/admin/activities/${activityId}`,
     sales: `${API_BASE_URL}/admin/sales`,

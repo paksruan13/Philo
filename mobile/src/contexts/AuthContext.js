@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
         checkAuth();
@@ -25,29 +26,24 @@ export const AuthProvider = ({ children }) => {
         try {
             const savedToken = await AsyncStorage.getItem('token');
             if (savedToken) {
-                console.log('🔐 Checking saved token with API:', API_ROUTES.auth.me);
                 const response = await fetchWithTimeout(API_ROUTES.auth.me, {
                     headers: createAuthHeaders(savedToken)
                 }, 15000); // 15 second timeout for auth check
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('✅ Auth check successful');
                     setUser(data.user);
                     setToken(savedToken);
+                    setIsAuthenticated(true);
                 } else {
-                    console.log('❌ Token invalid, clearing storage');
                     // Token is invalid, clear it
                     await AsyncStorage.removeItem('token');
                     setToken(null);
                     setUser(null);
+                    setIsAuthenticated(false);
                 }
-            } else {
-                console.log('ℹ️ No saved token found');
             }
         } catch (error) {
-            console.error('Auth Check Failed:', error);
-            console.error('API URL:', API_ROUTES.auth.me);
             await AsyncStorage.removeItem('token');
             setToken(null);
             setUser(null);
@@ -58,8 +54,6 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            console.log('🚀 Attempting login to:', API_ROUTES.auth.login);
-            console.log('📧 Email:', email);
             
             const response = await fetchWithTimeout(API_ROUTES.auth.login, {
                 method: 'POST',
@@ -69,11 +63,9 @@ export const AuthProvider = ({ children }) => {
                 body: JSON.stringify({ email, password }),
             }, 15000); // 15 second timeout
             
-            console.log('📡 Login response status:', response.status);
             const data = await response.json();
             
             if (response.ok) {
-                console.log('✅ Login successful');
                 setUser(data.user);
                 setToken(data.token);
                 await AsyncStorage.setItem('token', data.token);
@@ -82,11 +74,9 @@ export const AuthProvider = ({ children }) => {
                     mustChangePassword: data.mustChangePassword || data.user?.mustChangePassword
                 };
             } else {
-                console.log('❌ Login failed:', data.error);
                 return { success: false, error: data.error || 'Invalid credentials' };
             }
         } catch (error) {
-            console.error('Login Failed:', error);
             console.error('API URL:', API_ROUTES.auth.login);
             
             // Provide more specific error messages
@@ -131,14 +121,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const registerWithTeam = async (name, email, password, teamCode) => {
+  const registerWithTeam = async (name, email, password, teamCode = '') => {
     try {
+
+      const requestBody = { name, email, password };
+      // Only include teamCode if it's provided and not empty
+      if (teamCode && teamCode.trim()) {
+        requestBody.teamCode = teamCode.trim();
+      }
+
       const response = await fetch(`${API_ROUTES.AUTH.REGISTER_WITH_TEAM}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password, teamCode }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -151,10 +148,18 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
         return { success: true };
       } else {
-        return { success: false, error: data.message || 'Registration failed' };
+        
+        // Handle validation errors with detailed messages
+        let errorMessage = data.message || data.error || 'Registration failed';
+        
+        if (data.details && data.details.length > 0) {
+          // Extract the first validation error message
+          errorMessage = data.details[0].msg || errorMessage;
+        }
+        
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error('Registration with team error:', error);
       return { success: false, error: 'Network error' };
     }
   };
@@ -163,6 +168,7 @@ export const AuthProvider = ({ children }) => {
         try {
             setUser(null);
             setToken(null);
+            setIsAuthenticated(false);
             await AsyncStorage.removeItem('token');
         } catch (error) {
             console.error('Logout Error:', error);
@@ -178,7 +184,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         registerWithTeam,
         checkAuth,
-        isAuthenticated: !!user,
+        isAuthenticated,
         isCoach: user?.role === 'COACH',
         isAdmin: user?.role === 'ADMIN',
         isStaff: user?.role === 'STAFF',

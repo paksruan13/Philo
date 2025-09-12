@@ -103,7 +103,9 @@ const getAdminTeams = async(req, res) => {
 const updateAdminTeam = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, coachId, isActive } = req.body;
+    const { name, coachId, isActive, groupMeLink } = req.body;
+    
+    console.log('🔍 Updating team with data:', { id, name, coachId, isActive, groupMeLink });
     
     const result = await prisma.$transaction(async (tx) => {
       const currentTeam = await tx.team.findUnique({
@@ -124,7 +126,8 @@ const updateAdminTeam = async (req, res) => {
         data: { 
           name, 
           coachId: coachId || null, 
-          isActive: isActive !== undefined ? isActive : true
+          isActive: isActive !== undefined ? isActive : true,
+          groupMeLink: groupMeLink || null
         },
         include: {
           coach: {

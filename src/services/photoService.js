@@ -130,8 +130,45 @@ const getTeamPhotos = async (teamId) => {
   return photosWithSignedUrls.filter(photo => photo.url !== null);
 }
 
+const uploadProductImage = async (file) => {
+  try {
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const key = `product-images/${uuidv4()}-${file.originalname}`;
+
+    const uploadParams = {
+      Bucket: bucketName,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    // Generate a signed URL that expires in 7 days (maximum allowed)
+    const getObjectParams = {
+      Bucket: bucketName,
+      Key: key,
+    };
+
+    const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
+      expiresIn: 604800, // 7 days in seconds (maximum allowed)
+    });
+
+    return {
+      url: signedUrl,
+      fileName: key,
+      success: true
+    };
+  } catch (error) {
+    console.error('Error uploading product image:', error);
+    throw new Error('Failed to upload product image');
+  }
+};
+
 module.exports = {
   uploadPhoto,
+  uploadProductImage,
   getAllPhotos,
   getPendingPhotos,
   getApprovedPhotos,

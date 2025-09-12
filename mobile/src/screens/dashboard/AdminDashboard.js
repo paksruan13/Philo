@@ -8,85 +8,199 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_ROUTES } from '../../services/api';
+import { API_ROUTES, fetchWithTimeout } from '../../services/api';
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = (screenWidth - Spacing.lg * 3) / 2;
 
 const AdminDashboard = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [systemStats, setSystemStats] = useState({
+    totalUsers: 0,
+    totalTeams: 0,
+    totalRaised: 0
+  });
+
+  const fetchSystemData = async () => {
+    try {
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      // Fetch real data from existing endpoints
+      const [usersResponse, teamsResponse, donationsResponse] = await Promise.all([
+        fetch(API_ROUTES.admin.users, { headers }),
+        fetch(API_ROUTES.admin.teams, { headers }),
+        fetch(API_ROUTES.donations.list, { headers }),
+      ]);
+
+      const [usersData, teamsData, donationsData] = await Promise.all([
+        usersResponse.json(),
+        teamsResponse.json(),
+        donationsResponse.json(),
+      ]);
+
+      // Calculate total raised from donations
+      const totalRaised = donationsData.reduce((sum, donation) => sum + (donation.amount || 0), 0);
+
+      setSystemStats({
+        totalUsers: usersData.length || 0,
+        totalTeams: teamsData.length || 0,
+        totalRaised: totalRaised,
+      });
+      
+    } catch (error) {
+      console.error('Error fetching system data:', error);
+      setSystemStats({
+        totalUsers: 0,
+        totalTeams: 0,
+        totalRaised: 0
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSystemData();
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={Styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#64748b" />
+          <Text style={styles.loadingText}>Loading admin dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
 
 
   return (
     <SafeAreaView style={Styles.safeArea}>
-      <ScrollView style={styles.container}>
+      <ScrollView 
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Admin Dashboard ⚙️</Text>
-          <Text style={styles.subtitle}>System Overview & Management</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={styles.headerText}>
+                <Text style={styles.greeting}>Welcome back, Admin!</Text>
+                <Text style={styles.subtitle}>System Management Dashboard</Text>
+              </View>
+            </View>
+            <View style={styles.quickStatsRow}>
+              <View style={styles.quickStat}>
+                <Ionicons name="people" size={18} color="#059669" />
+                <Text style={styles.quickStatNumber}>{systemStats.totalUsers}</Text>
+                <Text style={styles.quickStatLabel}>Users</Text>
+              </View>
+              <View style={styles.quickStat}>
+                <Ionicons name="basketball" size={18} color="#d97706" />
+                <Text style={styles.quickStatNumber}>{systemStats.totalTeams}</Text>
+                <Text style={styles.quickStatLabel}>Teams</Text>
+              </View>
+              <View style={styles.quickStat}>
+                <Ionicons name="cash" size={18} color="#7c3aed" />
+                <Text style={styles.quickStatNumber}>${systemStats.totalRaised.toFixed(0)}</Text>
+                <Text style={styles.quickStatLabel}>Total Raised</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-
-
         {/* Management Actions */}
-        <View style={styles.actionSection}>
-          <Text style={styles.sectionTitle}>🚀 Management Tools</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="construct" size={24} color="#7c3aed" />
+            <Text style={styles.sectionTitle}>Management Tools</Text>
+          </View>
           <View style={styles.actionGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('UserManagement')}
             >
-              <Text style={styles.actionIcon}>�</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="people-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>User Management</Text>
+              <Text style={styles.actionSubtext}>Manage all users & roles</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('TeamManagement')}
             >
-              <Text style={styles.actionIcon}>�</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="basketball-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>Team Management</Text>
+              <Text style={styles.actionSubtext}>Organize teams & coaches</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('ActivityManagement')}
             >
-              <Text style={styles.actionIcon}>🎯</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="trophy-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>Activity Management</Text>
+              <Text style={styles.actionSubtext}>Configure activities</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('InventoryManagement')}
             >
-              <Text style={styles.actionIcon}>�</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="cube-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>Inventory Management</Text>
+              <Text style={styles.actionSubtext}>Manage products & stock</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('AnnouncementManagement')}
             >
-              <Text style={styles.actionIcon}>📢</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="megaphone-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>Announcements</Text>
+              <Text style={styles.actionSubtext}>Global announcements</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('SettingsManagement')}
             >
-              <Text style={styles.actionIcon}>⚙️</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="cog-outline" size={24} color="#7c3aed" />
+              </View>
               <Text style={styles.actionText}>Settings</Text>
+              <Text style={styles.actionSubtext}>System configuration</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-
 
         {/* Footer Space */}
         <View style={styles.footerSpace} />
@@ -98,333 +212,159 @@ const AdminDashboard = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   loadingText: {
     fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+    color: '#64748b',
+    fontWeight: '500',
+    marginTop: Spacing.md,
+  },
+
+  headerContainer: {
+    backgroundColor: '#ffffff',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   header: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  headerText: {
+    flex: 1,
   },
 
   greeting: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
-  },
-
-  subtitle: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
-    fontWeight: '500',
-  },
-
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: Spacing.lg,
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-
-  statCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-
-  statIcon: {
     fontSize: FontSizes.xl,
-    marginRight: Spacing.sm,
-  },
-
-  statValue: {
-    fontSize: FontSizes['2xl'],
     fontWeight: 'bold',
-  },
-
-  statTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.foreground,
+    color: '#1f2937',
     marginBottom: 2,
   },
 
-  statSubtitle: {
+  subtitle: {
     fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
+    color: '#6b7280',
+    fontWeight: '400',
   },
 
-  actionSection: {
+  headerIcon: {
+    marginLeft: Spacing.md,
+  },
+
+  quickStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  quickStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  quickStatNumber: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginTop: Spacing.xs,
+    marginBottom: 2,
+  },
+
+  quickStatLabel: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+
+  section: {
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  sectionTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginLeft: Spacing.sm,
+    flex: 1,
   },
 
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: Spacing.md,
   },
 
   actionButton: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: Spacing.lg,
     alignItems: 'center',
-    width: cardWidth,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
+    width: (screenWidth - Spacing.lg * 3) / 2,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
 
-  actionIcon: {
-    fontSize: FontSizes.xl,
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
 
   actionText: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.base,
     fontWeight: '600',
-    color: Colors.foreground,
+    color: '#1f2937',
     textAlign: 'center',
+    marginBottom: Spacing.xs,
   },
 
-  section: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-
-  sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-  },
-
-  sectionButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-
-  sectionButtonText: {
+  actionSubtext: {
     fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-
-  alertCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 4,
-  },
-
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
-  },
-
-  alertIcon: {
-    fontSize: FontSizes.lg,
-    marginRight: Spacing.md,
-  },
-
-  alertInfo: {
-    flex: 1,
-  },
-
-  alertTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: 2,
-  },
-
-  alertTime: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  severityBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-
-  severityText: {
-    fontSize: FontSizes.xs,
-    color: Colors.card,
-    fontWeight: '600',
-  },
-
-  alertMessage: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
-    lineHeight: FontSizes.base * 1.4,
-  },
-
-  userCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-
-  userAvatarText: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-  },
-
-  userInfo: {
-    flex: 1,
-  },
-
-  userName: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: 2,
-  },
-
-  userEmail: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: 2,
-  },
-
-  userRole: {
-    fontSize: FontSizes.sm,
-    color: Colors.accent,
-    fontWeight: '500',
-  },
-
-  userStatus: {
-    alignItems: 'flex-end',
-  },
-
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-
-  statusText: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-  },
-
-  teamCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-  teamHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  teamRank: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginRight: Spacing.md,
-    width: 30,
-  },
-
-  teamInfo: {
-    flex: 1,
-  },
-
-  teamName: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: 2,
-  },
-
-  teamCode: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  teamPoints: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.accent,
-  },
-
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-  },
-
-  emptyText: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.mutedForeground,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontWeight: '400',
   },
 
   footerSpace: {

@@ -80,17 +80,25 @@ const loginUser = async (email, password) => {
 };
 
 const registerWithTeam = async (userData) => {
-  const team = await prisma.team.findUnique({
-    where: { teamCode: userData.teamCode },
-    select: { id: true, name: true, isActive: true },
-  });
+  let team = null;
+  let teamName = null;
 
-  if (!team) {
-    throw new Error('Invalid team code');
-  }
+  // Only look up team if teamCode is provided
+  if (userData.teamCode && userData.teamCode.trim()) {
+    team = await prisma.team.findUnique({
+      where: { teamCode: userData.teamCode },
+      select: { id: true, name: true, isActive: true },
+    });
 
-  if (!team.isActive) {
-    throw new Error('Team registration is not active');
+    if (!team) {
+      throw new Error('Invalid team code');
+    }
+
+    if (!team.isActive) {
+      throw new Error('Team registration is not active');
+    }
+
+    teamName = team.name;
   }
 
   const existingUser = await prisma.user.findUnique({ 
@@ -109,14 +117,14 @@ const registerWithTeam = async (userData) => {
       email: userData.email,
       password: hashedPassword,
       role: 'STUDENT',
-      teamId: team.id
+      teamId: team ? team.id : null
     },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
-      team: { select: { id: true, name: true, teamCode: true } },
+      team: team ? { select: { id: true, name: true, teamCode: true } } : true,
     }
   });
 
@@ -126,7 +134,7 @@ const registerWithTeam = async (userData) => {
     { expiresIn: '7d' }
   );
 
-  return { user, token, teamName: team.name };
+  return { user, token, teamName: teamName || 'No Team' };
 };
 
 const changePassword = async (userId, currentPassword, newPassword) => {

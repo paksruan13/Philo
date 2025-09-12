@@ -1,14 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
 import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
 const TeamOverviewCard = ({ team, stats }) => {
+  const [fontLoaded, setFontLoaded] = useState(false);
+
+  // Load custom font
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'BitcountGridDouble': require('../../../assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf'),
+        });
+        setFontLoaded(true);
+        console.log('BitcountGridDouble font loaded successfully in TeamOverviewCard!');
+      } catch (error) {
+        console.error('Error loading BitcountGridDouble font:', error);
+      }
+    }
+    loadFonts();
+  }, []);
+
   if (!team || !stats) {
     return (
       <View style={styles.emptyCard}>
-        <Ionicons name="people-outline" size={48} color="#d1d5db" />
+        <Ionicons name="people-outline" size={48} color="#000000" />
         <Text style={styles.emptyText}>No team data available</Text>
       </View>
     );
@@ -25,17 +44,17 @@ const TeamOverviewCard = ({ team, stats }) => {
 
   const getRankColor = (rank) => {
     switch (rank) {
-      case 1: return '#FFD700';
-      case 2: return '#C0C0C0'; 
-      case 3: return '#CD7F32';
-      default: return '#0891b2';
+      case 1: return '#000000';
+      case 2: return '#000000'; 
+      case 3: return '#000000';
+      default: return '#000000';
     }
   };
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#8b5cf6', '#e11d48']}
+        colors={['#ffffff', '#ffffff', '#ffffff']} // white to white
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradientBackground}
@@ -44,23 +63,28 @@ const TeamOverviewCard = ({ team, stats }) => {
         <View style={styles.header}>
           <View style={styles.teamIconContainer}>
             <LinearGradient
-              colors={['#ec4899', '#f43f5e']}
+              colors={['#ffffff', '#000000']}
               style={styles.teamIcon}
             >
-              <Ionicons name="basketball" size={24} color="white" />
+              <Ionicons name="basketball" size={24} color="#ffffff" />
             </LinearGradient>
           </View>
           
           <View style={styles.teamInfo}>
-            <Text style={styles.teamName}>{team.name}</Text>
+            <Text style={[
+              styles.teamName,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              {team.name}
+            </Text>
             <View style={styles.teamMetaRow}>
               <View style={styles.teamMeta}>
-                <Ionicons name="key-outline" size={14} color="rgba(255,255,255,0.8)" />
+                <Ionicons name="key-outline" size={14} color="#000000" />
                 <Text style={styles.metaText}>{team.teamCode}</Text>
               </View>
               {team.coach && (
                 <View style={styles.teamMeta}>
-                  <Ionicons name="person-outline" size={14} color="rgba(255,255,255,0.8)" />
+                  <Ionicons name="person-outline" size={14} color="#000000" />
                   <Text style={styles.metaText}>{team.coach.name}</Text>
                 </View>
               )}
@@ -72,10 +96,30 @@ const TeamOverviewCard = ({ team, stats }) => {
         <View style={styles.statsGrid}>
           {/* Main Points Display */}
           <View style={styles.mainStat}>
-            <Text style={styles.pointsValue}>{stats.totalPoints || 0}</Text>
-            <Text style={styles.pointsLabel}>Total Points</Text>
-            <Text style={styles.raisedAmount}>${stats.totalRaised?.toFixed(2) || '0.00'}</Text>
-            <Text style={styles.raisedLabel}>Total Raised</Text>
+            <Text style={[
+              styles.pointsValue,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              {stats.totalPoints || 0}
+            </Text>
+            <Text style={[
+              styles.pointsLabel,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              Total Points
+            </Text>
+            <Text style={[
+              styles.raisedAmount,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              ${stats.totalRaised?.toFixed(2) || '0.00'}
+            </Text>
+            <Text style={[
+              styles.raisedLabel,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              Total Raised
+            </Text>
           </View>
 
           {/* Secondary Stats */}
@@ -85,8 +129,18 @@ const TeamOverviewCard = ({ team, stats }) => {
                 <Ionicons name={getRankIcon(stats.rank || 0)} size={16} color="white" />
               </View>
               <View style={styles.statContent}>
-                <Text style={styles.statValue}>#{stats.rank || 0}</Text>
-                <Text style={styles.statLabel}>Team Rank</Text>
+                <Text style={[
+                  styles.statValue,
+                  fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+                ]}>
+                  #{stats.rank || 0}
+                </Text>
+                <Text style={[
+                  styles.statLabel,
+                  fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+                ]}>
+                  Team Rank
+                </Text>
               </View>
             </View>
 
@@ -95,8 +149,18 @@ const TeamOverviewCard = ({ team, stats }) => {
                 <Ionicons name="people-outline" size={16} color="white" />
               </View>
               <View style={styles.statContent}>
-                <Text style={styles.statValue}>{team.members?.length || 0}</Text>
-                <Text style={styles.statLabel}>Members</Text>
+                <Text style={[
+                  styles.statValue,
+                  fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+                ]}>
+                  {team.members?.length || 0}
+                </Text>
+                <Text style={[
+                  styles.statLabel,
+                  fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+                ]}>
+                  Members
+                </Text>
               </View>
             </View>
           </View>
@@ -110,11 +174,12 @@ const styles = {
   container: {
     borderRadius: 20,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    elevation: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    marginBottom: 4, // Add space for shadow
   },
   
   gradientBackground: {
@@ -131,12 +196,12 @@ const styles = {
     justifyContent: 'center',
     minHeight: 180,
     borderWidth: 2,
-    borderColor: '#f3f4f6',
+    borderColor: '#000000',
     borderStyle: 'dashed',
   },
   emptyText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#000000',
     marginTop: 8,
     fontWeight: '500',
   },
@@ -168,7 +233,7 @@ const styles = {
   teamName: {
     fontSize: 20,
     fontWeight: '700',
-    color: 'white',
+    color: '#000000',
     marginBottom: 4,
   },
   teamMetaRow: {
@@ -182,7 +247,7 @@ const styles = {
   },
   metaText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#000000',
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -208,12 +273,12 @@ const styles = {
   pointsValue: {
     fontSize: 36,
     fontWeight: '800',
-    color: 'white',
+    color: '#000000',
     marginBottom: 4,
   },
   pointsLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#000000',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -222,12 +287,12 @@ const styles = {
   raisedAmount: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#10b981',
+    color: '#000000',
     marginBottom: 4,
   },
   raisedLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#000000',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -241,7 +306,7 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     padding: 12,
     borderRadius: 12,
   },
@@ -262,7 +327,7 @@ const styles = {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#22d3ee',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -278,18 +343,18 @@ const styles = {
   statValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: 'white',
+    color: '#000000',
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: '#000000',
     fontWeight: '500',
   },
 
   // Progress Section
   progressSection: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     padding: 16,
     borderRadius: 12,
   },
@@ -301,23 +366,23 @@ const styles = {
   },
   progressLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.8)',
     fontWeight: '600',
   },
   progressPercentage: {
     fontSize: 12,
-    color: 'white',
+    color: 'black',
     fontWeight: '700',
   },
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10b981',
+    backgroundColor: '#000000',
     borderRadius: 2,
   },
 };

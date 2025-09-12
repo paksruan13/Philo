@@ -95,13 +95,52 @@ const updateTeam = async (teamId, updateData) => {
 };
 
 const getTeamsWithDetails = async () => {
-  return await prisma.team.findMany({
+  const teams = await prisma.team.findMany({
     include: {
       members: {
         select: { id: true, name: true, email: true, role: true },
       },
       coach: {
         select: { id: true, name: true, email: true },
+      },
+      donations: {
+        select: { 
+          id: true, 
+          amount: true, 
+          createdAt: true, 
+          userId: true, 
+          user: { select: { name: true } }
+        },
+      },
+      shirtSales: {
+        select: {
+          id: true,
+          quantity: true,
+          amountPaid: true,
+          userId: true,
+        },
+      },
+      productSales: {
+        select: {
+          id: true,
+          quantity: true,
+          amountPaid: true,
+          userId: true,
+        },
+      },
+      activitySubmissions: {
+        where: { status: 'APPROVED' },
+        select: {
+          id: true,
+          userId: true,
+          activity: { select: { points: true } }
+        },
+      },
+      photos: {
+        select: {
+          id: true,
+          approved: true,
+        },
       },
       _count: {
         select: {
@@ -113,6 +152,15 @@ const getTeamsWithDetails = async () => {
       }
     },
     orderBy: { createdAt: 'desc' },
+  });
+
+  // Calculate stats for each team
+  return teams.map(team => {
+    const stats = calculateTeamStats(team);
+    return {
+      ...team,
+      stats
+    };
   });
 };
 

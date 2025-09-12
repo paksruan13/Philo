@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Font from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
@@ -25,15 +26,27 @@ const StudentDashboard = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [fontLoaded, setFontLoaded] = useState(false);
   const { user, token } = useAuth();
 
   useEffect(() => {
     fetchTeamDashboard();
   }, []);
 
+  // Load custom font
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        setFont(loadedFont);
+      } catch (error) {
+        // Font loading is optional for functionality
+      }
+    }
+    loadFonts();
+  }, []);
+
   const fetchTeamDashboard = async () => {
     try {
-      console.log('🔄 Fetching team dashboard...');
       
       const response = await fetchWithTimeout(API_ROUTES.teams.myTeam, {
         method: 'GET',
@@ -48,7 +61,6 @@ const StudentDashboard = ({ navigation }) => {
       }
 
       const teamData = await response.json();
-      console.log('✅ Team dashboard data:', teamData);
 
       // Calculate total raised from team's donations
       if (teamData.stats && teamData.donations) {
@@ -57,8 +69,6 @@ const StudentDashboard = ({ navigation }) => {
         }, 0);
         
         teamData.stats.totalRaised = totalRaised;
-        console.log(`✅ Calculated team total raised from donations: $${totalRaised.toFixed(2)}`);
-        console.log(`📊 Number of donations: ${teamData.donations.length}`);
       } else if (teamData.recentDonations) {
         // Fallback to recentDonations if donations array doesn't exist
         const totalRaised = teamData.recentDonations.reduce((total, donation) => {
@@ -68,9 +78,7 @@ const StudentDashboard = ({ navigation }) => {
         if (teamData.stats) {
           teamData.stats.totalRaised = totalRaised;
         }
-        console.log(`✅ Calculated team total raised from recentDonations: $${totalRaised.toFixed(2)}`);
       } else {
-        console.log('⚠️ No donations data found in team payload');
         if (teamData.stats) {
           teamData.stats.totalRaised = teamData.stats.totalRaised || 0;
         }
@@ -97,7 +105,7 @@ const StudentDashboard = ({ navigation }) => {
   // Modern Header Component
   const ModernHeader = () => (
     <LinearGradient
-      colors={['#0891b2', '#06b6d4']}
+      colors={['#fffff0', '#f8f8ff', '#ffffff']} // ivory to white
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.modernHeader}
@@ -106,17 +114,25 @@ const StudentDashboard = ({ navigation }) => {
         <View style={styles.userInfo}>
           <View style={styles.avatarContainer}>
             <LinearGradient
-              colors={['#f59e0b', '#eab308']}
+              colors={['#ffffff', '#94a3b8']}
               style={styles.avatar}
             >
-              <Ionicons name="person" size={20} color="white" />
+              <Ionicons name="person" size={20} color="#1e293b" />
             </LinearGradient>
           </View>
           <View style={styles.userDetails}>
-            <Text style={styles.welcomeText}>
+            <Text style={[
+              styles.welcomeText,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
               {user?.name ? `Welcome back, ${user.name.split(' ')[0]}!` : 'Welcome back!'}
             </Text>
-            <Text style={styles.roleText}>Team Member</Text>
+            <Text style={[
+              styles.roleText,
+              fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+            ]}>
+              Team Member
+            </Text>
           </View>
         </View>
       </View>
@@ -132,7 +148,7 @@ const StudentDashboard = ({ navigation }) => {
         >
           <SafeAreaView style={styles.loadingContainer}>
             <View style={styles.loadingContent}>
-              <ActivityIndicator size="large" color="#0891b2" />
+              <ActivityIndicator size="large" color="#64748b" />
               <Text style={styles.loadingText}>Loading your dashboard...</Text>
             </View>
           </SafeAreaView>
@@ -162,10 +178,10 @@ const StudentDashboard = ({ navigation }) => {
                 }}
               >
                 <LinearGradient
-                  colors={['#0891b2', '#06b6d4']}
+                  colors={['#ffffff', '#94a3b8']}
                   style={styles.retryButtonGradient}
                 >
-                  <Ionicons name="refresh" size={18} color="white" />
+                  <Ionicons name="refresh" size={18} color="#1e293b" />
                   <Text style={styles.retryButtonText}>Try Again</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -213,8 +229,8 @@ const StudentDashboard = ({ navigation }) => {
               <RefreshControl 
                 refreshing={refreshing} 
                 onRefresh={onRefresh}
-                tintColor="#0891b2"
-                colors={['#0891b2', '#f59e0b']}
+                tintColor="#64748b"
+                colors={['#64748b', '#94a3b8']}
               />
             }
             showsVerticalScrollIndicator={false}
@@ -311,12 +327,12 @@ const styles = {
   welcomeText: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: '#1e293b',
     marginBottom: 2,
   },
   roleText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#475569',
     fontWeight: '500',
   },
   notificationButton: {
@@ -396,7 +412,7 @@ const styles = {
     justifyContent: 'center',
   },
   retryButtonText: {
-    color: 'white',
+    color: '#1e293b',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -473,23 +489,23 @@ const styles = {
   // Cards
   heroCard: {
     marginBottom: 20,
-    borderRadius: 16,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    borderRadius: 20,
+    elevation: 12,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowRadius: 10,
     backgroundColor: 'white',
     overflow: 'hidden',
   },
   modernCard: {
     marginBottom: 16,
     borderRadius: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    elevation: 8,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
     backgroundColor: 'white',
     overflow: 'hidden',
   },

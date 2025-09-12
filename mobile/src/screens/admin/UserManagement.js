@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,22 @@ import {
   Alert,
   TextInput,
   Modal,
+  Dimensions,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES } from '../../services/api';
 import { Colors, Styles, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const UserManagement = ({ navigation }) => {
   const { token } = useAuth();
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [coaches, setCoaches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +32,13 @@ const UserManagement = ({ navigation }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showTeamDropdown, setShowTeamDropdown] = useState(false);
+  
+  // Animation values
+  const modalAnimation = useRef(new Animated.Value(0)).current;
+  const roleDropdownAnimation = useRef(new Animated.Value(0)).current;
+  const teamDropdownAnimation = useRef(new Animated.Value(0)).current;
 
   const fetchUsers = async () => {
     try {
@@ -37,7 +51,12 @@ const UserManagement = ({ navigation }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setUsers(Array.isArray(data) ? data : data.users || []);
+        // Ensure each user has a donations array for calculation
+        const usersWithDonations = (Array.isArray(data) ? data : data.users || []).map(user => ({
+          ...user,
+          donations: user.donations || []
+        }));
+        setUsers(usersWithDonations);
       } else {
         setError('Failed to fetch users');
       }
@@ -68,9 +87,32 @@ const UserManagement = ({ navigation }) => {
     }
   };
 
+  const fetchCoaches = async () => {
+    try {
+      const response = await fetch(`${API_ROUTES.admin.coaches}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCoaches(Array.isArray(data) ? data : data.coaches || []);
+      } else {
+        console.warn('Failed to fetch coaches, continuing without coach data');
+        setCoaches([]);
+      }
+    } catch (error) {
+      console.warn('Error fetching coaches, continuing without coach data:', error);
+      setCoaches([]);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchTeams();
+    fetchCoaches();
   }, []);
 
   const onRefresh = () => {
@@ -84,6 +126,13 @@ const UserManagement = ({ navigation }) => {
       teamId: user.teamId || ''
     });
     setEditModalVisible(true);
+    
+    // Animate modal in
+    Animated.timing(modalAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
   };
 
   const updateUser = async (userId, userData) => {
@@ -98,10 +147,21 @@ const UserManagement = ({ navigation }) => {
       });
 
       if (response.ok) {
+        // Close dropdowns immediately without animation to prevent useInsertionEffect warning
+        setShowRoleDropdown(false);
+        setShowTeamDropdown(false);
+        roleDropdownAnimation.setValue(0);
+        teamDropdownAnimation.setValue(0);
+        
+        // Close modal immediately
+        setEditModalVisible(false);
+        setEditingUser(null);
+        modalAnimation.setValue(0);
+        
+        // Fetch updated data
         await fetchUsers();
         await fetchTeams();
-        setEditingUser(null);
-        setEditModalVisible(false);
+        
         setError('');
         setSuccessMessage('User updated successfully');
         setTimeout(() => setSuccessMessage(''), 3000);
@@ -117,10 +177,101 @@ const UserManagement = ({ navigation }) => {
 
   const handleSaveUser = () => {
     if (editingUser) {
+      // Immediately close dropdowns to prevent timing issues
+      setShowRoleDropdown(false);
+      setShowTeamDropdown(false);
+      
       updateUser(editingUser.id, {
         role: editingUser.role,
         teamId: editingUser.teamId || null,
         isActive: editingUser.isActive
+      });
+    }
+  };
+
+  const handleCloseModal = () => {
+    // Close dropdowns immediately
+    setShowRoleDropdown(false);
+    setShowTeamDropdown(false);
+    roleDropdownAnimation.setValue(0);
+    teamDropdownAnimation.setValue(0);
+    
+    // Animate modal out
+    Animated.timing(modalAnimation, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      setEditModalVisible(false);
+    });
+  };
+
+  const toggleRoleDropdown = () => {
+    const isOpen = showRoleDropdown;
+    
+    // Close team dropdown first if open
+    if (showTeamDropdown) {
+      Animated.timing(teamDropdownAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowTeamDropdown(false);
+      });
+    }
+    
+    if (!isOpen) {
+      setShowRoleDropdown(true);
+      // Use setTimeout instead of requestAnimationFrame to avoid useInsertionEffect warning
+      setTimeout(() => {
+        Animated.timing(roleDropdownAnimation, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      }, 16); // Single frame delay
+    } else {
+      Animated.timing(roleDropdownAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowRoleDropdown(false);
+      });
+    }
+  };
+
+  const toggleTeamDropdown = () => {
+    const isOpen = showTeamDropdown;
+    
+    // Close role dropdown first if open
+    if (showRoleDropdown) {
+      Animated.timing(roleDropdownAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowRoleDropdown(false);
+      });
+    }
+    
+    if (!isOpen) {
+      setShowTeamDropdown(true);
+      // Use setTimeout instead of requestAnimationFrame to avoid useInsertionEffect warning
+      setTimeout(() => {
+        Animated.timing(teamDropdownAnimation, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      }, 16); // Single frame delay
+    } else {
+      Animated.timing(teamDropdownAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowTeamDropdown(false);
       });
     }
   };
@@ -137,29 +288,41 @@ const UserManagement = ({ navigation }) => {
 
   const UserCard = ({ user }) => {
     const roleColor = getRoleColor(user.role);
+    const totalDonations = user.donations?.reduce((sum, donation) => sum + donation.amount, 0) || 0;
 
     return (
       <View style={styles.userCard}>
         <View style={styles.userHeader}>
+          <View style={styles.userAvatar}>
+            <Ionicons 
+              name={user.role === 'ADMIN' ? 'shield-checkmark' : 'person'} 
+              size={20} 
+              color="#ffffff" 
+            />
+          </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {user.name}
-            </Text>
+            <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
             <View style={styles.userMeta}>
               <Text style={[styles.userRole, { color: roleColor }]}>
                 {user.role}
               </Text>
-              <Text style={styles.userTeam}>
+              <Text style={styles.separator}>•</Text>
+              <Text style={styles.userTeam} numberOfLines={1}>
                 {user.team ? `Team ${user.team.name}` : 'No Team'}
               </Text>
             </View>
+            <View style={styles.donationInfo}>
+              <Ionicons name="wallet-outline" size={14} color="#7c3aed" />
+              <Text style={styles.donationText}>
+                ${totalDonations.toFixed(2)} donated
+              </Text>
+            </View>
           </View>
-
           <TouchableOpacity 
             style={styles.editButton}
             onPress={() => handleEditUser(user)}
           >
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Ionicons name="create-outline" size={20} color="#7c3aed" />
           </TouchableOpacity>
         </View>
       </View>
@@ -169,139 +332,351 @@ const UserManagement = ({ navigation }) => {
   const EditUserModal = () => {
     if (!editingUser) return null;
 
+    const roles = ['STUDENT', 'COACH', 'STAFF', 'ADMIN'];
+    const selectedRole = editingUser.role;
+    const selectedTeam = teams.find(team => team.id === editingUser.teamId);
+
     return (
       <Modal
-        animationType="slide"
+        animationType="none"
         transparent={true}
         visible={editModalVisible}
-        onRequestClose={() => setEditModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Animated.View 
+          style={[
+            styles.modalOverlay,
+            {
+              opacity: modalAnimation,
+            }
+          ]}
+        >
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              {
+                opacity: modalAnimation,
+                transform: [
+                  {
+                    scale: modalAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
+                    }),
+                  },
+                ],
+              }
+            ]}
+          >
+            {/* Header */}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit User</Text>
+              <View style={styles.modalHeaderContent}>
+                <Ionicons name="person-circle-outline" size={28} color="#7c3aed" />
+                <View style={styles.modalHeaderText}>
+                  <Text style={styles.modalTitle}>Edit User</Text>
+                  <Text style={styles.modalSubtitle}>Update user permissions and team assignment</Text>
+                </View>
+              </View>
               <TouchableOpacity 
                 style={styles.closeButton}
-                onPress={() => setEditModalVisible(false)}
+                onPress={handleCloseModal}
               >
-                <Text style={styles.closeButtonText}>✕</Text>
+                <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {/* User Info Display */}
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>User</Text>
-                <Text style={styles.detailValue}>
-                  {editingUser.name} ({editingUser.email})
-                </Text>
+              <View style={styles.infoCard}>
+                <View style={styles.infoHeader}>
+                  <Ionicons name="information-circle-outline" size={20} color="#7c3aed" />
+                  <Text style={styles.infoTitle}>User Information</Text>
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Name:</Text>
+                  <Text style={styles.infoValue}>{editingUser.name}</Text>
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email:</Text>
+                  <Text style={styles.infoValue}>{editingUser.email}</Text>
+                </View>
               </View>
 
               {/* Role Selection */}
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Role</Text>
-                <View style={styles.pickerContainer}>
-                  {['STUDENT', 'COACH', 'STAFF', 'ADMIN'].map((role) => (
-                    <TouchableOpacity
-                      key={role}
-                      style={[
-                        styles.roleOption,
-                        editingUser.role === role && styles.roleOptionSelected
-                      ]}
-                      onPress={() => setEditingUser({ ...editingUser, role })}
+              <View style={styles.formSection}>
+                <Text style={styles.sectionLabel}>Role Assignment</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownButton,
+                    showRoleDropdown && styles.dropdownButtonActive
+                  ]}
+                  onPress={toggleRoleDropdown}
+                >
+                  <View style={styles.dropdownButtonContent}>
+                    <Ionicons name="shield-outline" size={18} color="#7c3aed" />
+                    <Text style={styles.dropdownButtonText}>{selectedRole}</Text>
+                  </View>
+                  <Ionicons 
+                    name={showRoleDropdown ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#6b7280" 
+                  />
+                </TouchableOpacity>
+                
+                {showRoleDropdown && (
+                  <Animated.View 
+                    style={[
+                      styles.dropdownMenu,
+                      {
+                        opacity: roleDropdownAnimation,
+                        transform: [
+                          {
+                            translateY: roleDropdownAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [-10, 0],
+                            }),
+                          },
+                          {
+                            scaleY: roleDropdownAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.8, 1],
+                            }),
+                          },
+                        ],
+                      }
+                    ]}
+                  >
+                    <ScrollView 
+                      style={styles.dropdownScrollView}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
                     >
-                      <Text style={[
-                        styles.roleOptionText,
-                        editingUser.role === role && styles.roleOptionTextSelected
-                      ]}>
-                        {role}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {roles.map((role, index) => (
+                        <TouchableOpacity
+                          key={role}
+                          style={[
+                            styles.dropdownItem,
+                            selectedRole === role && styles.dropdownItemSelected,
+                            index === roles.length - 1 && styles.dropdownItemLast
+                          ]}
+                          onPress={() => {
+                            // Update state first
+                            const newUser = { ...editingUser, role };
+                            setEditingUser(newUser);
+                            
+                            // Animate close with delay to prevent useInsertionEffect warning
+                            setTimeout(() => {
+                              Animated.timing(roleDropdownAnimation, {
+                                toValue: 0,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }).start(() => {
+                                setShowRoleDropdown(false);
+                              });
+                            }, 50);
+                          }}
+                        >
+                          <Ionicons 
+                            name={role === 'ADMIN' ? 'shield-checkmark' : role === 'COACH' ? 'megaphone' : role === 'STAFF' ? 'person-add' : 'school'} 
+                            size={18} 
+                            color={selectedRole === role ? "#ffffff" : "#7c3aed"} 
+                          />
+                          <Text style={[
+                            styles.dropdownItemText,
+                            selectedRole === role && styles.dropdownItemTextSelected
+                          ]}>
+                            {role}
+                          </Text>
+                          {selectedRole === role && (
+                            <Ionicons name="checkmark" size={18} color="#ffffff" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                )}
               </View>
 
               {/* Team Selection */}
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Team</Text>
-                <View style={styles.pickerContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.teamOption,
-                      !editingUser.teamId && styles.teamOptionSelected
-                    ]}
-                    onPress={() => setEditingUser({ ...editingUser, teamId: '' })}
-                  >
-                    <Text style={[
-                      styles.teamOptionText,
-                      !editingUser.teamId && styles.teamOptionTextSelected
-                    ]}>
-                      No Team
+              <View style={styles.formSection}>
+                <Text style={styles.sectionLabel}>Team Assignment</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownButton,
+                    showTeamDropdown && styles.dropdownButtonActive
+                  ]}
+                  onPress={toggleTeamDropdown}
+                >
+                  <View style={styles.dropdownButtonContent}>
+                    <Ionicons name="people-outline" size={18} color="#7c3aed" />
+                    <Text style={styles.dropdownButtonText}>
+                      {selectedTeam ? `${selectedTeam.name} (${selectedTeam.teamCode || selectedTeam.code})` : 'No Team'}
                     </Text>
-                  </TouchableOpacity>
-                  
-                  {teams.map((team) => (
-                    <TouchableOpacity
-                      key={team.id}
-                      style={[
-                        styles.teamOption,
-                        editingUser.teamId === team.id && styles.teamOptionSelected
-                      ]}
-                      onPress={() => setEditingUser({ ...editingUser, teamId: team.id })}
+                  </View>
+                  <Ionicons 
+                    name={showTeamDropdown ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#6b7280" 
+                  />
+                </TouchableOpacity>
+                
+                {showTeamDropdown && (
+                  <Animated.View 
+                    style={[
+                      styles.dropdownMenu,
+                      {
+                        opacity: teamDropdownAnimation,
+                        transform: [
+                          {
+                            translateY: teamDropdownAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [-10, 0],
+                            }),
+                          },
+                          {
+                            scaleY: teamDropdownAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.8, 1],
+                            }),
+                          },
+                        ],
+                      }
+                    ]}
+                  >
+                    <ScrollView 
+                      style={styles.dropdownScrollView}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
                     >
-                      <Text style={[
-                        styles.teamOptionText,
-                        editingUser.teamId === team.id && styles.teamOptionTextSelected
-                      ]}>
-                        {team.name} ({team.code || team.teamCode})
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownItem,
+                          !editingUser.teamId && styles.dropdownItemSelected
+                        ]}
+                        onPress={() => {
+                          // Update state first
+                          const newUser = { ...editingUser, teamId: '' };
+                          setEditingUser(newUser);
+                          
+                          // Animate close with delay to prevent useInsertionEffect warning
+                          setTimeout(() => {
+                            Animated.timing(teamDropdownAnimation, {
+                              toValue: 0,
+                              duration: 200,
+                              useNativeDriver: true,
+                            }).start(() => {
+                              setShowTeamDropdown(false);
+                            });
+                          }, 50);
+                        }}
+                      >
+                        <Ionicons name="remove-circle-outline" size={18} color={!editingUser.teamId ? "#ffffff" : "#6b7280"} />
+                        <Text style={[
+                          styles.dropdownItemText,
+                          !editingUser.teamId && styles.dropdownItemTextSelected
+                        ]}>
+                          No Team
+                        </Text>
+                        {!editingUser.teamId && (
+                          <Ionicons name="checkmark" size={18} color="#ffffff" />
+                        )}
+                      </TouchableOpacity>
+                      
+                      {teams.map((team, index) => (
+                        <TouchableOpacity
+                          key={team.id}
+                          style={[
+                            styles.dropdownItem,
+                            editingUser.teamId === team.id && styles.dropdownItemSelected,
+                            index === teams.length - 1 && styles.dropdownItemLast
+                          ]}
+                          onPress={() => {
+                            // Update state first
+                            const newUser = { ...editingUser, teamId: team.id };
+                            setEditingUser(newUser);
+                            
+                            // Animate close with delay to prevent useInsertionEffect warning
+                            setTimeout(() => {
+                              Animated.timing(teamDropdownAnimation, {
+                                toValue: 0,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }).start(() => {
+                                setShowTeamDropdown(false);
+                              });
+                            }, 50);
+                          }}
+                        >
+                          <Ionicons name="basketball-outline" size={18} color={editingUser.teamId === team.id ? "#ffffff" : "#7c3aed"} />
+                          <Text style={[
+                            styles.dropdownItemText,
+                            editingUser.teamId === team.id && styles.dropdownItemTextSelected
+                          ]}>
+                            {team.name} ({team.teamCode || team.code})
+                          </Text>
+                          {editingUser.teamId === team.id && (
+                            <Ionicons name="checkmark" size={18} color="#ffffff" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                )}
               </View>
 
               {/* Active Status */}
-              <View style={styles.detailSection}>
+              <View style={styles.formSection}>
+                <Text style={styles.sectionLabel}>Account Status</Text>
                 <TouchableOpacity
-                  style={styles.checkboxContainer}
+                  style={styles.toggleButton}
                   onPress={() => setEditingUser({ ...editingUser, isActive: !editingUser.isActive })}
                 >
-                  <View style={[
-                    styles.checkbox,
-                    editingUser.isActive && styles.checkboxChecked
-                  ]}>
-                    {editingUser.isActive && (
-                      <Text style={styles.checkboxCheck}>✓</Text>
-                    )}
+                  <View style={styles.toggleContent}>
+                    <Ionicons 
+                      name={editingUser.isActive ? "checkmark-circle" : "close-circle"} 
+                      size={20} 
+                      color={editingUser.isActive ? "#16a34a" : "#dc2626"} 
+                    />
+                    <Text style={styles.toggleLabel}>Active User</Text>
                   </View>
-                  <Text style={styles.checkboxLabel}>Active User</Text>
+                  <View style={[
+                    styles.toggleSwitch,
+                    editingUser.isActive && styles.toggleSwitchActive
+                  ]}>
+                    <View style={[
+                      styles.toggleKnob,
+                      editingUser.isActive && styles.toggleKnobActive
+                    ]} />
+                  </View>
                 </TouchableOpacity>
               </View>
             </ScrollView>
 
+            {/* Action Buttons */}
             <View style={styles.modalActions}>
               <TouchableOpacity 
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => setEditModalVisible(false)}
+                style={styles.cancelButton}
+                onPress={handleCloseModal}
               >
+                <Ionicons name="close-outline" size={18} color="#6b7280" />
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.actionButton, styles.saveButton]}
+                style={styles.saveButton}
                 onPress={handleSaveUser}
               >
-                <Text style={styles.actionButtonText}>Save Changes</Text>
+                <Ionicons name="checkmark-outline" size={18} color="#ffffff" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
       </Modal>
     );
   };
 
   const filteredUsers = users.filter(user => 
-    `${user.firstName} ${user.lastName} ${user.email}`.toLowerCase()
+    `${user.name} ${user.email}`.toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
 
@@ -309,6 +684,7 @@ const UserManagement = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#64748b" />
           <Text style={styles.loadingText}>Loading users...</Text>
         </View>
       </SafeAreaView>
@@ -317,18 +693,6 @@ const UserManagement = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>User Management 👥</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
       {/* Error/Success Messages */}
       {error && (
         <View style={styles.errorContainer}>
@@ -342,56 +706,59 @@ const UserManagement = ({ navigation }) => {
         </View>
       )}
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search users by name or email..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Users List */}
+      {/* Users List with Header */}
       <ScrollView
         style={styles.scrollContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Stats Summary */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{users.length}</Text>
-            <Text style={styles.statLabel}>Total Users</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {users.filter(u => u.isActive !== false).length}
-            </Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {users.filter(u => u.role === 'ADMIN').length}
-            </Text>
-            <Text style={styles.statLabel}>Admins</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {users.filter(u => u.role === 'COACH').length}
-            </Text>
-            <Text style={styles.statLabel}>Coaches</Text>
+        {/* Header inside scroll */}
+        <View style={styles.headerContainer}>
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <View style={styles.headerText}>
+                <Text style={styles.greeting}>User Management</Text>
+                <Text style={styles.subtitle}>Manage system users and permissions</Text>
+              </View>
+            </View>
           </View>
         </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search users by name or email..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        </View>
+
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={64} color="#d1d5db" />
             <Text style={styles.emptyText}>No users found</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery ? 'Try adjusting your search' : 'Users will appear here'}
+            </Text>
           </View>
         ) : (
-          filteredUsers.map((user) => (
-            <UserCard key={user.id} user={user} />
-          ))
+          <View style={styles.usersSection}>
+            {filteredUsers.map((user) => (
+              <UserCard key={user.id} user={user} />
+            ))}
+          </View>
         )}
         
         <View style={styles.footerSpace} />
@@ -405,114 +772,107 @@ const UserManagement = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
 
   loadingText: {
     fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+    color: '#64748b',
+    fontWeight: '500',
+    marginTop: Spacing.md,
+  },
+
+  headerContainer: {
+    backgroundColor: '#ffffff',
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.card,
+    paddingHorizontal: Spacing.lg,
   },
 
   backButton: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.xs,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
 
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
+  headerContent: {
+    marginBottom: Spacing.sm,
   },
 
-  title: {
-    flex: 1,
-    fontSize: FontSizes.base,
+  headerText: {
+    marginBottom: 0,
+  },
+
+  greeting: {
+    fontSize: FontSizes.xl,
     fontWeight: 'bold',
-    color: Colors.foreground,
-    textAlign: 'center',
+    color: '#1f2937',
+    marginBottom: 2,
   },
 
-  headerSpacer: {
-    width: 40, // Balance the back button width
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '400',
+  },
+
+  searchSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#ffffff',
   },
 
   searchContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingHorizontal: Spacing.md,
+  },
+
+  searchIcon: {
+    marginRight: Spacing.sm,
   },
 
   searchInput: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.lg,
+    flex: 1,
     paddingVertical: Spacing.md,
     fontSize: FontSizes.base,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: Colors.card,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'space-between',
-    ...Shadows.card,
-  },
-
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  statValue: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-
-  statLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginTop: 4,
+    color: '#1f2937',
   },
 
   scrollContainer: {
     flex: 1,
   },
 
+  usersSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+
   errorContainer: {
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.sm,
-    backgroundColor: Colors.error + '20',
-    borderColor: Colors.error,
+    backgroundColor: '#fef2f2',
+    borderColor: '#f87171',
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
+    borderRadius: 12,
     padding: Spacing.md,
   },
 
   errorText: {
-    color: Colors.error,
+    color: '#dc2626',
     fontSize: FontSizes.sm,
     fontWeight: '600',
   },
@@ -520,28 +880,31 @@ const styles = {
   successContainer: {
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.sm,
-    backgroundColor: Colors.success + '20',
-    borderColor: Colors.success,
+    backgroundColor: '#f0fdf4',
+    borderColor: '#4ade80',
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
+    borderRadius: 12,
     padding: Spacing.md,
   },
 
   successText: {
-    color: Colors.success,
+    color: '#16a34a',
     fontSize: FontSizes.sm,
     fontWeight: '600',
   },
 
   userCard: {
-    backgroundColor: Colors.card,
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.card,
+    borderColor: '#e5e7eb',
   },
 
   userHeader: {
@@ -549,61 +912,116 @@ const styles = {
     alignItems: 'center',
   },
 
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+
   userInfo: {
     flex: 1,
+    marginRight: Spacing.sm,
   },
 
   userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000000', // Pure black for maximum visibility
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1f2937',
     marginBottom: 4,
-    textAlign: 'left',
   },
 
   userMeta: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 
   userRole: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    marginBottom: 2,
+  },
+
+  separator: {
+    fontSize: FontSizes.sm,
+    color: '#d1d5db',
+    marginHorizontal: Spacing.xs,
   },
 
   userTeam: {
-    fontSize: 14,
-    color: '#333333', // Darker gray for better visibility
-    textAlign: 'left',
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '400',
+    flex: 1,
+  },
+
+  donationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  donationText: {
+    fontSize: FontSizes.xs,
+    color: '#7c3aed',
+    fontWeight: '500',
+    marginLeft: 4,
   },
 
   editButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  editButtonText: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+    paddingHorizontal: Spacing.lg,
+  },
+
+  emptyText: {
+    fontSize: FontSizes.lg,
     fontWeight: '600',
+    color: '#6b7280',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+
+  emptySubtext: {
+    fontSize: FontSizes.sm,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+
+  footerSpace: {
+    height: Spacing.xl,
   },
 
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Spacing.lg,
   },
 
   modalContent: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.xl,
-    width: '90%',
-    maxHeight: '80%',
-    ...Shadows.modal,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    width: '100%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
 
   modalHeader: {
@@ -612,179 +1030,287 @@ const styles = {
     alignItems: 'center',
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+  },
+
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  modalHeaderText: {
+    marginLeft: Spacing.md,
+    flex: 1,
   },
 
   modalTitle: {
     fontSize: FontSizes.xl,
     fontWeight: 'bold',
-    color: Colors.foreground,
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '400',
   },
 
   closeButton: {
-    padding: Spacing.sm,
-  },
-
-  closeButtonText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   modalBody: {
     padding: Spacing.lg,
+    maxHeight: '70%',
   },
 
-  detailSection: {
+  // Info Card
+  infoCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  infoTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginLeft: Spacing.sm,
+  },
+
+  infoContent: {
+    flexDirection: 'row',
+    marginBottom: Spacing.sm,
+  },
+
+  infoLabel: {
+    fontSize: FontSizes.sm,
+    color: '#6b7280',
+    fontWeight: '600',
+    width: 60,
+  },
+
+  infoValue: {
+    fontSize: FontSizes.sm,
+    color: '#1f2937',
+    fontWeight: '400',
+    flex: 1,
+  },
+
+  // Form Sections
+  formSection: {
     marginBottom: Spacing.lg,
   },
 
-  detailLabel: {
+  sectionLabel: {
     fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
+    color: '#1f2937',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: Spacing.sm,
   },
 
-  detailValue: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-  },
-
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.background,
-    marginTop: 4,
-  },
-
-  roleOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  roleOptionSelected: {
-    backgroundColor: Colors.primary,
-  },
-
-  roleOptionText: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '500',
-  },
-
-  roleOptionTextSelected: {
-    color: Colors.primaryForeground,
-    fontWeight: '600',
-  },
-
-  teamOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  teamOptionSelected: {
-    backgroundColor: Colors.primary,
-  },
-
-  teamOptionText: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '500',
-  },
-
-  teamOptionTextSelected: {
-    color: Colors.primaryForeground,
-    fontWeight: '600',
-  },
-
-  checkboxContainer: {
+  // Dropdown Styles
+  dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-  },
-
-  checkbox: {
-    width: 24,
-    height: 24,
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 4,
-    marginRight: Spacing.md,
-    justifyContent: 'center',
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    minHeight: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  dropdownButtonActive: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#faf5ff',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.15,
+  },
+
+  dropdownButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
 
-  checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-
-  checkboxCheck: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-  },
-
-  checkboxLabel: {
+  dropdownButtonText: {
     fontSize: FontSizes.base,
-    color: Colors.foreground,
+    color: '#1f2937',
+    fontWeight: '600',
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+
+  dropdownMenu: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    marginTop: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+    maxHeight: 240,
+    overflow: 'hidden',
+  },
+
+  dropdownScrollView: {
+    maxHeight: 240,
+  },
+
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+
+  dropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+
+  dropdownItemSelected: {
+    backgroundColor: '#7c3aed',
+    borderBottomColor: '#7c3aed',
+  },
+
+  dropdownItemText: {
+    fontSize: FontSizes.base,
+    color: '#374151',
+    fontWeight: '500',
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+
+  dropdownItemTextSelected: {
+    color: '#ffffff',
     fontWeight: '600',
   },
 
+  // Toggle Switch
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: Spacing.md,
+  },
+
+  toggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  toggleLabel: {
+    fontSize: FontSizes.base,
+    color: '#1f2937',
+    fontWeight: '500',
+    marginLeft: Spacing.sm,
+  },
+
+  toggleSwitch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#d1d5db',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+
+  toggleSwitchActive: {
+    backgroundColor: '#16a34a',
+  },
+
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  toggleKnobActive: {
+    transform: [{ translateX: 22 }],
+  },
+
+  // Action Buttons
   modalActions: {
     flexDirection: 'row',
     padding: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    justifyContent: 'space-between',
-  },
-
-  actionButton: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: Spacing.sm,
+    borderTopColor: '#e5e7eb',
+    gap: Spacing.md,
   },
 
   cancelButton: {
-    backgroundColor: Colors.mutedForeground,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
   },
 
   saveButton: {
-    backgroundColor: Colors.primary,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
   },
 
   cancelButtonText: {
     fontSize: FontSizes.base,
-    color: Colors.primaryForeground,
+    color: '#6b7280',
     fontWeight: '600',
+    marginLeft: Spacing.xs,
   },
 
-  actionButtonText: {
+  saveButtonText: {
     fontSize: FontSizes.base,
-    color: Colors.primaryForeground,
+    color: '#ffffff',
     fontWeight: '600',
-  },
-
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl * 2,
-  },
-
-  emptyText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
-  },
-
-  footerSpace: {
-    height: Spacing.xl,
+    marginLeft: Spacing.xs,
   },
 };
 

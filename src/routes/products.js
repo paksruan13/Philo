@@ -34,6 +34,9 @@ router.post('/', adminAuth, productController.createProduct);
 // Update product details (admin only)
 router.put('/:id', adminAuth, productController.updateProduct);
 
+// Delete product (admin only)
+router.delete('/:id', adminAuth, productController.deleteProduct);
+
 // Get product sales history
 router.get('/sales', coachAdminAuth, productController.getProductSales);
 
