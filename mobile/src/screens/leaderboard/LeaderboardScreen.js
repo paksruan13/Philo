@@ -74,8 +74,8 @@ const LeaderboardScreen = () => {
         // Fetch activities for upcoming events count
         fetch(`${API_ROUTES.activities.list}`, { headers }),
         
-        // Fetch total teams count
-        fetch(`${API_ROUTES.teams.admin}`, { headers }),
+        // Fetch total teams count - use public endpoint instead of admin
+        fetch(`${API_ROUTES.teams.list}`, { headers }),
         
         // Fetch user's team data
         token ? fetchWithTimeout(API_ROUTES.teams.myTeam, {
@@ -85,7 +85,7 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          return { ok: false };
+          return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
 
