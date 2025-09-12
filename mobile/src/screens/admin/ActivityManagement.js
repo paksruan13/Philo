@@ -1,138 +1,201 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Switch,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
   SafeAreaView,
   RefreshControl,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-  Modal,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES } from '../../services/api';
-import { Colors, Styles, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
-const ACTIVITY_CATEGORIES = [
-  { value: 'PHOTO', label: 'Photo'},
-  { value: 'PURCHASE', label: 'Purchase'},
-  { value: 'DONATION', label: 'Donation'},
-  { value: 'OTHER', label: 'Other'},
-];
+// Modern Date Picker Component
+const DatePickerDropdown = ({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder = "Select date and time",
+  icon = "calendar",
+  mode = "datetime" 
+}) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
+
+  const formatDateTime = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+    
+    if (selectedDate) {
+      setTempDate(selectedDate);
+      if (Platform.OS === 'android') {
+        onChange(selectedDate.toISOString());
+      }
+    }
+  };
+
+  const handleConfirm = () => {
+    onChange(tempDate.toISOString());
+    setShowPicker(false);
+  };
+
+  const handleClear = () => {
+    onChange('');
+    setShowPicker(false);
+  };
+
+  return (
+    <View style={styles.datePickerContainer}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      
+      <TouchableOpacity
+        style={[styles.datePickerButton, value && styles.datePickerButtonSelected]}
+        onPress={() => setShowPicker(true)}
+      >
+        <View style={styles.datePickerButtonContent}>
+          <Ionicons 
+            name={icon} 
+            size={18} 
+            color={value ? "#7c3aed" : "#9ca3af"} 
+            style={styles.datePickerIcon}
+          />
+          <Text style={[
+            styles.datePickerText,
+            value ? styles.datePickerTextSelected : styles.datePickerTextPlaceholder
+          ]}>
+            {value ? formatDateTime(value) : placeholder}
+          </Text>
+          <Ionicons 
+            name="chevron-down" 
+            size={16} 
+            color={value ? "#7c3aed" : "#9ca3af"} 
+          />
+        </View>
+      </TouchableOpacity>
+
+      {value && (
+        <TouchableOpacity
+          style={styles.clearDateButton}
+          onPress={handleClear}
+        >
+          <Text style={styles.clearDateText}>Clear</Text>
+        </TouchableOpacity>
+      )}
+
+      {showPicker && (
+        <Modal
+          transparent={true}
+          animationType="fade"
+          visible={showPicker}
+          onRequestClose={() => setShowPicker(false)}
+        >
+          <View style={styles.datePickerModal}>
+            <View style={styles.datePickerModalContent}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select {label}</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowPicker(false)}
+                  style={styles.datePickerCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <DateTimePicker
+                value={tempDate}
+                mode={mode}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                style={styles.dateTimePicker}
+              />
+              
+              {Platform.OS === 'ios' && (
+                <View style={styles.datePickerActions}>
+                  <TouchableOpacity
+                    style={styles.datePickerCancelButton}
+                    onPress={() => setShowPicker(false)}
+                  >
+                    <Text style={styles.datePickerCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.datePickerConfirmButton}
+                    onPress={handleConfirm}
+                  >
+                    <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
+};
 
 const ActivityManagement = ({ navigation }) => {
-  const { token } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
   const [error, setError] = useState('');
+  const { token } = useAuth();
+
+  useEffect(() => {
+    fetchActivities();
+  }, []);
 
   const fetchActivities = async () => {
     try {
-      const response = await fetch(`${API_ROUTES.admin.activities}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setActivities(Array.isArray(data) ? data : data.activities || []);
+        setActivities(data);
       } else {
-        Alert.alert('Error', 'Failed to fetch activities');
+        setError('Failed to fetch activities');
       }
     } catch (error) {
       console.error('Error fetching activities:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
+      setError('Error fetching activities');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
   const onRefresh = () => {
     setRefreshing(true);
     fetchActivities();
-  };
-
-  const handleActivityAction = (activity, action) => {
-    Alert.alert(
-      `${action} Activity`,
-      `Are you sure you want to ${action.toLowerCase()} this activity?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: action, 
-          style: 'default',
-          onPress: () => performActivityAction(activity, action)
-        }
-      ]
-    );
-  };
-
-  const performActivityAction = async (activity, action) => {
-    try {
-      let endpoint = '';
-      let method = 'PUT';
-      let body = {};
-
-      switch (action) {
-        case 'Approve':
-          endpoint = `${API_ROUTES.admin.activities}/${activity.id}/approve`;
-          break;
-        case 'Reject':
-          endpoint = `${API_ROUTES.admin.activities}/${activity.id}/reject`;
-          break;
-        case 'Delete':
-          endpoint = `${API_ROUTES.admin.activities}/${activity.id}`;
-          method = 'DELETE';
-          break;
-        default:
-          return;
-      }
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: method !== 'DELETE' ? JSON.stringify(body) : undefined,
-      });
-
-      if (response.ok) {
-        Alert.alert('Success', `Activity ${action.toLowerCase()}d successfully`);
-        fetchActivities();
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || `Failed to ${action.toLowerCase()} activity`);
-      }
-    } catch (error) {
-      console.error(`Error ${action.toLowerCase()}ing activity:`, error);
-      Alert.alert('Error', 'Network error. Please try again.');
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'APPROVED': return Colors.success;
-      case 'REJECTED': return Colors.error;
-      case 'PENDING': return Colors.warning;
-      default: return Colors.mutedForeground;
-    }
   };
 
   const deleteActivity = async (activityId) => {
@@ -141,423 +204,490 @@ const ActivityManagement = ({ navigation }) => {
       'Are you sure you want to delete this activity? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
-          onPress: () => performDeleteActivity(activityId)
+          onPress: async () => {
+            try {
+              const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/activities/${activityId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Activity deleted successfully');
+                fetchActivities();
+              } else {
+                const data = await response.json();
+                setError(data.error || 'Failed to delete activity');
+              }
+            } catch (error) {
+              console.error('Error deleting activity:', error);
+              setError('Error deleting activity');
+            }
+          }
         }
       ]
     );
   };
 
-  const performDeleteActivity = async (activityId) => {
-    try {
-      const response = await fetch(`${API_ROUTES.activities.delete(activityId)}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        Alert.alert('Success', 'Activity deleted successfully');
-        fetchActivities();
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Failed to delete activity');
-      }
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-      setError('Error deleting activity');
-    }
-  };
-
-  const handleEditActivity = (activity) => {
-    setEditingActivity(activity);
-    setEditModalVisible(true);
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'APPROVED': return '✅';
-      case 'REJECTED': return '❌';
-      case 'PENDING': return '⏳';
-      default: return '📋';
-    }
-  };
-
   const ActivityCard = ({ activity }) => {
-    return (
-      <View style={styles.activityCard}>
-        <TouchableOpacity 
-          style={styles.activityCardMain}
-          onPress={() => {
-            setSelectedActivity(activity);
-            setModalVisible(true);
-          }}
-        >
-          <View style={styles.activityHeader}>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>{activity.title}</Text>
-              <Text style={styles.activityDescription} numberOfLines={2}>
-                {activity.description || 'No description'}
-              </Text>
-              <View style={styles.activityMeta}>
-                <Text style={styles.activityCategory}>
-                  � {activity.categoryType}
-                </Text>
-                <Text style={styles.activityPoints}>
-                  🏆 {activity.points || 0} points
-                </Text>
-              </View>
-            </View>
+    const getStatusColor = () => {
+      if (activity.isPublished) return '#10b981';
+      return '#f59e0b';
+    };
 
-            <View style={styles.activityActions}>
-              <View style={styles.statusBadgeContainer}>
-                <View style={[
-                  styles.statusBadge, 
-                  { backgroundColor: activity.isPublished ? Colors.success : Colors.warning }
-                ]}>
-                  <Text style={styles.statusText}>
-                    {activity.isPublished ? 'Published' : 'Draft'}
-                  </Text>
-                </View>
-                
-                {activity.allowOnlinePurchase && (
-                  <View style={[styles.featureBadge, styles.onlineBadge]}>
-                    <Text style={styles.featureBadgeText}>🌐</Text>
-                  </View>
-                )}
-                
-                {activity.allowPhotoUpload && (
-                  <View style={[styles.featureBadge, styles.photoBadge]}>
-                    <Text style={styles.featureBadgeText}>📸</Text>
-                  </View>
-                )}
-                
-                {activity.allowSubmission && (
-                  <View style={[styles.featureBadge, styles.submissionBadge]}>
-                    <Text style={styles.featureBadgeText}>✍️</Text>
-                  </View>
-                )}
-              </View>
-              
-              {activity.submissionCount !== undefined && (
-                <View style={styles.submissionStats}>
-                  <Text style={styles.submissionStatsText}>
-                    {activity.approvedCount || 0}✓ {activity.pendingCount || 0}⏳ {activity.submissionCount || 0} total
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-        
-        <View style={styles.activityCardActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleEditActivity(activity)}
-          >
-            <Text style={styles.actionButtonText}>Edit</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => deleteActivity(activity.id)}
-          >
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const ActivityDetailModal = () => {
-    if (!selectedActivity) return null;
+    const formatDate = (dateString) => {
+      if (!dateString) return null;
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    };
 
     return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+      <TouchableOpacity 
+        style={styles.activityCard}
+        onPress={() => {
+          setSelectedActivity(activity);
+          setShowDetailModal(true);
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Activity Details</Text>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Title</Text>
-                <Text style={styles.detailValue}>{selectedActivity.title}</Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Description</Text>
-                <Text style={styles.detailValue}>
-                  {selectedActivity.description || 'No description provided'}
-                </Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Submitted By</Text>
-                <Text style={styles.detailValue}>
-                  {selectedActivity.user?.firstName} {selectedActivity.user?.lastName}
-                </Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Team</Text>
-                <Text style={styles.detailValue}>
-                  {selectedActivity.user?.teamName || 'No team assigned'}
-                </Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Points</Text>
-                <Text style={styles.detailValue}>{selectedActivity.points || 0}</Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Status</Text>
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusIcon}>
-                    {getStatusIcon(selectedActivity.status)}
-                  </Text>
-                  <Text style={[
-                    styles.detailValue, 
-                    { color: getStatusColor(selectedActivity.status) }
-                  ]}>
-                    {selectedActivity.status}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Submitted Date</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(selectedActivity.createdAt).toLocaleString()}
-                </Text>
-              </View>
-
-              {selectedActivity.reviewedAt && (
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Reviewed Date</Text>
-                  <Text style={styles.detailValue}>
-                    {new Date(selectedActivity.reviewedAt).toLocaleString()}
-                  </Text>
-                </View>
-              )}
-
-              {selectedActivity.reviewNotes && (
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Review Notes</Text>
-                  <Text style={styles.detailValue}>{selectedActivity.reviewNotes}</Text>
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              {selectedActivity.status === 'PENDING' && (
-                <>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.approveButton]}
-                    onPress={() => {
-                      setModalVisible(false);
-                      handleActivityAction(selectedActivity, 'Approve');
-                    }}
-                  >
-                    <Text style={styles.actionButtonText}>✅ Approve</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.rejectButton]}
-                    onPress={() => {
-                      setModalVisible(false);
-                      handleActivityAction(selectedActivity, 'Reject');
-                    }}
-                  >
-                    <Text style={styles.actionButtonText}>❌ Reject</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.deleteButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  handleActivityAction(selectedActivity, 'Delete');
-                }}
-              >
-                <Text style={styles.actionButtonText}>🗑️ Delete</Text>
-              </TouchableOpacity>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleSection}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {activity.title}
+            </Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
+              <Text style={styles.statusText}>
+                {activity.isPublished ? 'Published' : 'Draft'}
+              </Text>
             </View>
           </View>
+          
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setEditingActivity(activity)}
+            >
+              <Ionicons name="pencil" size={16} color="#7c3aed" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#fee2e2' }]}
+              onPress={() => deleteActivity(activity.id)}
+            >
+              <Ionicons name="trash" size={16} color="#dc2626" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </Modal>
+
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {activity.description || 'No description provided'}
+        </Text>
+
+        <View style={styles.cardDetails}>
+          <View style={styles.detailRow}>
+            <Ionicons name="trophy" size={14} color="#f59e0b" />
+            <Text style={styles.detailText}>{activity.points} pts</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="pricetag" size={14} color="#6b7280" />
+            <Text style={styles.detailText}>{activity.categoryType}</Text>
+          </View>
+        </View>
+
+        {(activity.startDate || activity.endDate) && (
+          <View style={styles.scheduleSection}>
+            {activity.startDate && (
+              <View style={styles.scheduleRow}>
+                <Ionicons name="play" size={12} color="#10b981" />
+                <Text style={styles.scheduleText}>Start: {formatDate(activity.startDate)}</Text>
+              </View>
+            )}
+            {activity.endDate && (
+              <View style={styles.scheduleRow}>
+                <Ionicons name="stop" size={12} color="#dc2626" />
+                <Text style={styles.scheduleText}>End: {formatDate(activity.endDate)}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <View style={styles.featuresSection}>
+          {activity.allowOnlinePurchase && (
+            <View style={styles.featureBadge}>
+              <Text style={styles.featureText}>🌐 Online</Text>
+            </View>
+          )}
+          {activity.allowPhotoUpload && (
+            <View style={styles.featureBadge}>
+              <Text style={styles.featureText}>📸 Photo</Text>
+            </View>
+          )}
+          {activity.allowSubmission && (
+            <View style={styles.featureBadge}>
+              <Text style={styles.featureText}>✍️ Submit</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.submissionStats}>
+          <Text style={styles.submissionText}>
+            <Text style={{ color: '#10b981' }}>{activity.approvedCount || 0} ✓</Text>
+            {' • '}
+            <Text style={{ color: '#f59e0b' }}>{activity.pendingCount || 0} ⏳</Text>
+            {' • '}
+            <Text style={{ color: '#6b7280' }}>{activity.submissionCount || 0} total</Text>
+          </Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
-
-
-  const filteredActivities = activities.filter(activity => {
-    const matchesSearch = activity.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         activity.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
-
-  if (loading) {
+  if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading activities...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <Ionicons name="refresh" size={32} color="#7c3aed" />
+        <Text style={styles.loadingText}>Loading activities...</Text>
+      </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTitleSection}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#7c3aed" />
+            </TouchableOpacity>
+            <Ionicons name="flash" size={24} color="#7c3aed" />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit>
+                Activity Management
+              </Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1} adjustsFontSizeToFit>
+                Create and manage activities
+              </Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => setShowCreateForm(true)}
+          >
+            <Ionicons name="add" size={18} color="white" />
+            <Text style={styles.createButtonText} numberOfLines={1} adjustsFontSizeToFit>
+              Create
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError('');
+              fetchActivities();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Activities List */}
       <ScrollView
-        style={styles.scrollContainer}
+        style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#7c3aed"
+          />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Activity Management 🎯</Text>
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => setCreateModalVisible(true)}
-          >
-            <Text style={styles.addButtonText}>+ Create</Text>
-          </TouchableOpacity>
+        <View style={styles.activitiesContainer}>
+          {activities.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="flash-outline" size={64} color="#d1d5db" />
+              <Text style={styles.emptyTitle}>No activities yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Create your first activity to get started
+              </Text>
+            </View>
+          ) : (
+            activities.map((activity) => (
+              <ActivityCard key={activity.id} activity={activity} />
+            ))
+          )}
         </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search activities..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        {/* Activity Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{activities.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {activities.filter(a => a.isPublished).length}
-            </Text>
-            <Text style={styles.statLabel}>Published</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {activities.filter(a => !a.isPublished).length}
-            </Text>
-            <Text style={styles.statLabel}>Drafts</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{ACTIVITY_CATEGORIES.length}</Text>
-            <Text style={styles.statLabel}>Categories</Text>
-          </View>
-        </View>
-
-        {/* Activities List */}
-        {filteredActivities.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No activities found</Text>
-          </View>
-        ) : (
-          filteredActivities.map((activity) => (
-            <ActivityCard key={activity.id} activity={activity} />
-          ))
-        )}
-        
-        <View style={styles.footerSpace} />
       </ScrollView>
 
-      <ActivityDetailModal />
-      
+      {/* Activity Detail Modal */}
+      <ActivityDetailModal
+        activity={selectedActivity}
+        visible={showDetailModal && selectedActivity !== null}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedActivity(null);
+        }}
+      />
+
       {/* Create/Edit Activity Modal */}
-      {(createModalVisible || editModalVisible) && (
-        <ActivityForm
-          activity={editingActivity}
-          onClose={() => {
-            setCreateModalVisible(false);
-            setEditModalVisible(false);
-            setEditingActivity(null);
-          }}
-          onSave={() => {
-            fetchActivities();
-            setCreateModalVisible(false);
-            setEditModalVisible(false);
-            setEditingActivity(null);
-            setError('');
-          }}
-          token={token}
-        />
-      )}
+      <ActivityForm
+        activity={editingActivity}
+        visible={showCreateForm || editingActivity !== null}
+        onClose={() => {
+          setShowCreateForm(false);
+          setEditingActivity(null);
+        }}
+        onSave={() => {
+          fetchActivities();
+          setShowCreateForm(false);
+          setEditingActivity(null);
+        }}
+        token={token}
+      />
     </SafeAreaView>
   );
 };
 
-const ActivityForm = ({ activity, onClose, onSave, token }) => {
+// Activity Categories - matching web app
+const ACTIVITY_CATEGORIES = [
+  { value: 'PHOTO', label: 'Photo' },
+  { value: 'PURCHASE', label: 'Purchase' },
+  { value: 'DONATION', label: 'Donation' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+// Activity Detail Modal Component
+const ActivityDetailModal = ({ activity, visible, onClose }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
+  if (!activity) {
+    return null;
+  }
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleRow}>
+              <Ionicons name="flash" size={24} color="#7c3aed" />
+              <Text style={styles.modalTitle}>Activity Details</Text>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+            <View style={styles.modalBody}>
+              <Text style={styles.activityTitle}>{activity.title}</Text>
+              
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>Description</Text>
+                <Text style={styles.infoValue}>
+                  {activity.description || 'No description provided'}
+                </Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>Points & Category</Text>
+                <Text style={styles.infoValue}>{activity.points} points</Text>
+                <Text style={styles.infoSubValue}>{activity.categoryType}</Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>Schedule</Text>
+                <Text style={styles.infoValue}>
+                  Start: {formatDate(activity.startDate)}
+                </Text>
+                <Text style={styles.infoSubValue}>
+                  End: {formatDate(activity.endDate)}
+                </Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>Status & Features</Text>
+                <Text style={styles.infoValue}>
+                  {activity.isPublished ? 'Published' : 'Draft'}
+                </Text>
+                <View style={styles.featuresGrid}>
+                  {activity.allowOnlinePurchase && (
+                    <Text style={styles.featureItem}>🌐 Online Purchase</Text>
+                  )}
+                  {activity.allowPhotoUpload && (
+                    <Text style={styles.featureItem}>📸 Photo Upload</Text>
+                  )}
+                  {activity.allowSubmission && (
+                    <Text style={styles.featureItem}>✍️ Submissions</Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>Submission Statistics</Text>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statItemNumber}>{activity.approvedCount || 0}</Text>
+                    <Text style={styles.statItemLabel}>Approved</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statItemNumber}>{activity.pendingCount || 0}</Text>
+                    <Text style={styles.statItemLabel}>Pending</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statItemNumber}>{activity.submissionCount || 0}</Text>
+                    <Text style={styles.statItemLabel}>Total</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Activity Form Component - matching web app fields
+const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
   const [formData, setFormData] = useState({
-    title: activity ? activity.title : '',
-    description: activity?.description || '',
-    points: activity?.points || 100,
-    categoryType: activity?.categoryType || 'OTHER',
-    requirements: activity?.requirements || {},
-    isPublished: activity?.isPublished || false,
-    allowOnlinePurchase: activity?.allowOnlinePurchase || false,
-    allowPhotoUpload: activity?.allowPhotoUpload || false,
-    allowSubmission: activity?.allowSubmission || false
+    title: '',
+    description: '',
+    points: 100,
+    categoryType: 'OTHER',
+    isPublished: false,
+    allowOnlinePurchase: false,
+    allowPhotoUpload: false,
+    allowSubmission: false,
+    startDate: '',
+    endDate: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Update form data when activity changes
+  useEffect(() => {
+    if (activity) {
+      setFormData({
+        title: activity.title || '',
+        description: activity.description || '',
+        points: activity.points || 100,
+        categoryType: activity.categoryType || 'OTHER',
+        isPublished: activity.isPublished || false,
+        allowOnlinePurchase: activity.allowOnlinePurchase || false,
+        allowPhotoUpload: activity.allowPhotoUpload || false,
+        allowSubmission: activity.allowSubmission || false,
+        startDate: activity.startDate || '',
+        endDate: activity.endDate || ''
+      });
+    } else {
+      // Reset form for new activity
+      setFormData({
+        title: '',
+        description: '',
+        points: 100,
+        categoryType: 'OTHER',
+        isPublished: false,
+        allowOnlinePurchase: false,
+        allowPhotoUpload: false,
+        allowSubmission: false,
+        startDate: '',
+        endDate: ''
+      });
+    }
+    // Clear any previous errors when activity changes
+    setError('');
+  }, [activity]);
 
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
 
     try {
+      // Validate required fields
+      if (!formData.title.trim()) {
+        setError('Title is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.description.trim()) {
+        setError('Description is required');
+        setLoading(false);
+        return;
+      }
+
+      // Validate date range
+      if (formData.startDate && formData.endDate) {
+        const startDate = new Date(formData.startDate);
+        const endDate = new Date(formData.endDate);
+        if (endDate <= startDate) {
+          setError('End date must be after start date');
+          setLoading(false);
+          return;
+        }
+      }
+
       const url = activity
-        ? `${API_ROUTES.admin.activityDetail(activity.id)}`
-        : `${API_ROUTES.admin.activities}`;
+        ? `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities/${activity.id}`
+        : `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/admin/activities`;
 
       const method = activity ? 'PUT' : 'POST';
+
+      // Prepare form data with proper date formatting
+      const submitData = {
+        ...formData,
+        points: parseInt(formData.points),
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       if (response.ok) {
+        Alert.alert(
+          'Success',
+          `Activity ${activity ? 'updated' : 'created'} successfully!`
+        );
         onSave();
       } else {
         const data = await response.json();
@@ -577,163 +707,162 @@ const ActivityForm = ({ activity, onClose, onSave, token }) => {
     <Modal
       animationType="slide"
       transparent={true}
-      visible={true}
+      visible={visible}
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={styles.formModalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {activity ? 'Edit Activity' : 'Create Activity'}
-            </Text>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={onClose}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
+            <View style={styles.modalTitleRow}>
+              <Ionicons name="flash" size={24} color="#7c3aed" />
+              <Text style={styles.modalTitle}>
+                {activity ? 'Edit Activity' : 'Create Activity'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={20} color="#6b7280" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody}>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+          {error ? (
+            <View style={styles.formErrorContainer}>
+              <Text style={styles.formErrorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <ScrollView style={styles.formScrollView} showsVerticalScrollIndicator={false}>
+            <View style={styles.formBody}>
+              {/* Title */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Title *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.title}
+                  onChangeText={(text) => setFormData({ ...formData, title: text })}
+                  placeholder="Enter activity title"
+                  placeholderTextColor="#9ca3af"
+                />
               </View>
-            ) : null}
-            
-            {/* Title */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Title</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.title}
-                onChangeText={(text) => setFormData({...formData, title: text})}
-                placeholder="Enter activity title"
-                placeholderTextColor={Colors.mutedForeground}
-              />
-            </View>
 
-            {/* Description */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={formData.description}
-                onChangeText={(text) => setFormData({...formData, description: text})}
-                placeholder="Enter activity description"
-                placeholderTextColor={Colors.mutedForeground}
-                multiline={true}
-                numberOfLines={4}
-              />
-            </View>
+              {/* Description */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description *</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={formData.description}
+                  onChangeText={(text) => setFormData({ ...formData, description: text })}
+                  placeholder="Enter activity description"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
 
-            {/* Points */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Points</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.points.toString()}
-                onChangeText={(text) => setFormData({...formData, points: parseInt(text) || 0})}
-                placeholder="Enter points"
-                placeholderTextColor={Colors.mutedForeground}
-                keyboardType="numeric"
-              />
-            </View>
+              {/* Points and Category */}
+              <View style={styles.rowContainer}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.inputLabel}>Points *</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={formData.points.toString()}
+                    onChangeText={(text) => setFormData({ ...formData, points: parseInt(text) || 0 })}
+                    placeholder="100"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="numeric"
+                  />
+                </View>
 
-            {/* Category */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Category</Text>
-              <View style={styles.pickerContainer}>
-                {ACTIVITY_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.value}
-                    style={[
-                      styles.roleOption,
-                      formData.categoryType === cat.value && styles.roleOptionSelected
-                    ]}
-                    onPress={() => setFormData({...formData, categoryType: cat.value})}
-                  >
-                    <Text style={[
-                      styles.roleOptionText,
-                      formData.categoryType === cat.value && styles.roleOptionTextSelected
-                    ]}>
-                      {cat.label}
+                <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                  <Text style={styles.inputLabel}>Category *</Text>
+                  <View style={styles.pickerContainer}>
+                    <Text style={styles.pickerValue}>{formData.categoryType}</Text>
+                    {/* Note: In a real implementation, you'd use a proper picker/dropdown */}
+                  </View>
+                </View>
+              </View>
+
+              {/* Start Date & Time */}
+              <DatePickerDropdown
+                label="Start Date & Time"
+                value={formData.startDate}
+                onChange={(value) => setFormData({ ...formData, startDate: value })}
+                placeholder="Select start date and time"
+                icon="play-circle"
+              />
+
+              {/* End Date & Time */}
+              <DatePickerDropdown
+                label="End Date & Time"
+                value={formData.endDate}
+                onChange={(value) => setFormData({ ...formData, endDate: value })}
+                placeholder="Select end date and time"
+                icon="stop-circle"
+              />
+
+              {/* Publish Status */}
+              <View style={styles.switchGroup}>
+                <View style={styles.switchInfo}>
+                  <Text style={styles.switchLabel}>Make Visible Now!</Text>
+                  <Text style={styles.switchHelper}>Publish this activity immediately</Text>
+                </View>
+                <Switch
+                  value={formData.isPublished}
+                  onValueChange={(value) => setFormData({ ...formData, isPublished: value })}
+                  trackColor={{ false: '#d1d5db', true: '#7c3aed' }}
+                  thumbColor={formData.isPublished ? '#ffffff' : '#ffffff'}
+                />
+              </View>
+
+              {/* Online Purchase (conditional) */}
+              {isPurchaseOrDonation && (
+                <View style={styles.switchGroup}>
+                  <View style={styles.switchInfo}>
+                    <Text style={styles.switchLabel}>
+                      Allow Online {formData.categoryType === 'PURCHASE' ? 'Purchase' : 'Donation'}
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                    <Text style={styles.switchHelper}>Shows online button to students</Text>
+                  </View>
+                  <Switch
+                    value={formData.allowOnlinePurchase}
+                    onValueChange={(value) => setFormData({ ...formData, allowOnlinePurchase: value })}
+                    trackColor={{ false: '#d1d5db', true: '#10b981' }}
+                    thumbColor={formData.allowOnlinePurchase ? '#ffffff' : '#ffffff'}
+                  />
+                </View>
+              )}
+
+              {/* Photo Upload */}
+              <View style={styles.switchGroup}>
+                <View style={styles.switchInfo}>
+                  <Text style={styles.switchLabel}>Allow Photo Upload</Text>
+                  <Text style={styles.switchHelper}>Shows upload button to students</Text>
+                </View>
+                <Switch
+                  value={formData.allowPhotoUpload}
+                  onValueChange={(value) => setFormData({ ...formData, allowPhotoUpload: value })}
+                  trackColor={{ false: '#d1d5db', true: '#8b5cf6' }}
+                  thumbColor={formData.allowPhotoUpload ? '#ffffff' : '#ffffff'}
+                />
               </View>
-            </View>
 
-            {/* Published Status */}
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.checkbox, 
-                  formData.isPublished && styles.checkboxChecked
-                ]}
-                onPress={() => setFormData({...formData, isPublished: !formData.isPublished})}
-              >
-                {formData.isPublished && (
-                  <Text style={styles.checkboxCheck}>✓</Text>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.checkboxLabel}>Make Visible Now!</Text>
-            </View>
-
-            {/* Allow Online Purchase (only for purchase/donation) */}
-            {isPurchaseOrDonation && (
-              <View style={styles.checkboxContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.checkbox, 
-                    formData.allowOnlinePurchase && styles.checkboxChecked
-                  ]}
-                  onPress={() => setFormData({...formData, allowOnlinePurchase: !formData.allowOnlinePurchase})}
-                >
-                  {formData.allowOnlinePurchase && (
-                    <Text style={styles.checkboxCheck}>✓</Text>
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.checkboxLabel}>
-                  Allow Online {formData.categoryType === 'PURCHASE' ? 'Purchase' : 'Donation'}
-                </Text>
+              {/* Submissions */}
+              <View style={styles.switchGroup}>
+                <View style={styles.switchInfo}>
+                  <Text style={styles.switchLabel}>Allow Student Submission</Text>
+                  <Text style={styles.switchHelper}>Enables submission forms and buttons</Text>
+                </View>
+                <Switch
+                  value={formData.allowSubmission}
+                  onValueChange={(value) => setFormData({ ...formData, allowSubmission: value })}
+                  trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
+                  thumbColor={formData.allowSubmission ? '#ffffff' : '#ffffff'}
+                />
               </View>
-            )}
-
-            {/* Allow Photo Upload */}
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.checkbox, 
-                  formData.allowPhotoUpload && styles.checkboxChecked
-                ]}
-                onPress={() => setFormData({...formData, allowPhotoUpload: !formData.allowPhotoUpload})}
-              >
-                {formData.allowPhotoUpload && (
-                  <Text style={styles.checkboxCheck}>✓</Text>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.checkboxLabel}>Allow Photo Upload</Text>
-            </View>
-
-            {/* Allow Submission */}
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.checkbox, 
-                  formData.allowSubmission && styles.checkboxChecked
-                ]}
-                onPress={() => setFormData({...formData, allowSubmission: !formData.allowSubmission})}
-              >
-                {formData.allowSubmission && (
-                  <Text style={styles.checkboxCheck}>✓</Text>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.checkboxLabel}>Allow Student Submission</Text>
             </View>
           </ScrollView>
 
-          <View style={styles.modalActions}>
+          {/* Form Actions */}
+          <View style={styles.formActions}>
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={onClose}
@@ -742,11 +871,11 @@ const ActivityForm = ({ activity, onClose, onSave, token }) => {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.saveButton, loading && styles.disabledButton]}
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={loading}
             >
-              <Text style={styles.actionButtonText}>
+              <Text style={styles.submitButtonText}>
                 {loading ? 'Saving...' : (activity ? 'Update' : 'Create')}
               </Text>
             </TouchableOpacity>
@@ -757,12 +886,219 @@ const ActivityForm = ({ activity, onClose, onSave, token }) => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
 
+  // Header Styles
+  header: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  headerTitleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+
+  backButton: {
+    marginRight: 8,
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+  },
+
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    lineHeight: 22,
+  },
+
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+
+  createButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    marginLeft: 4,
+    fontSize: 14,
+  },
+
+  // Activity Card Styles
+  scrollView: {
+    flex: 1,
+  },
+
+  activitiesContainer: {
+    padding: 16,
+    paddingTop: 0,
+  },
+
+  activityCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+
+  cardTitleSection: {
+    flex: 1,
+    marginRight: 12,
+  },
+
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
+  },
+
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'white',
+    textTransform: 'uppercase',
+  },
+
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  cardDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+
+  cardDetails: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  detailText: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginLeft: 6,
+  },
+
+  scheduleSection: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  scheduleText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 6,
+  },
+
+  featuresSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+
+  featureBadge: {
+    backgroundColor: '#ede9fe',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+
+  featureText: {
+    fontSize: 11,
+    color: '#7c3aed',
+    fontWeight: '600',
+  },
+
+  submissionStats: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+
+  submissionText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+
+  // Loading & Error Styles
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -770,303 +1106,252 @@ const styles = {
   },
 
   loadingText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 12,
   },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.card,
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    margin: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
 
-  backButton: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.xs,
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
   },
 
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
+  retryButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+
+  retryButtonText: {
+    color: '#dc2626',
     fontWeight: '600',
   },
 
-  title: {
-    flex: 1,
-    fontSize: FontSizes.base,
-    fontWeight: 'bold',
-    color: Colors.foreground,
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginTop: 16,
+  },
+
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
     textAlign: 'center',
+    marginTop: 8,
   },
 
-  headerSpacer: {
-    width: 60,
-  },
-
-  searchContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.card,
-  },
-
-  searchInput: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-
-
-
-
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: Colors.card,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'space-between',
-    ...Shadows.card,
-  },
-
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  statValue: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-
-  statLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginTop: 4,
-  },
-
-  scrollContainer: {
-    flex: 1,
-  },
-
-  activityCard: {
-    backgroundColor: Colors.card,
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.card,
-  },
-
-  activityHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-
-  activityInfo: {
-    flex: 1,
-    marginRight: Spacing.md,
-  },
-
-  activityTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: 4,
-  },
-
-  activityDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: 8,
-    lineHeight: FontSizes.sm * 1.3,
-  },
-
-  activityMeta: {
-    marginBottom: 4,
-  },
-
-  activityUser: {
-    fontSize: FontSizes.sm,
-    color: Colors.accent,
-    marginBottom: 2,
-  },
-
-  activityTeam: {
-    fontSize: FontSizes.sm,
-    color: Colors.success,
-    marginBottom: 2,
-  },
-
-  activityDate: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-  },
-
-  activityActions: {
-    alignItems: 'flex-end',
-  },
-
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    marginBottom: Spacing.sm,
-  },
-
-  statusIcon: {
-    fontSize: FontSizes.xs,
-    marginRight: 4,
-  },
-
-  statusText: {
-    fontSize: FontSizes.xs,
-    color: Colors.primaryForeground,
-    fontWeight: '600',
-  },
-
-  activityPoints: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: 'bold',
-  },
-
-  // Modal Styles (similar to previous modals)
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 1000,
   },
 
   modalContent: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.xl,
-    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '100%',
     maxHeight: '80%',
-    ...Shadows.modal,
+    maxWidth: 500,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+
+  formModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '100%',
+    height: '90%',
+    maxWidth: 500,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    display: 'flex',
   },
 
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
 
-  modalTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-  },
-
-  closeButton: {
-    padding: Spacing.sm,
-  },
-
-  closeButtonText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
-  },
-
-  modalBody: {
-    padding: Spacing.lg,
-  },
-
-  detailSection: {
-    marginBottom: Spacing.lg,
-  },
-
-  detailLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-
-  detailValue: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-  },
-
-  statusRow: {
+  modalTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
 
-  modalActions: {
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginLeft: 8,
   },
 
-  actionButton: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
   },
 
-  approveButton: {
-    backgroundColor: Colors.success,
+  modalScrollView: {
+    flex: 1,
   },
 
-  rejectButton: {
-    backgroundColor: Colors.error,
+  modalBody: {
+    padding: 20,
   },
 
-  deleteButton: {
-    backgroundColor: Colors.mutedForeground,
+  activityTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 20,
   },
 
-  actionButtonText: {
-    fontSize: FontSizes.base,
-    color: Colors.primaryForeground,
+  infoCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+
+  infoLabel: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
 
-  emptyContainer: {
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+
+  infoSubValue: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+
+  featuresGrid: {
+    marginTop: 8,
+  },
+
+  featureItem: {
+    fontSize: 14,
+    color: '#7c3aed',
+    marginBottom: 4,
+  },
+
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+
+  statItem: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl * 2,
   },
 
-  emptyText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+  statItemNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
   },
 
-  footerSpace: {
-    height: Spacing.xl,
+  statItemLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
   },
 
   // Form Styles
-  textInput: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
+  formScrollView: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+
+  formBody: {
+    padding: 20,
+    minHeight: 200,
+  },
+
+  formErrorContainer: {
+    backgroundColor: '#fee2e2',
+    margin: 16,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.foreground,
+    borderColor: '#fecaca',
+  },
+
+  formErrorText: {
+    color: '#dc2626',
+    fontSize: 14,
+  },
+
+  inputGroup: {
+    marginBottom: 20,
+  },
+
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: 'white',
   },
 
   textArea: {
@@ -1074,234 +1359,242 @@ const styles = {
     textAlignVertical: 'top',
   },
 
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.background,
+  inputHelper: {
+    fontSize: 12,
+    color: '#6b7280',
     marginTop: 4,
   },
 
-  roleOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+  rowContainer: {
+    flexDirection: 'row',
+  },
+
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+  },
+
+  pickerValue: {
+    fontSize: 16,
+    color: '#111827',
+  },
+
+  switchGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: '#f3f4f6',
   },
 
-  roleOptionSelected: {
-    backgroundColor: Colors.primary,
+  switchInfo: {
+    flex: 1,
+    marginRight: 16,
   },
 
-  roleOptionText: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
+  switchHelper: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  formActions: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    gap: 12,
+  },
+
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+  },
+
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+
+  submitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+  },
+
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+
+  // Date Picker Dropdown Styles
+  datePickerContainer: {
+    marginBottom: 16,
+  },
+
+  datePickerButton: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+
+  datePickerButtonSelected: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#faf7ff',
+  },
+
+  datePickerButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  datePickerIcon: {
+    marginRight: 12,
+  },
+
+  datePickerText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+
+  datePickerTextSelected: {
+    color: '#111827',
     fontWeight: '500',
   },
 
-  roleOptionTextSelected: {
-    color: Colors.primaryForeground,
-    fontWeight: '600',
+  datePickerTextPlaceholder: {
+    color: '#9ca3af',
   },
 
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.md,
+  clearDateButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 6,
   },
 
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 4,
-    marginRight: Spacing.md,
+  clearDateText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+
+  datePickerModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+  datePickerModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 20,
+    minWidth: 300,
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
-  checkboxCheck: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-  },
-
-  checkboxLabel: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '600',
-    flex: 1,
-  },
-
-  cancelButton: {
-    backgroundColor: Colors.mutedForeground,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-
-  saveButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: Spacing.sm,
-  },
-
-  disabledButton: {
-    opacity: 0.5,
-  },
-
-  cancelButtonText: {
-    fontSize: FontSizes.base,
-    color: Colors.primaryForeground,
-    fontWeight: '600',
-  },
-
-  // Activity Card Action Styles
-  activityCardActions: {
+  datePickerHeader: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
     justifyContent: 'space-between',
-  },
-
-  actionButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    flex: 1,
     alignItems: 'center',
-    marginHorizontal: Spacing.xs,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
 
-  deleteButton: {
-    backgroundColor: Colors.error,
-  },
-
-  actionButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primaryForeground,
+  datePickerTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: '#111827',
   },
 
-  deleteButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primaryForeground,
-    fontWeight: '600',
+  datePickerCloseButton: {
+    padding: 4,
   },
 
-  // Feature Badge Styles
-  statusBadgeContainer: {
-    alignItems: 'flex-end',
+  dateTimePicker: {
+    margin: 20,
   },
 
-  featureBadge: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    marginTop: 2,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-
-  onlineBadge: {
-    backgroundColor: Colors.primary + '20',
-  },
-
-  photoBadge: {
-    backgroundColor: Colors.secondary + '20',
-  },
-
-  submissionBadge: {
-    backgroundColor: Colors.success + '20',
-  },
-
-  featureBadgeText: {
-    fontSize: 10,
-  },
-
-  submissionStats: {
-    marginTop: Spacing.xs,
-    alignItems: 'flex-end',
-  },
-
-  submissionStatsText: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-  },
-
-  activityCardMain: {
-    flex: 1,
-  },
-
-  // Stats container styles
-  statsContainer: {
+  datePickerActions: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
   },
 
-  statItem: {
-    alignItems: 'center',
+  datePickerCancelButton: {
     flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  statValue: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.primary,
+  datePickerCancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6b7280',
   },
 
-  statLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginTop: 4,
+  datePickerConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#7c3aed',
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  // Add button styles
-  addButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
+  datePickerConfirmText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'white',
   },
-
-  addButtonText: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-  },
-
-  // Error container
-  errorContainer: {
-    marginBottom: Spacing.lg,
-    backgroundColor: Colors.error + '20',
-    borderColor: Colors.error,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-
-  errorText: {
-    color: Colors.error,
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-  },
-};
+});
 
 export default ActivityManagement;

@@ -28,20 +28,13 @@ const ChangePassword = ({ onClose, mustChange = false }) => {
       return false;
     }
 
-    if (!formData.newPassword || formData.newPassword.length < 8) {
-      setError('New password must be at least 8 characters long');
+    if (!formData.newPassword || formData.newPassword.length < 5) {
+      setError('New password must be at least 5 characters long');
       return false;
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
       setError('New passwords do not match');
-      return false;
-    }
-
-    // Password strength validation
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
-    if (!passwordRegex.test(formData.newPassword)) {
-      setError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character');
       return false;
     }
 
@@ -192,10 +185,7 @@ const ChangePassword = ({ onClose, mustChange = false }) => {
           <div className="text-xs text-gray-500">
             <p>Password requirements:</p>
             <ul className="list-disc list-inside mt-1 space-y-1">
-              <li>At least 8 characters long</li>
-              <li>Contains uppercase and lowercase letters</li>
-              <li>Contains at least one number</li>
-              <li>Contains at least one special character (@$!%*?&)</li>
+              <li>At least 5 characters long</li>
             </ul>
           </div>
 

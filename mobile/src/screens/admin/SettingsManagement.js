@@ -9,9 +9,10 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES } from '../../services/api';
-import { Colors, Styles, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
 const SettingsManagement = ({ navigation }) => {
   const { token } = useAuth();
@@ -80,7 +81,6 @@ const SettingsManagement = ({ navigation }) => {
         setConfig(prev => ({ ...prev, donationGoal: newGoal }));
         setSuccess('Donation goal updated successfully!');
         setTimeout(() => setSuccess(''), 3000);
-        Alert.alert('Success', 'Donation goal updated successfully!');
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Failed to update donation goal');
@@ -97,20 +97,13 @@ const SettingsManagement = ({ navigation }) => {
     fetchConfig();
   }, []);
 
-  const SettingCard = ({ title, description, children }) => (
-    <View style={styles.settingCard}>
-      <View style={styles.settingHeader}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        <Text style={styles.settingDescription}>{description}</Text>
-      </View>
-      {children}
-    </View>
-  );
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
+          <View style={styles.loadingSpinner}>
+            <Ionicons name="settings" size={32} color="#0891b2" />
+          </View>
           <Text style={styles.loadingText}>Loading settings...</Text>
         </View>
       </SafeAreaView>
@@ -119,213 +112,117 @@ const SettingsManagement = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
+      <LinearGradient
+        colors={['#ffffff', '#f8fafc']}
+        style={styles.backgroundGradient}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Settings ⚙️</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        {/* Success/Error Messages */}
-        {success ? (
-          <View style={styles.successContainer}>
-            <Text style={styles.successText}>{success}</Text>
+        <ScrollView
+          style={styles.scrollContainer}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              tintColor="#0891b2"
+              colors={['#0891b2']}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="chevron-back" size={24} color="#0891b2" />
+            </TouchableOpacity>
+            
+            <View style={styles.headerCenter}>
+              <View style={styles.titleContainer}>
+                <Ionicons name="settings" size={24} color="#0891b2" />
+                <Text style={styles.title}>Settings</Text>
+              </View>
+              <Text style={styles.subtitle}>Manage system configuration</Text>
+            </View>
+            
+            <View style={styles.headerSpacer} />
           </View>
-        ) : null}
 
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+          {/* Messages */}
+          {success ? (
+            <View style={styles.successContainer}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <Text style={styles.successText}>{success}</Text>
+            </View>
+          ) : null}
 
-        {/* Settings Sections */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System Configuration</Text>
-          <Text style={styles.sectionSubtitle}>Configure system-wide settings and parameters.</Text>
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color="#ef4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-          {/* Donation Goal Settings */}
-          <SettingCard
-            title="Fundraising Settings"
-            description="Set the overall fundraising goal for Project Phi."
-          >
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Donation Goal ($)</Text>
-              <View style={styles.inputRow}>
-                <View style={styles.inputWrapper}>
+          {/* Donation Goal Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Ionicons name="flag" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.cardTitleContainer}>
+                <Text style={styles.cardTitle}>Fundraising Goal</Text>
+                <Text style={styles.cardDescription}>Set the target amount for your fundraising campaign</Text>
+              </View>
+            </View>
+
+            <View style={styles.currentGoalDisplay}>
+              <Text style={styles.currentGoalLabel}>Current Goal</Text>
+              <Text style={styles.currentGoalValue}>
+                ${(config.donationGoal || 50000).toLocaleString()}
+              </Text>
+            </View>
+
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>New Goal Amount</Text>
+              <View style={styles.inputContainer}>
+                <View style={styles.dollarContainer}>
                   <Text style={styles.dollarSign}>$</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={donationGoal}
-                    onChangeText={setDonationGoal}
-                    placeholder="50000"
-                    placeholderTextColor={Colors.mutedForeground}
-                    keyboardType="numeric"
-                  />
                 </View>
-                <TouchableOpacity
-                  style={[styles.updateButton, saving && styles.disabledButton]}
-                  onPress={updateDonationGoal}
-                  disabled={saving}
-                >
-                  <Text style={styles.updateButtonText}>
-                    {saving ? 'Saving...' : 'Update Goal'}
-                  </Text>
-                </TouchableOpacity>
+                <TextInput
+                  style={styles.textInput}
+                  value={donationGoal}
+                  onChangeText={setDonationGoal}
+                  placeholder="Enter amount"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numeric"
+                />
               </View>
             </View>
 
-            <View style={styles.currentGoalContainer}>
-              <Text style={styles.currentGoalText}>
-                <Text style={styles.currentGoalLabel}>Current Goal: </Text>
-                ${((config.donationGoal || 50000)).toLocaleString()}
-              </Text>
-              <Text style={styles.currentGoalSubtext}>
-                This goal will be displayed on the main dashboard and used to calculate progress percentages.
-              </Text>
-            </View>
-          </SettingCard>
+            <TouchableOpacity
+              style={[styles.updateButton, saving && styles.updateButtonDisabled]}
+              onPress={updateDonationGoal}
+              disabled={saving}
+            >
+              <LinearGradient
+                colors={saving ? ['#9ca3af', '#9ca3af'] : ['#0891b2', '#0ea5e9']}
+                style={styles.updateButtonGradient}
+              >
+                <Ionicons 
+                  name={saving ? "hourglass" : "save"} 
+                  size={18} 
+                  color="#ffffff" 
+                />
+                <Text style={styles.updateButtonText}>
+                  {saving ? 'Saving...' : 'Update Goal'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
-          {/* System Information */}
-          <SettingCard
-            title="System Information"
-            description="View current system status and information."
-          >
-            <View style={styles.infoGrid}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Application Version</Text>
-                <Text style={styles.infoValue}>v2.0.0</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Database Status</Text>
-                <Text style={[styles.infoValue, styles.statusActive]}>✅ Active</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Last Backup</Text>
-                <Text style={styles.infoValue}>{new Date().toLocaleDateString()}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Environment</Text>
-                <Text style={styles.infoValue}>Production</Text>
-              </View>
-            </View>
-          </SettingCard>
-
-          {/* Application Settings */}
-          <SettingCard
-            title="Application Settings"
-            description="Configure application behavior and features."
-          >
-            <View style={styles.settingsList}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingItemInfo}>
-                  <Text style={styles.settingItemTitle}>Registration</Text>
-                  <Text style={styles.settingItemDescription}>Allow new user registration</Text>
-                </View>
-                <View style={styles.settingToggle}>
-                  <Text style={[styles.toggleStatus, styles.toggleActive]}>Enabled</Text>
-                </View>
-              </View>
-
-              <View style={styles.settingItem}>
-                <View style={styles.settingItemInfo}>
-                  <Text style={styles.settingItemTitle}>Team Creation</Text>
-                  <Text style={styles.settingItemDescription}>Allow users to create new teams</Text>
-                </View>
-                <View style={styles.settingToggle}>
-                  <Text style={[styles.toggleStatus, styles.toggleActive]}>Enabled</Text>
-                </View>
-              </View>
-
-              <View style={styles.settingItem}>
-                <View style={styles.settingItemInfo}>
-                  <Text style={styles.settingItemTitle}>Public Leaderboard</Text>
-                  <Text style={styles.settingItemDescription}>Show leaderboard to all users</Text>
-                </View>
-                <View style={styles.settingToggle}>
-                  <Text style={[styles.toggleStatus, styles.toggleActive]}>Enabled</Text>
-                </View>
-              </View>
-
-              <View style={styles.settingItem}>
-                <View style={styles.settingItemInfo}>
-                  <Text style={styles.settingItemTitle}>Maintenance Mode</Text>
-                  <Text style={styles.settingItemDescription}>Put application in maintenance mode</Text>
-                </View>
-                <View style={styles.settingToggle}>
-                  <Text style={[styles.toggleStatus, styles.toggleInactive]}>Disabled</Text>
-                </View>
-              </View>
-            </View>
-          </SettingCard>
-
-          {/* Security Settings */}
-          <SettingCard
-            title="Security & Backup"
-            description="System security and data backup settings."
-          >
-            <View style={styles.actionsList}>
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionIcon}>🔒</Text>
-                  <View style={styles.actionInfo}>
-                    <Text style={styles.actionTitle}>Security Audit</Text>
-                    <Text style={styles.actionDescription}>Run system security audit</Text>
-                  </View>
-                </View>
-                <Text style={styles.actionArrow}>→</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionIcon}>💾</Text>
-                  <View style={styles.actionInfo}>
-                    <Text style={styles.actionTitle}>Backup Database</Text>
-                    <Text style={styles.actionDescription}>Create database backup</Text>
-                  </View>
-                </View>
-                <Text style={styles.actionArrow}>→</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionIcon}>📊</Text>
-                  <View style={styles.actionInfo}>
-                    <Text style={styles.actionTitle}>Export Data</Text>
-                    <Text style={styles.actionDescription}>Export system data</Text>
-                  </View>
-                </View>
-                <Text style={styles.actionArrow}>→</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionIcon}>🔄</Text>
-                  <View style={styles.actionInfo}>
-                    <Text style={styles.actionTitle}>Clear Cache</Text>
-                    <Text style={styles.actionDescription}>Clear system cache</Text>
-                  </View>
-                </View>
-                <Text style={styles.actionArrow}>→</Text>
-              </TouchableOpacity>
-            </View>
-          </SettingCard>
-        </View>
-
-        <View style={styles.footerSpace} />
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -333,7 +230,11 @@ const SettingsManagement = ({ navigation }) => {
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#ffffff',
+  },
+
+  backgroundGradient: {
+    flex: 1,
   },
 
   loadingContainer: {
@@ -342,339 +243,251 @@ const styles = {
     alignItems: 'center',
   },
 
+  loadingSpinner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(8, 145, 178, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
   loadingText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 
   scrollContainer: {
     flex: 1,
   },
 
+  scrollContent: {
+    paddingBottom: 32,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    backgroundColor: Colors.card,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(229, 231, 235, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
 
   backButton: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(8, 145, 178, 0.1)',
   },
 
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 
   title: {
-    fontSize: FontSizes.base,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginLeft: 8,
   },
 
-  placeholder: {
-    width: 50,
+  subtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+
+  headerSpacer: {
+    width: 40,
   },
 
   successContainer: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-    backgroundColor: Colors.success + '20',
-    borderColor: Colors.success,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderColor: '#22c55e',
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    borderRadius: 12,
+    padding: 16,
   },
 
   successText: {
-    color: Colors.success,
-    fontSize: FontSizes.sm,
+    color: '#22c55e',
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 8,
   },
 
   errorContainer: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-    backgroundColor: Colors.error + '20',
-    borderColor: Colors.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#ef4444',
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    borderRadius: 12,
+    padding: 16,
   },
 
   errorText: {
-    color: Colors.error,
-    fontSize: FontSizes.sm,
+    color: '#ef4444',
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 8,
   },
 
-  section: {
-    backgroundColor: Colors.card,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    ...Shadows.card,
-  },
-
-  sectionTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: 4,
-  },
-
-  sectionSubtitle: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.lg,
-  },
-
-  settingCard: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+  card: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(229, 231, 235, 0.3)',
   },
 
-  settingHeader: {
-    marginBottom: Spacing.md,
-  },
-
-  settingTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: 4,
-  },
-
-  settingDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  inputContainer: {
-    marginBottom: Spacing.md,
-  },
-
-  inputLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-
-  inputRow: {
+  cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
 
-  inputWrapper: {
-    flexDirection: 'row',
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#0891b2',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
+    marginRight: 16,
+  },
+
+  cardTitleContainer: {
     flex: 1,
   },
 
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+
+  cardDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+
+  currentGoalDisplay: {
+    backgroundColor: 'rgba(8, 145, 178, 0.05)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+
+  currentGoalLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  currentGoalValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0891b2',
+    letterSpacing: -1,
+  },
+
+  inputSection: {
+    marginBottom: 24,
+  },
+
+  inputLabel: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+
+  inputContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+
+  dollarContainer: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   dollarSign: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
-    marginRight: Spacing.sm,
+    fontSize: 18,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 
   textInput: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontSize: 18,
+    color: '#111827',
+    fontWeight: '600',
   },
 
   updateButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 
-  disabledButton: {
-    opacity: 0.5,
+  updateButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  updateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
 
   updateButtonText: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-  },
-
-  currentGoalContainer: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-  },
-
-  currentGoalText: {
-    fontSize: FontSizes.sm,
-    color: Colors.foreground,
-    marginBottom: 4,
-  },
-
-  currentGoalLabel: {
-    fontWeight: '600',
-  },
-
-  currentGoalSubtext: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-    lineHeight: FontSizes.xs * 1.4,
-  },
-
-  infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-
-  infoItem: {
-    width: '48%',
-    marginBottom: Spacing.md,
-  },
-
-  infoLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-
-  infoValue: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '600',
-  },
-
-  statusActive: {
-    color: Colors.success,
-  },
-
-  settingsList: {
-    gap: Spacing.md,
-  },
-
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  settingItemInfo: {
-    flex: 1,
-  },
-
-  settingItemTitle: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-
-  settingItemDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  settingToggle: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-
-  toggleStatus: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-  },
-
-  toggleActive: {
-    color: Colors.success,
-    backgroundColor: Colors.success + '20',
-    borderColor: Colors.success,
-  },
-
-  toggleInactive: {
-    color: Colors.error,
-    backgroundColor: Colors.error + '20',
-    borderColor: Colors.error,
-  },
-
-  actionsList: {
-    gap: Spacing.sm,
-  },
-
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-  actionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  actionIcon: {
-    fontSize: FontSizes.lg,
-    marginRight: Spacing.md,
-  },
-
-  actionInfo: {
-    flex: 1,
-  },
-
-  actionTitle: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-
-  actionDescription: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  actionArrow: {
-    fontSize: FontSizes.base,
-    color: Colors.mutedForeground,
-    fontWeight: '600',
-  },
-
-  footerSpace: {
-    height: Spacing.xl,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
   },
 };
 

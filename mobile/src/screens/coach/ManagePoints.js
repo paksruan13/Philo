@@ -23,9 +23,11 @@ const ManagePoints = ({ navigation }) => {
   const [students, setStudents] = useState([]);
   const [pointsHistory, setPointsHistory] = useState([]);
   const [showPointsForm, setShowPointsForm] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Points form state
   const [pointsForm, setPointsForm] = useState({
@@ -42,7 +44,6 @@ const ManagePoints = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('👥 Fetching students for points management...');
       const response = await fetchWithTimeout(API_ROUTES.coach.students, { headers }, 15000);
       
       if (response.ok) {
@@ -65,7 +66,6 @@ const ManagePoints = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('📊 Fetching points history...');
       const response = await fetchWithTimeout(API_ROUTES.coach.pointsHistory, { headers }, 15000);
       
       if (response.ok) {
@@ -136,7 +136,6 @@ const ManagePoints = ({ navigation }) => {
         points: parseInt(pointsForm.points),
       };
 
-      console.log('⭐ Awarding points:', requestBody);
       const response = await fetchWithTimeout(
         API_ROUTES.coach.awardPoints, 
         {
@@ -184,7 +183,6 @@ const ManagePoints = ({ navigation }) => {
                 'Content-Type': 'application/json',
               };
 
-              console.log('🗑️ Deleting points award:', pointsAwardId);
               const response = await fetchWithTimeout(
                 API_ROUTES.coach.deletePoints(pointsAwardId),
                 {
@@ -219,6 +217,16 @@ const ManagePoints = ({ navigation }) => {
     return students.find(s => s.id === pointsForm.userId);
   };
 
+  // Filter students based on search query
+  const getFilteredStudents = () => {
+    if (!searchQuery.trim()) return students;
+    
+    return students.filter(student => 
+      student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.team?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -241,67 +249,94 @@ const ManagePoints = ({ navigation }) => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={20} color="#6366f1" />
-            <Text style={styles.backButtonText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color="#6366f1" />
           </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.title}> Points Manager</Text>
+          
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="trophy" size={24} color="#ffffff" />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Points Manager</Text>
+              <Text style={styles.headerSubtitle}>Reward students</Text>
+            </View>
           </View>
+          
           <TouchableOpacity 
-            style={styles.newPointsButton} 
+            style={styles.awardButton} 
             onPress={() => setShowPointsForm(true)}
           >
-            <Ionicons name="add" size={16} color="#ffffff" />
-            <Text style={styles.newPointsButtonText}>Award</Text>
+            <Ionicons name="star" size={18} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
         {/* Messages */}
         {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.messageContainer}>
+            <View style={styles.errorContainer}>
+              <View style={styles.messageIconContainer}>
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+              </View>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
           </View>
         ) : null}
         
         {success ? (
-          <View style={styles.successContainer}>
-            <Text style={styles.successText}>{success}</Text>
+          <View style={styles.messageContainer}>
+            <View style={styles.successContainer}>
+              <View style={styles.messageIconContainer}>
+                <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              </View>
+              <Text style={styles.successText}>{success}</Text>
+            </View>
           </View>
         ) : null}
 
-        {/* Points History */}
+        {/* Points History - Compact View */}
         <View style={styles.historySection}>
-          <View style={styles.historySectionHeader}>
-            <View style={styles.historyIconContainer}>
-              <Ionicons name="time" size={18} color="#6366f1" />
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Ionicons name="time" size={18} color="#ffffff" />
             </View>
-            <View>
-              <Text style={styles.sectionTitle}>📊 Recent Awards</Text>
-              <Text style={styles.sectionSubtitle}>{pointsHistory.length} point awards recorded</Text>
+            <View style={styles.sectionTextContainer}>
+              <Text style={styles.sectionTitle}>Recent Awards</Text>
+              <Text style={styles.sectionSubtitle}>Latest point awards</Text>
             </View>
+            {pointsHistory.length > 3 && (
+              <TouchableOpacity 
+                style={styles.seeAllButton}
+                onPress={() => setShowAllHistory(true)}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
+                <Ionicons name="chevron-forward" size={14} color="#6366f1" />
+              </TouchableOpacity>
+            )}
           </View>
+          
           {pointsHistory.length > 0 ? (
             <View style={styles.historyContainer}>
-              {pointsHistory.map((entry) => (
-                <View key={entry.id} style={styles.historyItem}>
-                  <View style={styles.historyContent}>
-                    <View style={styles.historyAvatar}>
-                      <Text style={styles.historyAvatarText}>
+              {pointsHistory.slice(0, 3).map((entry) => (
+                <View key={entry.id} style={styles.historyCard}>
+                  <View style={styles.historyCardContent}>
+                    <View style={styles.studentAvatar}>
+                      <Text style={styles.studentAvatarText}>
                         {entry.user?.name?.charAt(0)?.toUpperCase()}
                       </Text>
                     </View>
-                    <View style={styles.historyMain}>
+                    <View style={styles.historyCardInfo}>
                       <Text style={styles.studentName}>{entry.user?.name}</Text>
-                      <Text style={styles.activityDescription}>{entry.activityDescription}</Text>
+                      <Text style={styles.activityDescription} numberOfLines={1}>
+                        {entry.activityDescription}
+                      </Text>
                       <Text style={styles.timestamp}>
-                        📅 {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                        {new Date(entry.createdAt).toLocaleDateString('en-US', {
                           month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
+                          day: 'numeric'
                         })}
                       </Text>
                     </View>
-                    <View style={styles.historyActions}>
+                    <View style={styles.historyCardActions}>
                       <View style={styles.pointsBadge}>
                         <Ionicons name="star" size={12} color="#ffffff" />
                         <Text style={styles.pointsText}>+{entry.points}</Text>
@@ -310,7 +345,7 @@ const ManagePoints = ({ navigation }) => {
                         style={styles.deleteButton}
                         onPress={() => handleDeletePoints(entry.id)}
                       >
-                        <Ionicons name="trash" size={12} color="#ffffff" />
+                        <Ionicons name="trash-outline" size={12} color="#ffffff" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -319,10 +354,18 @@ const ManagePoints = ({ navigation }) => {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No Points Awards Yet</Text>
-              <Text style={styles.emptySubtext}>
-                Points you award manually will appear here.
-              </Text>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="trophy-outline" size={32} color="#9ca3af" />
+              </View>
+              <Text style={styles.emptyTitle}>No Awards Yet</Text>
+              <Text style={styles.emptyMessage}>Tap the star to award points!</Text>
+              <TouchableOpacity 
+                style={styles.emptyActionButton}
+                onPress={() => setShowPointsForm(true)}
+              >
+                <Ionicons name="star" size={14} color="#ffffff" />
+                <Text style={styles.emptyActionText}>Award Points</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -335,42 +378,58 @@ const ManagePoints = ({ navigation }) => {
         visible={showPointsForm}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowPointsForm(false);
+          setShowStudentDropdown(false);
+          setPointsForm({ userId: '', activityDescription: '', points: '' });
+        }}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderContent}>
-              <View style={styles.modalIconContainer}>
-                <Ionicons name="star" size={22} color="#f59e0b" />
-              </View>
-              <View>
-                <Text style={styles.modalTitle}>⭐ Award Points</Text>
-                <Text style={styles.modalSubtitle}>Recognize outstanding achievements</Text>
-              </View>
-            </View>
             <TouchableOpacity 
-              style={styles.closeButton}
+              style={styles.modalBackButton}
               onPress={() => {
                 setShowPointsForm(false);
                 setShowStudentDropdown(false);
                 setPointsForm({ userId: '', activityDescription: '', points: '' });
               }}
             >
-              <Ionicons name="close" size={18} color="#6b7280" />
+              <Ionicons name="close-circle" size={28} color="#6b7280" />
             </TouchableOpacity>
+            
+            <View style={styles.modalHeaderContent}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="star" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Award Points</Text>
+                <Text style={styles.modalSubtitle}>Recognize student achievements</Text>
+              </View>
+            </View>
           </View>
           
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             {/* Student Selection */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>👤 Select Student *</Text>
+              <View style={styles.formLabelContainer}>
+                <Ionicons name="person" size={16} color="#374151" />
+                <Text style={styles.formLabel}>Student</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
               <TouchableOpacity
-                style={[styles.dropdownButton, !pointsForm.userId && styles.required]}
-                onPress={() => setShowStudentDropdown(!showStudentDropdown)}
+                style={[styles.inputContainer, !pointsForm.userId && styles.inputError]}
+                onPress={() => {
+                  setShowStudentDropdown(!showStudentDropdown);
+                  if (!showStudentDropdown) {
+                    setSearchQuery('');
+                  }
+                }}
               >
-                <Text style={[styles.dropdownText, !pointsForm.userId && styles.placeholderText]}>
+                <Ionicons name="person-outline" size={18} color="#6b7280" />
+                <Text style={[styles.inputText, !pointsForm.userId && styles.placeholderText]}>
                   {pointsForm.userId 
-                    ? `${getSelectedStudent()?.name} (${getSelectedStudent()?.team?.name || 'No Team'})`
-                    : 'Choose a student...'
+                    ? getSelectedStudent()?.name
+                    : 'Select student...'
                   }
                 </Text>
                 <Ionicons 
@@ -381,64 +440,115 @@ const ManagePoints = ({ navigation }) => {
               </TouchableOpacity>
               
               {showStudentDropdown && (
-                <View style={styles.pickerContainer}>
-                  {students.map((student) => (
-                    <TouchableOpacity
-                      key={student.id}
-                      style={[
-                        styles.roleOption,
-                        pointsForm.userId === student.id && styles.roleOptionSelected
-                      ]}
-                      onPress={() => {
-                        handleFormChange('userId', student.id);
-                        setShowStudentDropdown(false);
-                      }}
-                    >
-                      <View style={styles.studentOptionContent}>
-                        <View style={styles.studentOptionAvatar}>
-                          <Text style={styles.studentOptionAvatarText}>
-                            {student.name?.charAt(0)?.toUpperCase()}
+                <View style={styles.dropdownContainer}>
+                  {/* Search Input */}
+                  <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={16} color="#6b7280" />
+                    <TextInput
+                      style={styles.searchInput}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      placeholder="Search students or teams..."
+                      placeholderTextColor="#9ca3af"
+                      autoFocus={true}
+                    />
+                    {searchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  {/* Students List */}
+                  <ScrollView 
+                    style={styles.studentsScrollContainer}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {getFilteredStudents().length > 0 ? (
+                      getFilteredStudents().map((student) => (
+                        <TouchableOpacity
+                          key={student.id}
+                          style={[
+                            styles.dropdownOption,
+                            pointsForm.userId === student.id && styles.dropdownOptionSelected
+                          ]}
+                          onPress={() => {
+                            handleFormChange('userId', student.id);
+                            setShowStudentDropdown(false);
+                            setSearchQuery('');
+                          }}
+                        >
+                          <View style={styles.studentOptionAvatar}>
+                            <Text style={styles.studentOptionAvatarText}>
+                              {student.name?.charAt(0)?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.studentOptionInfo}>
+                            <Text style={[
+                              styles.dropdownOptionText,
+                              pointsForm.userId === student.id && styles.dropdownOptionTextSelected
+                            ]}>
+                              {student.name}
+                            </Text>
+                            <Text style={styles.studentTeamText}>
+                              <Ionicons name="people" size={12} color="#6b7280" /> {student.team?.name || 'No Team'}
+                            </Text>
+                          </View>
+                          <Text style={styles.studentPointsText}>
+                            {student.points || 0} pts
                           </Text>
-                        </View>
-                        <View style={styles.studentOptionInfo}>
-                          <Text style={[
-                            styles.roleOptionText,
-                            pointsForm.userId === student.id && styles.roleOptionTextSelected
-                          ]}>
-                            {student.name}
-                          </Text>
-                          <Text style={styles.studentOptionTeam}>
-                            {student.team?.name || 'No Team'} • {student.points || 0} pts
-                          </Text>
-                        </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.noResultsContainer}>
+                        <Ionicons name="search" size={24} color="#9ca3af" />
+                        <Text style={styles.noResultsText}>No students found</Text>
+                        <Text style={styles.noResultsSubtext}>
+                          Try adjusting your search terms
+                        </Text>
                       </View>
-                    </TouchableOpacity>
-                  ))}
+                    )}
+                  </ScrollView>
                 </View>
               )}
             </View>
 
             {/* Activity Description */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>📝 Activity Description *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={pointsForm.activityDescription}
-                onChangeText={(value) => handleFormChange('activityDescription', value)}
-                placeholder="e.g., Outstanding performance in fundraising event"
-                multiline={true}
-                numberOfLines={2}
-                placeholderTextColor="#9ca3af"
-              />
+              <View style={styles.formLabelContainer}>
+                <Ionicons name="document-text" size={16} color="#374151" />
+                <Text style={styles.formLabel}>Activity Description</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={pointsForm.activityDescription}
+                  onChangeText={(value) => handleFormChange('activityDescription', value)}
+                  placeholder="What they do???"
+                  multiline={true}
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  maxLength={200}
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+              <Text style={styles.characterCount}>{pointsForm.activityDescription.length}/200</Text>
             </View>
 
             {/* Points */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>🏆 Points to Award *</Text>
-              <View style={styles.pointsInputContainer}>
-                <Ionicons name="star" size={18} color="#f59e0b" style={styles.pointsIcon} />
+              <View style={styles.formLabelContainer}>
+                <Ionicons name="star" size={16} color="#374151" />
+                <Text style={styles.formLabel}>Points to Award</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="star-outline" size={18} color="#f59e0b" />
                 <TextInput
-                  style={styles.pointsInput}
+                  style={styles.textInput}
                   value={pointsForm.points}
                   onChangeText={(value) => handleFormChange('points', value)}
                   placeholder="Enter points (e.g., 50)"
@@ -447,6 +557,37 @@ const ManagePoints = ({ navigation }) => {
                 />
               </View>
             </View>
+
+            {/* Preview Card */}
+            {(pointsForm.userId && pointsForm.activityDescription.trim() && pointsForm.points) && (
+              <View style={styles.previewSection}>
+                <View style={styles.previewHeader}>
+                  <Ionicons name="eye" size={16} color="#6b7280" />
+                  <Text style={styles.previewTitle}>Preview</Text>
+                </View>
+                <View style={styles.previewCard}>
+                  <View style={styles.previewCardHeader}>
+                    <View style={styles.previewStudentAvatar}>
+                      <Text style={styles.previewStudentAvatarText}>
+                        {getSelectedStudent()?.name?.charAt(0)?.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.previewCardInfo}>
+                      <Text style={styles.previewStudentName}>
+                        {getSelectedStudent()?.name}
+                      </Text>
+                      <Text style={styles.previewActivity}>
+                        {pointsForm.activityDescription}
+                      </Text>
+                    </View>
+                    <View style={styles.previewPointsBadge}>
+                      <Ionicons name="star" size={12} color="#ffffff" />
+                      <Text style={styles.previewPointsText}>+{pointsForm.points}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -457,11 +598,90 @@ const ManagePoints = ({ navigation }) => {
               onPress={handleAwardPoints}
               disabled={!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points}
             >
-              <Ionicons name="trophy" size={16} color="#ffffff" />
+              <Ionicons name="trophy" size={18} color="#ffffff" />
               <Text style={styles.submitButtonText}>Award Points</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* See All History Modal */}
+      <Modal
+        visible={showAllHistory}
+        animationType="fade"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.allHistoryModal}>
+            <View style={styles.allHistoryHeader}>
+              <View style={styles.allHistoryHeaderContent}>
+                <View style={styles.allHistoryIconContainer}>
+                  <Ionicons name="list" size={20} color="#ffffff" />
+                </View>
+                <Text style={styles.allHistoryTitle}>All Point Awards</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeModalButton}
+                onPress={() => setShowAllHistory(false)}
+              >
+                <Ionicons name="close" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pointsHistory}
+              keyExtractor={(item) => item.id}
+              style={styles.allHistoryList}
+              showsVerticalScrollIndicator={true}
+              renderItem={({ item }) => (
+                <View style={styles.allHistoryCard}>
+                  <View style={styles.allHistoryCardContent}>
+                    <View style={styles.allStudentAvatar}>
+                      <Text style={styles.allStudentAvatarText}>
+                        {item.user?.name?.charAt(0)?.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.allHistoryCardInfo}>
+                      <Text style={styles.allStudentName}>{item.user?.name}</Text>
+                      <Text style={styles.allActivityDescription}>
+                        {item.activityDescription}
+                      </Text>
+                      <Text style={styles.allTimestamp}>
+                        {new Date(item.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.allHistoryCardActions}>
+                      <View style={styles.allPointsBadge}>
+                        <Ionicons name="star" size={12} color="#ffffff" />
+                        <Text style={styles.allPointsText}>+{item.points}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.allDeleteButton}
+                        onPress={() => {
+                          setShowAllHistory(false);
+                          handleDeletePoints(item.id);
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={12} color="#ffffff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.allEmptyState}>
+                  <Ionicons name="trophy-outline" size={48} color="#9ca3af" />
+                  <Text style={styles.allEmptyTitle}>No Awards Yet</Text>
+                  <Text style={styles.allEmptyMessage}>Points you award will appear here</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -490,13 +710,12 @@ const styles = {
   // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#f1f5f9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -504,381 +723,610 @@ const styles = {
     elevation: 2,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  headerContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    padding: Spacing.sm,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    gap: Spacing.md,
+    marginLeft: Spacing.md,
   },
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: '#6366f1',
-    fontWeight: '600',
-  },
-  headerTitleContainer: {
+  headerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    backgroundColor: '#f59e0b',
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  headerTextContainer: {
     flex: 1,
   },
-  title: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 2,
   },
-  subtitle: {
-    fontSize: FontSizes.xs,
-    color: '#6b7280',
+  headerSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#64748b',
     fontWeight: '500',
   },
-  newPointsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
+  awardButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#22c55e',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  newPointsButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: FontSizes.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 
   // Messages
+  messageContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: Spacing.md,
-    margin: Spacing.lg,
+  },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: Spacing.md,
+  },
+  messageIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorText: {
     color: '#dc2626',
     fontSize: FontSizes.sm,
-    textAlign: 'center',
-  },
-  successContainer: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: Spacing.md,
-    margin: Spacing.lg,
+    fontWeight: '500',
+    flex: 1,
   },
   successText: {
     color: '#059669',
     fontSize: FontSizes.sm,
-    textAlign: 'center',
+    fontWeight: '500',
+    flex: 1,
   },
 
   // History Section
   historySection: {
     backgroundColor: '#ffffff',
     margin: Spacing.lg,
-    padding: Spacing.lg,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
-  historySectionHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
   },
-  historyIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f0f9ff',
+  sectionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#8b5cf6',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  sectionTextContainer: {
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1e293b',
     marginBottom: 2,
   },
   sectionSubtitle: {
-    fontSize: FontSizes.sm,
-    color: '#6b7280',
+    fontSize: FontSizes.xs,
+    color: '#64748b',
     fontWeight: '500',
   },
-  historyContainer: {
-    marginTop: Spacing.md,
-  },
-  historyItem: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: '#22c55e',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  historyContent: {
+  seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
   },
-  historyAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  seeAllText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  historyContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  historyCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    marginBottom: Spacing.xs,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  historyCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  studentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#6366f1',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
   },
-  historyAvatarText: {
+  studentAvatarText: {
     color: '#ffffff',
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
   },
-  historyMain: {
+  historyCardInfo: {
     flex: 1,
   },
   studentName: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: Spacing.xs,
+    color: '#1e293b',
+    marginBottom: 2,
   },
   activityDescription: {
-    fontSize: FontSizes.sm,
-    color: '#6b7280',
-    marginBottom: Spacing.xs,
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+    marginBottom: 2,
   },
   timestamp: {
     fontSize: FontSizes.xs,
     color: '#9ca3af',
+    fontWeight: '500',
   },
-  historyActions: {
-    alignItems: 'flex-end',
+  historyCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.xs,
   },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: '#22c55e',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   pointsText: {
     color: '#ffffff',
     fontSize: FontSizes.xs,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   deleteButton: {
     backgroundColor: '#ef4444',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 4,
+    padding: 6,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    padding: Spacing.lg,
   },
-  emptyText: {
-    fontSize: FontSizes.lg,
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+  },
+  emptyTitle: {
+    fontSize: FontSizes.base,
     fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: Spacing.sm,
+    color: '#1e293b',
+    marginBottom: Spacing.xs,
   },
-  emptySubtext: {
+  emptyMessage: {
     fontSize: FontSizes.sm,
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#22c55e',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 8,
+  },
+  emptyActionText: {
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   },
   footerSpace: {
     height: 50,
   },
 
-  // Modal Styles
-  modalContainer: {
+  // See All Modal Styles
+  modalOverlay: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+  },
+  allHistoryModal: {
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderRadius: 16,
+    width: '100%',
+    maxHeight: '80%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
-  modalHeaderContent: {
+  allHistoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  allHistoryHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     flex: 1,
   },
-  modalIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fef3c7',
+  allHistoryIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#8b5cf6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalTitle: {
+  allHistoryTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 2,
+    fontWeight: '700',
+    color: '#1e293b',
   },
-  modalSubtitle: {
-    fontSize: FontSizes.sm,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  closeButton: {
+  closeModalButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
   },
-  modalContent: {
+  allHistoryList: {
+    maxHeight: 400,
+  },
+  allHistoryCard: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
+  },
+  allHistoryCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  allStudentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allStudentAvatarText: {
+    color: '#ffffff',
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
+  allHistoryCardInfo: {
     flex: 1,
-    padding: Spacing.lg,
+  },
+  allStudentName: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  allActivityDescription: {
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  allTimestamp: {
+    fontSize: FontSizes.xs,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  allHistoryCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  allPointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  allPointsText: {
+    color: '#ffffff',
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  },
+  allDeleteButton: {
+    backgroundColor: '#ef4444',
+    padding: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allEmptyState: {
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  allEmptyTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  allEmptyMessage: {
+    fontSize: FontSizes.sm,
+    color: '#64748b',
+    textAlign: 'center',
   },
 
   // Form Elements
   formGroup: {
     marginBottom: Spacing.lg,
   },
-  formLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: '#374151',
+  formLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.sm,
   },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: Spacing.md,
-    backgroundColor: '#ffffff',
-  },
-  dropdownText: {
+  formLabel: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#374151',
     flex: 1,
+  },
+  requiredIndicator: {
     fontSize: FontSizes.sm,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#ffffff',
+    gap: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  textAreaContainer: {
+    alignItems: 'flex-start',
+    paddingTop: Spacing.md,
+  },
+  inputText: {
+    flex: 1,
+    fontSize: FontSizes.base,
     color: '#1f2937',
+    fontWeight: '500',
   },
   placeholderText: {
     color: '#9ca3af',
+    fontWeight: '400',
   },
-  required: {
-    borderColor: '#ef4444',
+  textInput: {
+    flex: 1,
+    fontSize: FontSizes.base,
+    color: '#1f2937',
+    fontWeight: '500',
+    paddingVertical: 0,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: 0,
+  },
+  characterCount: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    textAlign: 'right',
+    marginTop: Spacing.xs,
+    fontWeight: '500',
+  },
+  dropdownContainer: {
     marginTop: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
     backgroundColor: '#ffffff',
-    maxHeight: 200,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  roleOption: {
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  roleOptionSelected: {
-    backgroundColor: '#f0f9ff',
-  },
-  studentOptionContent: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#374151',
+    paddingVertical: 4,
+  },
+  studentsScrollContainer: {
+    maxHeight: 240,
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  noResultsSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
     gap: Spacing.sm,
   },
+  dropdownOptionSelected: {
+    backgroundColor: '#f0f9ff',
+    borderBottomColor: '#dbeafe',
+  },
+  dropdownOptionText: {
+    fontSize: FontSizes.sm,
+    color: '#1f2937',
+    fontWeight: '500',
+  },
+  dropdownOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
   studentOptionAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#6366f1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   studentOptionAvatarText: {
     color: '#ffffff',
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
     fontWeight: 'bold',
   },
   studentOptionInfo: {
     flex: 1,
   },
-  roleOptionText: {
-    fontSize: FontSizes.sm,
-    color: '#1f2937',
-    fontWeight: '500',
-  },
-  roleOptionTextSelected: {
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  studentOptionTeam: {
+  studentTeamText: {
     fontSize: FontSizes.xs,
     color: '#6b7280',
     marginTop: 2,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: Spacing.md,
-    fontSize: FontSizes.sm,
-    backgroundColor: '#ffffff',
-    color: '#1f2937',
-  },
-  pointsInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: Spacing.md,
+    gap: 2,
   },
-  pointsIcon: {
-    marginRight: Spacing.sm,
-  },
-  pointsInput: {
-    flex: 1,
-    padding: Spacing.md,
-    fontSize: FontSizes.sm,
-    color: '#1f2937',
+  studentPointsText: {
+    fontSize: FontSizes.xs,
+    color: '#f59e0b',
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   submitButton: {
     flexDirection: 'row',
@@ -888,8 +1336,9 @@ const styles = {
     backgroundColor: '#22c55e',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    borderRadius: 8,
+    borderRadius: 12,
     marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -897,11 +1346,151 @@ const styles = {
     elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: '#d1d5db',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   submitButtonText: {
     color: '#ffffff',
     fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modalBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modalHeaderContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginLeft: Spacing.md,
+  },
+  modalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalTitleContainer: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+  },
+
+  // Preview Section Styles
+  previewSection: {
+    marginBottom: Spacing.lg,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  previewTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  previewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: Spacing.md,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+  },
+  previewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  previewStudentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewStudentAvatarText: {
+    color: '#ffffff',
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  },
+  previewCardInfo: {
+    flex: 1,
+  },
+  previewStudentName: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  previewActivity: {
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+  },
+  previewPointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  previewPointsText: {
+    color: '#ffffff',
+    fontSize: FontSizes.xs,
     fontWeight: '600',
   },
 };

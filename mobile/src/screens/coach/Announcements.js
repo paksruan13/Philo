@@ -39,8 +39,6 @@ const Announcements = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('🏆 Fetching user data to get coached teams...');
-      
       // Get current user info with coached teams
       const userRes = await fetchWithTimeout(API_ROUTES.AUTH.ME, { headers }, 15000);
       
@@ -61,7 +59,6 @@ const Announcements = ({ navigation }) => {
       const coachedTeam = userData.user.coachedTeams[0];
       
       // Fetch detailed team data from leaderboard
-      console.log('📊 Fetching leaderboard data for team details...');
       const leaderboardRes = await fetchWithTimeout(API_ROUTES.LEADERBOARD.LIST, {}, 15000);
       
       if (!leaderboardRes.ok) {
@@ -95,8 +92,6 @@ const Announcements = ({ navigation }) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       };
-
-      console.log('📢 Fetching team announcements for team:', teamId);
       const response = await fetchWithTimeout(
         API_ROUTES.announcements.forTeam(teamId), 
         { headers }, 
@@ -168,7 +163,6 @@ const Announcements = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('📢 Creating announcement for team:', teamData.id);
       const response = await fetchWithTimeout(
         API_ROUTES.announcements.create(teamData.id),
         {
@@ -221,8 +215,6 @@ const Announcements = ({ navigation }) => {
                 'Content-Type': 'application/json',
               };
 
-              console.log('🗑️ Deleting announcement:', announcementId);
-              
               // Optimistically remove from UI
               setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
               
@@ -280,19 +272,26 @@ const Announcements = ({ navigation }) => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={20} color="#6366f1" />
-            <Text style={styles.backButtonText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color="#6366f1" />
           </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.title}>📢 Announcements</Text>
-            <Text style={styles.subtitle}>Team communication</Text>
+          
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="megaphone" size={28} color="#ffffff" />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Team Announcements</Text>
+              <Text style={styles.subtitle}>
+                {teamData ? `${teamData.name} • ${announcements.length} posts` : 'Loading team...'}
+              </Text>
+            </View>
           </View>
+
           <TouchableOpacity 
-            style={styles.newAnnouncementButton} 
+            style={styles.createButton} 
             onPress={() => setShowAnnouncementForm(true)}
           >
-            <Ionicons name="add" size={16} color="#ffffff" />
-            <Text style={styles.newAnnouncementButtonText}>Create</Text>
+            <Ionicons name="add-circle" size={32} color="#8b5cf6" />
           </TouchableOpacity>
         </View>
 
@@ -309,60 +308,93 @@ const Announcements = ({ navigation }) => {
           </View>
         ) : null}
 
-        {/* Team Info */}
+        {/* Team Info Card */}
         {teamData && (
-          <View style={styles.teamInfoSection}>
-            <View style={styles.teamInfoHeader}>
-              <Ionicons name="people" size={16} color="#6366f1" />
-              <Text style={styles.teamInfoTitle}>Sent to: {teamData.name}</Text>
+          <View style={styles.teamCard}>
+            <View style={styles.teamCardHeader}>
+              <View style={styles.teamIconContainer}>
+                <Ionicons name="people" size={20} color="#6366f1" />
+              </View>
+              <View style={styles.teamInfo}>
+                <Text style={styles.teamName}>{teamData.name}</Text>
+                <View style={styles.teamStats}>
+                  <View style={styles.teamStat}>
+                    <Ionicons name="person" size={14} color="#6b7280" />
+                    <Text style={styles.teamStatText}>{teamData.memberCount || 0} members</Text>
+                  </View>
+                  <View style={styles.teamStat}>
+                    <Ionicons name="trophy" size={14} color="#6b7280" />
+                    <Text style={styles.teamStatText}>{teamData.totalScore || 0} points</Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
         )}
 
         {/* Announcements List */}
         <View style={styles.announcementsSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionIconContainer}>
-              <Ionicons name="megaphone" size={18} color="#8b5cf6" />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>📺 Recent Updates</Text>
-              <Text style={styles.sectionSubtitle}>{announcements.length} announcements</Text>
-            </View>
-          </View>
           {announcements.length > 0 ? (
             <View style={styles.announcementsContainer}>
               {announcements.map((announcement) => (
                 <View key={announcement.id} style={styles.announcementCard}>
                   <View style={styles.announcementHeader}>
+                    <View style={styles.announcementIconContainer}>
+                      <Ionicons name="megaphone" size={16} color="#8b5cf6" />
+                    </View>
                     <View style={styles.announcementTitleContainer}>
                       <Text style={styles.announcementTitle}>{announcement.title}</Text>
-                      <Text style={styles.announcementMeta}>
-                        {announcement.createdBy?.name || 'Coach'} • {new Date(announcement.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </Text>
+                      <View style={styles.announcementMeta}>
+                        <Ionicons name="person-circle" size={14} color="#6b7280" />
+                        <Text style={styles.announcementAuthor}>
+                          {announcement.createdBy?.name || 'Coach'}
+                        </Text>
+                        <View style={styles.metaDivider} />
+                        <Ionicons name="time" size={14} color="#6b7280" />
+                        <Text style={styles.announcementDate}>
+                          {new Date(announcement.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </Text>
+                      </View>
                     </View>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDeleteAnnouncement(announcement.id)}
                     >
-                      <Ionicons name="trash" size={16} color="#ef4444" />
+                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.announcementContent}>{announcement.content}</Text>
+                  <View style={styles.announcementFooter}>
+                    <View style={styles.announcementActions}>
+                      <View style={styles.actionButton}>
+                        <Ionicons name="eye" size={14} color="#6b7280" />
+                        <Text style={styles.actionText}>Visible to team</Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               ))}
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="megaphone-outline" size={48} color="#d1d5db" />
-              <Text style={styles.emptyText}>No Announcements</Text>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="megaphone-outline" size={64} color="#e5e7eb" />
+              </View>
+              <Text style={styles.emptyTitle}>No Announcements Yet</Text>
               <Text style={styles.emptySubtext}>
-                Create your first team announcement
+                Create your first team announcement to keep everyone updated
               </Text>
+              <TouchableOpacity 
+                style={styles.emptyActionButton}
+                onPress={() => setShowAnnouncementForm(true)}
+              >
+                <Ionicons name="add-circle" size={20} color="#ffffff" />
+                <Text style={styles.emptyActionText}>Create First Post</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -378,47 +410,57 @@ const Announcements = ({ navigation }) => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderContent}>
-              <View style={styles.modalIconContainer}>
-                <Ionicons name="megaphone" size={22} color="#8b5cf6" />
-              </View>
-              <View>
-                <Text style={styles.modalTitle}>📢 New Announcement</Text>
-                <Text style={styles.modalSubtitle}>Share team updates</Text>
-              </View>
-            </View>
             <TouchableOpacity 
-              style={styles.closeButton}
+              style={styles.modalBackButton}
               onPress={() => {
                 setShowAnnouncementForm(false);
                 setNewAnnouncement({ title: '', content: '' });
               }}
             >
-              <Ionicons name="close" size={18} color="#6b7280" />
+              <Ionicons name="close-circle" size={28} color="#6b7280" />
             </TouchableOpacity>
+            
+            <View style={styles.modalHeaderContent}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="create" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>New Announcement</Text>
+                <Text style={styles.modalSubtitle}>Share updates with your team</Text>
+              </View>
+            </View>
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             {/* Title Input */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>📝 Title *</Text>
+              <View style={styles.formLabelContainer}>
+                <Ionicons name="text" size={16} color="#374151" />
+                <Text style={styles.formLabel}>Title</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
               <TextInput
-                style={[styles.textInput, !newAnnouncement.title.trim() && styles.required]}
+                style={[styles.textInput, !newAnnouncement.title.trim() && styles.inputError]}
                 value={newAnnouncement.title}
                 onChangeText={(value) => handleFormChange('title', value)}
                 placeholder="Enter announcement title..."
                 maxLength={100}
                 placeholderTextColor="#9ca3af"
               />
+              <Text style={styles.characterCount}>{newAnnouncement.title.length}/100</Text>
             </View>
 
             {/* Content Input */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>💬 Message *</Text>
+              <View style={styles.formLabelContainer}>
+                <Ionicons name="document-text" size={16} color="#374151" />
+                <Text style={styles.formLabel}>Message</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
               <TextInput
                 style={[
                   styles.textArea, 
-                  !newAnnouncement.content.trim() && styles.required
+                  !newAnnouncement.content.trim() && styles.inputError
                 ]}
                 value={newAnnouncement.content}
                 onChangeText={(value) => handleFormChange('content', value)}
@@ -429,7 +471,29 @@ const Announcements = ({ navigation }) => {
                 maxLength={500}
                 placeholderTextColor="#9ca3af"
               />
+              <Text style={styles.characterCount}>{newAnnouncement.content.length}/500</Text>
             </View>
+
+            {/* Preview Card */}
+            {(newAnnouncement.title.trim() || newAnnouncement.content.trim()) && (
+              <View style={styles.previewSection}>
+                <View style={styles.previewHeader}>
+                  <Ionicons name="eye" size={16} color="#6b7280" />
+                  <Text style={styles.previewTitle}>Preview</Text>
+                </View>
+                <View style={styles.previewCard}>
+                  <View style={styles.previewCardHeader}>
+                    <Ionicons name="megaphone" size={14} color="#8b5cf6" />
+                    <Text style={styles.previewCardTitle}>
+                      {newAnnouncement.title.trim() || 'Announcement Title'}
+                    </Text>
+                  </View>
+                  <Text style={styles.previewCardContent}>
+                    {newAnnouncement.content.trim() || 'Your message will appear here...'}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -440,8 +504,8 @@ const Announcements = ({ navigation }) => {
               onPress={handleCreateAnnouncement}
               disabled={!newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
             >
-              <Ionicons name="send" size={16} color="#ffffff" />
-              <Text style={styles.submitButtonText}>Publish</Text>
+              <Ionicons name="paper-plane" size={18} color="#ffffff" />
+              <Text style={styles.submitButtonText}>Publish Announcement</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
@@ -473,13 +537,12 @@ const styles = {
   // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#f1f5f9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -487,51 +550,53 @@ const styles = {
     elevation: 2,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  headerContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    padding: Spacing.sm,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
   },
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: '#6366f1',
-    fontWeight: '600',
-  },
-  headerTitleContainer: {
+  headerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+    backgroundColor: '#8b5cf6',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  headerTextContainer: {
     flex: 1,
   },
   title: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 2,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: FontSizes.xs,
-    color: '#6b7280',
+    fontSize: FontSizes.sm,
+    color: '#64748b',
     fontWeight: '500',
   },
-  newAnnouncementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  newAnnouncementButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: FontSizes.sm,
+  createButton: {
+    marginLeft: Spacing.md,
   },
 
   // Messages
@@ -562,150 +627,226 @@ const styles = {
     textAlign: 'center',
   },
 
-  // Team Info Section
-  teamInfoSection: {
-    backgroundColor: '#f0f9ff',
-    margin: Spacing.lg,
-    padding: Spacing.md,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
+  // Team Info Card
+  teamCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
-  teamInfoHeader: {
+  teamCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
   },
-  teamInfoTitle: {
+  teamIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    borderWidth: 2,
+    borderColor: '#e0f2fe',
+  },
+  teamInfo: {
+    flex: 1,
+  },
+  teamName: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.3,
+  },
+  teamStats: {
+    flexDirection: 'row',
+    gap: Spacing.lg,
+  },
+  teamStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  teamStatText: {
     fontSize: FontSizes.sm,
-    color: '#6366f1',
-    fontWeight: '600',
+    color: '#64748b',
+    fontWeight: '500',
   },
 
   // Announcements Section
   announcementsSection: {
-    backgroundColor: '#ffffff',
-    margin: Spacing.lg,
-    padding: Spacing.lg,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  sectionIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f3e8ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  sectionSubtitle: {
-    fontSize: FontSizes.sm,
-    color: '#6b7280',
-    fontWeight: '500',
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
   announcementsContainer: {
-    marginTop: Spacing.md,
+    gap: Spacing.lg,
   },
   announcementCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: Spacing.lg,
-    marginBottom: Spacing.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
     shadowRadius: 16,
-    elevation: 8,
+    elevation: 6,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#f8fafc',
   },
   announcementHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.md,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+  },
+  announcementIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
   },
   announcementTitleContainer: {
     flex: 1,
     marginRight: Spacing.sm,
   },
   announcementTitle: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
     fontWeight: '700',
     color: '#1e293b',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
     letterSpacing: -0.3,
+    lineHeight: 24,
   },
   announcementMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  announcementAuthor: {
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  metaDivider: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#cbd5e1',
+  },
+  announcementDate: {
     fontSize: FontSizes.xs,
     color: '#64748b',
     fontWeight: '500',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
   },
   deleteButton: {
-    backgroundColor: '#fee2e2',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#fecaca',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   announcementContent: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.base,
     color: '#475569',
     lineHeight: 22,
     fontWeight: '400',
     letterSpacing: 0.1,
+    marginBottom: Spacing.md,
+  },
+  announcementFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: Spacing.md,
+  },
+  announcementActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  actionText: {
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+    fontWeight: '500',
   },
 
   // Empty State
   emptyState: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    paddingVertical: Spacing.xl * 2,
+    paddingHorizontal: Spacing.lg,
   },
-  emptyText: {
-    fontSize: FontSizes.lg,
-    fontWeight: '600',
-    color: '#6b7280',
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+  },
+  emptyTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    letterSpacing: -0.5,
   },
   emptySubtext: {
-    fontSize: FontSizes.sm,
-    color: '#6b7280',
+    fontSize: FontSizes.base,
+    color: '#64748b',
     textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+    maxWidth: 280,
+  },
+  emptyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: 24,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyActionText: {
+    color: '#ffffff',
+    fontSize: FontSizes.base,
+    fontWeight: '600',
   },
 
   // Modal Styles
@@ -715,9 +856,9 @@ const styles = {
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
@@ -727,40 +868,42 @@ const styles = {
     shadowRadius: 8,
     elevation: 2,
   },
+  modalBackButton: {
+    marginRight: Spacing.md,
+  },
   modalHeaderContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    flex: 1,
   },
   modalIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3e8ff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#8b5cf6',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: Spacing.md,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalTitleContainer: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 2,
+    letterSpacing: -0.5,
   },
   modalSubtitle: {
     fontSize: FontSizes.sm,
-    color: '#6b7280',
+    color: '#64748b',
     fontWeight: '500',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   modalContent: {
     flex: 1,
@@ -771,57 +914,120 @@ const styles = {
   formGroup: {
     marginBottom: Spacing.lg,
   },
-  formLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: '#374151',
+  formLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.sm,
   },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: Spacing.md,
+  formLabel: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  requiredIndicator: {
     fontSize: FontSizes.sm,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  textInput: {
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: Spacing.md,
+    fontSize: FontSizes.base,
     backgroundColor: '#ffffff',
     color: '#1f2937',
+    fontWeight: '500',
   },
   textArea: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
     padding: Spacing.md,
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.base,
     backgroundColor: '#ffffff',
     color: '#1f2937',
     minHeight: 120,
+    fontWeight: '500',
   },
-  required: {
+  inputError: {
     borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
   },
+  characterCount: {
+    fontSize: FontSizes.xs,
+    color: '#6b7280',
+    textAlign: 'right',
+    marginTop: Spacing.xs,
+    fontWeight: '500',
+  },
+  
+  // Preview Section
+  previewSection: {
+    marginBottom: Spacing.lg,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  previewTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  previewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+  },
+  previewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  previewCardTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  previewCardContent: {
+    fontSize: FontSizes.sm,
+    color: '#64748b',
+    lineHeight: 20,
+  },
+  
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: '#8b5cf6',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: 8,
-    marginTop: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: 16,
+    marginTop: Spacing.lg,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   submitButtonDisabled: {
     backgroundColor: '#9ca3af',
+    shadowOpacity: 0,
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
+    fontSize: FontSizes.base,
+    fontWeight: '700',
   },
 
   footerSpace: {

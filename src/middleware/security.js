@@ -15,7 +15,6 @@ const securityHeaders = helmet({
       scriptSrc: [
         "'self'",
         "'unsafe-eval'", // Required for development
-        "https://js.stripe.com",
         "https://cdn.jsdelivr.net"
       ],
       fontSrc: [
@@ -32,14 +31,10 @@ const securityHeaders = helmet({
       ],
       connectSrc: [
         "'self'",
-        "https://api.stripe.com",
         "wss://localhost:*", // WebSocket connections
         "ws://localhost:*"
       ],
-      frameSrc: [
-        "https://js.stripe.com",
-        "https://hooks.stripe.com"
-      ],
+      frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },

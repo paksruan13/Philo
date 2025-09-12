@@ -100,7 +100,7 @@ connectSrc: ["'self'", "https://api.stripe.com", "wss://localhost:*"]
 
 **Validation Rules:**
 - **Email:** Format validation + normalization
-- **Password:** Complexity requirements (8-128 chars, mixed case, numbers, symbols)
+- **Password:** Minimum 5 characters, maximum 128 characters
 - **Names:** Alpha characters only, length limits
 - **IDs:** UUID format validation
 - **Amounts:** Numeric limits ($0.01-$10,000)

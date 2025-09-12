@@ -241,13 +241,13 @@ export const Styles = {
     justifyContent: 'space-between',
   },
   
-  // Gradient Colors (for LinearGradient component) - Red Purple Gold Theme
-  gradientPrimary: ['#A855F7', '#C084FC', '#EC4899'], // purple to purple-pink
-  gradientSecondary: ['#FFD700', '#FCD34D'], // gold gradient  
-  gradientAccent: ['#EF4444', '#A855F7', '#FFD700'], // red-purple-gold
-  gradientRoyal: ['#A855F7', '#EF4444', '#FFD700'], // purple-red-gold
-  gradientBackground: ['#FEF3F2', '#FDF4FF', '#FFFBEB'], // light red-purple-gold background
-  gradientHero: ['#F3E8FF', '#FDF2F8', '#FEF3C7'], // hero background gradient
-  gradientCard: ['rgba(255, 255, 255, 0.9)', 'rgba(255, 252, 248, 0.8)', 'rgba(252, 246, 255, 0.9)'], // card background
-  gradientTitleDark: ['#7C3AED', '#9333EA', '#DC2626'], // darker purple to red for titles
+  // Gradient Colors (for LinearGradient component) - Calm Blue-Gray Theme
+  gradientPrimary: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], // light blue-gray gradient
+  gradientSecondary: ['#ffffff', '#94a3b8'], // white to gray gradient  
+  gradientAccent: ['#64748b', '#94a3b8', '#cbd5e1'], // slate gray gradient
+  gradientRoyal: ['#f8fafc', '#e2e8f0', '#cbd5e1'], // subtle light gradient
+  gradientBackground: ['#f8fafc', '#f1f5f9', '#e2e8f0'], // light background gradient
+  gradientHero: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], // hero background gradient
+  gradientCard: ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.8)', 'rgba(241, 245, 249, 0.9)'], // card background
+  gradientTitleDark: ['#1e293b', '#475569', '#64748b'], // dark slate for titles
 };

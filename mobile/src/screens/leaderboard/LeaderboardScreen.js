@@ -14,8 +14,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { Ionicons } from '@expo/vector-icons';
+import * as Font from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_ROUTES } from '../../services/api';
+import { API_ROUTES, fetchWithTimeout } from '../../services/api';
 import { Colors, Styles, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
 const LeaderboardScreen = () => {
@@ -25,18 +26,34 @@ const LeaderboardScreen = () => {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [activities, setActivities] = useState([]);
   const [totalTeams, setTotalTeams] = useState(0);
+  const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
+  const [fontLoaded, setFontLoaded] = useState(false);
   const flashingItemsRef = React.useRef(new Set());
+
+  // Load custom font
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'BitcountGridDouble': require('../../../assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf'),
+        });
+        setFontLoaded(true);
+      } catch (error) {
+        setFontLoaded(false);
+      }
+    }
+    loadFonts();
+  }, []);
 
 
 
   const fetchData = async () => {
     try {
-      console.log('Fetching app data from:', API_ROUTES.LEADERBOARD.GET);
       
       const headers = {
         'Content-Type': 'application/json',
@@ -46,8 +63,8 @@ const LeaderboardScreen = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      // Fetch all data in parallel
-      const [leaderboardResponse, statsResponse, activitiesResponse, teamsResponse] = await Promise.all([
+      // Fetch all data in parallel including user's team data
+      const [leaderboardResponse, statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([
         // Fetch leaderboard data
         fetch(`${API_ROUTES.LEADERBOARD.GET}`, { headers }),
         
@@ -59,39 +76,48 @@ const LeaderboardScreen = () => {
         
         // Fetch total teams count
         fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4243'}/api/teams`, { headers }),
+        
+        // Fetch user's team data
+        token ? fetchWithTimeout(API_ROUTES.teams.myTeam, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }).catch(err => {
+          return { ok: false };
+        }) : Promise.resolve({ ok: false })
       ]);
 
-      console.log('API responses:', {
-        leaderboard: leaderboardResponse.status,
-        stats: statsResponse.status,
-        activities: activitiesResponse.status,
-        teams: teamsResponse.status
-      });
+      // Process API responses
+
+      // Process user's team data
+      if (teamResponse.ok) {
+        const userTeamData = await teamResponse.json();
+        setTeamData(userTeamData);
+      } else {
+        setTeamData(null);
+      }
       
       // Process leaderboard data
       if (leaderboardResponse.ok) {
         const leaderboardData = await leaderboardResponse.json();
-        console.log('Leaderboard data received:', leaderboardData);
         setLeaderboardData(Array.isArray(leaderboardData) ? leaderboardData : []);
       } else {
-        console.error('Leaderboard fetch failed:', leaderboardResponse.status);
         setLeaderboardData([]);
       }
 
       // Process statistics data
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        console.log('Statistics data received:', statsData);
         setStatistics(statsData);
       } else {
-        console.error('Statistics fetch failed:', statsResponse.status);
         setStatistics(null);
       }
 
       // Process activities data
       if (activitiesResponse.ok) {
         const activitiesData = await activitiesResponse.json();
-        console.log('Activities data received:', activitiesData);
         setActivities(Array.isArray(activitiesData) ? activitiesData : []);
         
         // Convert activities to events format
@@ -187,7 +213,6 @@ const LeaderboardScreen = () => {
       // Process teams data
       if (teamsResponse.ok) {
         const teamsData = await teamsResponse.json();
-        console.log('Teams data received:', teamsData);
         // Handle different response formats
         if (Array.isArray(teamsData)) {
           setTotalTeams(teamsData.length);
@@ -210,6 +235,7 @@ const LeaderboardScreen = () => {
       setUpcomingEvents([]);
       setActivities([]);
       setTotalTeams(0);
+      setTeamData(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -262,7 +288,11 @@ const LeaderboardScreen = () => {
           <MaskedView
             style={newStyles.maskedView}
             maskElement={
-              <Text style={newStyles.logoTextMask}>
+              <Text style={[
+                newStyles.logoTextMask, 
+                fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}, 
+                { transform: [{ skewX: '-10deg' }] }
+              ]}>
                 SigEp Bounce
               </Text>
             }
@@ -277,19 +307,12 @@ const LeaderboardScreen = () => {
         </View>
         
         <View style={newStyles.userSection}>
-          <Text style={newStyles.welcomeText}>
-            Welcome back, {user?.firstName || 'Student'}
+          <Text style={[
+            newStyles.teamCheerText,
+            fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
+          ]}>
+            Go {teamData?.team?.name || user?.teamName || 'Team'}!
           </Text>
-          <View style={newStyles.avatarContainer}>
-            <LinearGradient
-              colors={['#0891b2', '#06b6d4']}
-              style={newStyles.avatarGlow}
-            >
-              <View style={newStyles.avatar}>
-                <Ionicons name="person" size={20} color="white" />
-              </View>
-            </LinearGradient>
-          </View>
         </View>
       </View>
     </View>
@@ -310,7 +333,7 @@ const LeaderboardScreen = () => {
     const statsData = [
       {
         icon: 'flag',
-        value: isLoading ? '$--K' : `$${Math.round((stats.donationGoal || 50000) / 1000)}K`,
+        value: isLoading ? '$--' : `$${(stats.donationGoal || 0).toLocaleString()}`,
         label: 'Goal Target',
         progress: isLoading ? 0 : (stats.progressPercentage || 0),
         color: '#0891b2',
@@ -601,23 +624,30 @@ const LeaderboardScreen = () => {
 
     const statusBadge = getStatusBadge(selectedActivity.status);
 
+    const handleCloseModal = () => {
+      setShowActivityDetails(false);
+      // Clear selected activity after a brief delay to prevent flicker
+      setTimeout(() => {
+        setSelectedActivity(null);
+      }, 200);
+    };
+
     return (
       <Modal
-        animationType="slide"
+        key={selectedActivity?.id || 'activity-modal'}
+        animationType="fade"
         transparent={true}
         visible={showActivityDetails}
-        onRequestClose={() => setShowActivityDetails(false)}
+        onRequestClose={handleCloseModal}
+        statusBarTranslucent={true}
       >
-        <TouchableOpacity 
-          style={newStyles.activityModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowActivityDetails(false)}
-        >
+        <View style={newStyles.activityModalOverlay}>
           <TouchableOpacity 
-            style={newStyles.activityModalContent}
+            style={newStyles.activityModalOverlayTouch}
             activeOpacity={1}
-            onPress={() => {}}
-          >
+            onPress={handleCloseModal}
+          />
+          <View style={newStyles.activityModalContent}>
             <View style={newStyles.activityModalHeader}>
               <View style={newStyles.activityModalTitleRow}>
                 <Ionicons name="flash" size={24} color="#FF6B6B" />
@@ -625,7 +655,7 @@ const LeaderboardScreen = () => {
               </View>
               <TouchableOpacity 
                 style={newStyles.activityCloseButton}
-                onPress={() => setShowActivityDetails(false)}
+                onPress={handleCloseModal}
               >
                 <Ionicons name="close" size={20} color="#6b7280" />
               </TouchableOpacity>
@@ -636,47 +666,56 @@ const LeaderboardScreen = () => {
               showsVerticalScrollIndicator={false}
             >
               <View style={newStyles.activityDetailsContainer}>
-                {/* Title */}
-                <Text style={newStyles.activityModalActivityTitle}>
-                  {selectedActivity.title}
-                </Text>
-
-                {/* Time */}
-                <View style={newStyles.activityInfoCard}>
-                  <Text style={newStyles.activityInfoLabel}>Time</Text>
-                  <Text style={newStyles.activityInfoValue}>
-                    Starts: {selectedActivity.date} at {selectedActivity.time}
-                  </Text>
-                  {selectedActivity.endDate && selectedActivity.endTime && (
-                    <Text style={newStyles.activityInfoSubValue}>
-                      Ends: {selectedActivity.endDate} at {selectedActivity.endTime}
+                {/* Only render content if we have a valid selected activity */}
+                {selectedActivity && (
+                  <>
+                    {/* Title */}
+                    <Text style={newStyles.activityModalActivityTitle}>
+                      {selectedActivity.title}
                     </Text>
-                  )}
-                </View>
 
-                {/* Points */}
-                {selectedActivity.points > 0 && (
-                  <View style={newStyles.activityInfoCard}>
-                    <Text style={newStyles.activityInfoLabel}>Points</Text>
-                    <Text style={newStyles.activityInfoValue}>
-                      {selectedActivity.points} points
-                    </Text>
-                  </View>
-                )}
+                    {/* Time */}
+                    <View style={newStyles.activityInfoCard}>
+                      <Text style={newStyles.activityInfoLabel}>Schedule</Text>
+                      <Text style={newStyles.activityInfoValue}>
+                        Starts: {selectedActivity.date} at {selectedActivity.time}
+                      </Text>
+                      {selectedActivity.endDate && selectedActivity.endTime ? (
+                        <Text style={newStyles.activityInfoSubValue}>
+                          Ends: {selectedActivity.endDate} at {selectedActivity.endTime}
+                        </Text>
+                      ) : (
+                        <Text style={newStyles.activityInfoSubValue}>
+                          End time: Not specified
+                        </Text>
+                      )}
+                    </View>
 
-                {/* Description */}
-                {selectedActivity.description && (
-                  <View style={newStyles.activityDescriptionCard}>
-                    <Text style={newStyles.activityDescriptionLabel}>Description</Text>
-                    <Text style={newStyles.activityDescriptionText}>
-                      {selectedActivity.description}
-                    </Text>
-                  </View>
+                    {/* Points */}
+                    {selectedActivity.points > 0 && (
+                      <View style={newStyles.activityInfoCard}>
+                        <Text style={newStyles.activityInfoLabel}>Points</Text>
+                        <Text style={newStyles.activityInfoValue}>
+                          {selectedActivity.points} points
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Description */}
+                    {selectedActivity.description && (
+                      <View style={newStyles.activityDescriptionCard}>
+                        <Text style={newStyles.activityDescriptionLabel}>Description</Text>
+                        <Text style={newStyles.activityDescriptionText}>
+                          {selectedActivity.description}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     );
   };
@@ -687,7 +726,9 @@ const LeaderboardScreen = () => {
     const topThreeTeams = safeTeams.slice(0, 3);
     
     const renderPodiumTeam = (team, rank) => {
-      const isUserTeam = team.name === user?.teamName || team.id === user?.teamId;
+      const isUserTeam = team.name === teamData?.team?.name || 
+                        team.name === user?.teamName || 
+                        team.id === user?.teamId;
       
       return (
         <View style={newStyles.podiumColumn}>
@@ -734,7 +775,9 @@ const LeaderboardScreen = () => {
 
     const renderFullLeaderboardItem = ({ item, index }) => {
       const rank = index + 1;
-      const isUserTeam = item.name === user?.teamName || item.id === user?.teamId;
+      const isUserTeam = item.name === teamData?.team?.name || 
+                        item.name === user?.teamName || 
+                        item.id === user?.teamId;
       
       return (
         <View style={[
@@ -836,21 +879,20 @@ const LeaderboardScreen = () => {
 
         {/* Full Leaderboard Modal */}
         <Modal
-          animationType="none"
+          key="leaderboard-modal"
+          animationType="fade"
           transparent={true}
           visible={showFullLeaderboard}
           onRequestClose={() => setShowFullLeaderboard(false)}
+          statusBarTranslucent={true}
         >
-          <TouchableOpacity 
-            style={newStyles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowFullLeaderboard(false)}
-          >
+          <View style={newStyles.modalOverlay}>
             <TouchableOpacity 
-              style={newStyles.modalContent}
+              style={newStyles.modalOverlayTouch}
               activeOpacity={1}
-              onPress={() => {}}
-            >
+              onPress={() => setShowFullLeaderboard(false)}
+            />
+            <View style={newStyles.modalContent}>
               <View style={newStyles.modalHeader}>
                 <View style={newStyles.modalTitleRow}>
                   <Ionicons name="trophy" size={24} color="#FF6B6B" />
@@ -874,8 +916,8 @@ const LeaderboardScreen = () => {
                   </View>
                 ))}
               </ScrollView>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
       </>
     );
@@ -1023,6 +1065,11 @@ const newStyles = {
     fontSize: 24,
     fontWeight: 'bold',
     backgroundColor: 'transparent',
+    letterSpacing: -0.5,
+    // Shadow properties
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
 
   logoGradient: {
@@ -1031,6 +1078,15 @@ const newStyles = {
 
   userSection: {
     alignItems: 'flex-end',
+  },
+
+  teamCheerText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FF6B6B',
+    letterSpacing: -0.3,
+    fontFamily: 'System', // iOS system font for consistency
+    textTransform: 'uppercase',
   },
 
   welcomeText: {
@@ -1406,6 +1462,7 @@ const newStyles = {
     fontSize: 32,
     fontWeight: '700',
     color: 'white',
+    fontFamily: 'Helvetica-LightOblique',
     // iOS number shadow
     textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: { width: 0, height: 1 },
@@ -1416,10 +1473,18 @@ const newStyles = {
   // Full Leaderboard Modal Styles
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 20,
+  },
+
+  modalOverlayTouch: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 
   modalContent: {
@@ -1434,6 +1499,7 @@ const newStyles = {
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 20,
+    zIndex: 1,
   },
 
   modalHeader: {
@@ -1502,6 +1568,7 @@ const newStyles = {
     fontSize: 14,
     fontWeight: '800',
     color: 'white',
+    fontStyle: 'italic',
   },
 
   teamAvatar: {
@@ -1586,8 +1653,16 @@ const newStyles = {
   // Activity Details Modal Styles
   activityModalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+
+  activityModalOverlayTouch: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 
   activityModalContent: {
@@ -1601,6 +1676,7 @@ const newStyles = {
     shadowOpacity: 0.25,
     shadowRadius: 15,
     elevation: 20,
+    zIndex: 1,
   },
 
   activityModalHeader: {
