@@ -88,6 +88,7 @@ export const API_ROUTES = {
 
   // Team endpoints  
   teams: {
+    list: `${API_BASE_URL}/teams`,
     myTeam: `${API_BASE_URL}/teams/my-team`,
     leaderboard: `${API_BASE_URL}/teams/leaderboard`,
     activities: (teamId) => `${API_BASE_URL}/teams/${teamId || 'my-team'}/activities`,
