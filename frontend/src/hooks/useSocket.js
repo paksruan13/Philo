@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-
-const backend_url = 'http://localhost:4243';
+const backend_url = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4243';
 
 export const useSocket = () => {
     const[socket, setSocket] = useState(null);
@@ -15,13 +14,11 @@ export const useSocket = () => {
         });
     
     newSocket.on('connect', () => {
-        console.log('Backend connected Successfully');
         setConnected(true);
         newSocket.emit('join-leaderboard');
     });
 
     newSocket.on('disconnect', () => {
-        console.log('Backend disconnected');
         setConnected(false);
     });
 

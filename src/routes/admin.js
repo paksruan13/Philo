@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const saleController = require('../controllers/saleController');
 const { authenticationToken, requireRole } = require('../middleware/auth');
+const { adminLimiter } = require('../middleware/rateLimiting');
+
+// Apply admin-specific rate limiting
+router.use(adminLimiter);
 
 // User management
 router.get('/users', authenticationToken, requireRole(['ADMIN']), adminController.getAllUsers);
@@ -21,5 +26,19 @@ router.post('/activity-categories', authenticationToken, requireRole(['ADMIN']),
 router.get('/activities', authenticationToken, requireRole(['ADMIN']), adminController.getAllActivities);
 router.post('/activities', authenticationToken, requireRole(['ADMIN']), adminController.createActivity);
 router.put('/activities/:id', authenticationToken, requireRole(['ADMIN']), adminController.updateActivity);
+
+// Inventory management
+router.get('/inventory/shirts', authenticationToken, requireRole(['ADMIN']), saleController.getShirtInventory);
+router.put('/inventory/shirts/update', authenticationToken, requireRole(['ADMIN']), saleController.updateInventory);
+router.put('/inventory/shirts/config', authenticationToken, requireRole(['ADMIN']), saleController.updateShirtConfig);
+router.post('/inventory/shirts/sizes', authenticationToken, requireRole(['ADMIN']), saleController.createShirtSize);
+router.delete('/inventory/shirts/sizes/:size', authenticationToken, requireRole(['ADMIN']), saleController.deleteShirtSize);
+
+// Points management
+router.post('/teams/:teamId/reset-points', authenticationToken, requireRole(['ADMIN']), adminController.resetTeamPoints);
+
+// Config management
+router.get('/config', authenticationToken, requireRole(['ADMIN']), adminController.getConfig);
+router.put('/config', authenticationToken, requireRole(['ADMIN']), adminController.updateConfig);
 
 module.exports = router;

@@ -1,10 +1,14 @@
 // Complete updated ActivitySubmission.jsx
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 import PhotoUpload from '../common/PhotoUpload';
 import { photoService } from '../../services/photoService';
 
-const ActivitySubmission = ({ activityId, onBack }) => {
+const ActivitySubmission = () => {
+    const { activityId } = useParams();
+    const navigate = useNavigate();
     const { token } = useAuth();
     const [activity, setActivity] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -12,6 +16,10 @@ const ActivitySubmission = ({ activityId, onBack }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [formData, setFormData] = useState({});
+
+    const handleBackToDashboard = () => {
+        navigate('/dashboard/student');
+    };
 
     useEffect(() => {
         if (activityId) {
@@ -21,7 +29,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
     const fetchActivity = async () => {
         try {
-            const response = await fetch(`http://localhost:4243/api/activities/${activityId}`, {
+            const response = await fetch(API_ROUTES.activities.detail(activityId), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -52,11 +60,9 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             const submissionData = {...formData};
 
             if(formData.photo && formData.photo instanceof File) {
-                console.log('Uploading');
                 try{
                     const result = await photoService.uploadPhoto(formData.photo);
                     submissionData.photo = result.url;
-                    console.log('Uploaded', result.url);
                 } catch (error) {
                     console.error('Error uploading photo:', error);
                     setError('Failed to upload photo');
@@ -64,11 +70,9 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             }
 
             if(formData.uploadedPhoto && formData.uploadedPhoto instanceof File) {
-                console.log('Uploading additional photos');
                 try {
                     const result = await photoService.uploadPhoto(formData.uploadedPhoto);
                     submissionData.uploadedPhoto = result.url;
-                    console.log('Uploaded additional photo', result.url);
                 } catch (error) {
                     console.error('Error uploading additional photo:', error);
                     setError('Failed to upload additional photo');
@@ -77,8 +81,8 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
             const isUpdate = activity.submission && activity.submission.id;
             const url = isUpdate
-                ? `http://localhost:4243/api/activities/submission/${activity.submission.id}`
-                : `http://localhost:4243/api/activities/${activityId}/submit`;
+                ? API_ROUTES.activities.updateSubmission(activity.submission.id)
+                : API_ROUTES.activities.submit(activityId);
 
             const method = isUpdate ? 'PUT' : 'POST';
             const response = await fetch(url, {
@@ -97,7 +101,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
             setSuccess(isUpdate ? 'Submission Updated Successfully' : 'Activity Submitted Successfully');
 
             setTimeout(() => {
-                onBack();
+                navigate('/dashboard/student');
             }, 3000);
 
         } catch (err) {
@@ -126,97 +130,73 @@ const ActivitySubmission = ({ activityId, onBack }) => {
 
     const getCategoryComponent = () => {
         const categoryName = activity.category?.name?.toLowerCase();
-        const canSubmit = !activity.submission || 
-            (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING');
+        const canSubmit = activity.allowSubmission && (!activity.submission || 
+            (activity.submission.status === 'REJECTED' || activity.submission.status === 'PENDING'));
 
-        switch (categoryName) {
-            case 'purchase':
-                return (
-                    <PurchaseCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'donation':
-                return (
-                    <DonationCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'photo upload':
-                return (
-                    <PhotoUploadCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            case 'manual entry':
-                return (
-                    <ManualEntryCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onBack={onBack}
-                    />
-                );
-            case 'team challenge':
-                return (
-                    <TeamChallengeCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onBack={onBack}
-                    />
-                );
-            case 'steal object':
-                return (
-                    <StealObjectCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-            default:
-                return (
-                    <DefaultCategory
-                        activity={activity}
-                        canSubmit={canSubmit}
-                        onSubmit={handleSubmit}
-                        formData={formData}
-                        onInputChange={handleInputChange}
-                        submitting={submitting}
-                        error={error}
-                        success={success}
-                        onBack={onBack}
-                    />
-                );
-        }
+        if (activity.allowPhotoUpload) {
+        return (
+            <PhotoUploadCategory
+                activity={activity}
+                canSubmit={canSubmit}
+                onSubmit={handleSubmit}
+                formData={formData}
+                onInputChange={handleInputChange}
+                submitting={submitting}
+                error={error}
+                success={success}
+                onBack={handleBackToDashboard}
+            />
+        );
+    }
+
+    // Check for online purchase activities
+    if (activity.allowOnlinePurchase) {
+        return (
+            <PurchaseCategory
+                activity={activity}
+                canSubmit={canSubmit}
+                onSubmit={handleSubmit}
+                formData={formData}
+                onInputChange={handleInputChange}
+                submitting={submitting}
+                error={error}
+                success={success}
+                onBack={handleBackToDashboard}
+            />
+        );
+    }
+
+    // Check by category name if needed
+    switch (activity.categoryType) {
+        case 'donation':
+            return (
+                <DonationCategory
+                    activity={activity}
+                    canSubmit={canSubmit}
+                    onSubmit={handleSubmit}
+                    formData={formData}
+                    onInputChange={handleInputChange}
+                    submitting={submitting}
+                    error={error}
+                    success={success}
+                    onBack={handleBackToDashboard}
+                />
+            );
+        default:
+            return (
+                <DefaultCategory
+                    activity={activity}
+                    canSubmit={canSubmit}
+                    onSubmit={handleSubmit}
+                    formData={formData}
+                    onInputChange={handleInputChange}
+                    submitting={submitting}
+                    error={error}
+                    success={success}
+                    onBack={handleBackToDashboard}
+                />
+            );
+    }
     };
 
     if (loading) {
@@ -238,7 +218,7 @@ const ActivitySubmission = ({ activityId, onBack }) => {
     return (
         <div className="max-w-4xl mx-auto p-6">
             <button
-                onClick={onBack}
+                onClick={handleBackToDashboard}
                 className="mb-6 flex items-center text-blue-600 hover:text-blue-800"
             >
                 ← Back to Dashboard
@@ -333,7 +313,7 @@ const PurchaseCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
                 )}
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
 
                     {activity.allowPhotoUpload && (
@@ -352,9 +332,31 @@ const PurchaseCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            🛒
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Purchase Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -399,7 +401,7 @@ const DonationCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
                 )}
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
 
                     {activity.allowPhotoUpload && (
@@ -418,15 +420,49 @@ const DonationCategory = ({ activity, canSubmit, onSubmit, formData, onInputChan
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            💝
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Donation Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
 
 // Photo Upload Category Component
 const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputChange, submitting, error, success, onBack }) => {
+    // Track if photo has been selected but not yet uploaded
+    const [previewActive, setPreviewActive] = useState(false);
+    
+    // Handle photo change
+    const handlePhotoChange = (file) => {
+        onInputChange('photo', file);
+        // If it's a File object, we know it's a new selection
+        if (file instanceof File) {
+            setPreviewActive(true);
+        }
+    };
+    
     return (
         <div className="space-y-6">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
@@ -442,19 +478,80 @@ const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                 </div>
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <form onSubmit={onSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Upload Photo <span className="text-red-500">*</span>
-                        </label>
-                        <PhotoUpload
-                            value={formData.photo || ''}
-                            onChange={(url) => onInputChange('photo', url)}
-                            required={true}
-                            submitMode={true}
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Upload Photo <span className="text-red-500">*</span>
+                    </label>
+                    
+                    {/* File upload UI without preview */}
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            required={!formData.photo}
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    handlePhotoChange(file);
+                                }
+                            }}
                         />
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-center">
+                                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <p className="text-gray-600">Click or drag photo to upload</p>
+                            <p className="text-xs text-gray-500">Required</p>
+                        </div>
                     </div>
+                    
+                    {/* Preview area */}
+                    {formData.photo && (
+                        <div className="mt-4 relative p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm font-medium text-gray-700">
+                                    {formData.photo instanceof File ? 'Preview:' : 'Current Photo:'}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onInputChange('photo', '');
+                                        setPreviewActive(false);
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div className="relative rounded-lg overflow-hidden bg-white">
+                                <img 
+                                    src={formData.photo instanceof File ? URL.createObjectURL(formData.photo) : formData.photo}
+                                    alt="Photo preview" 
+                                    className="max-w-full h-auto max-h-64 object-contain mx-auto"
+                                    onLoad={() => { 
+                                        if (formData.photo instanceof File) {
+                                            URL.revokeObjectURL(formData.photo);
+                                        }
+                                    }}
+                                    onError={(e) => {
+                                        console.error("Image failed to load");
+                                        e.target.src = "https://via.placeholder.com/400x300?text=Preview+Not+Available";
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -482,9 +579,31 @@ const PhotoUploadCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
 
                     <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
                 </form>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            📸
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Photo Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -509,7 +628,7 @@ const ManualEntryCategory = ({ activity, canSubmit, onBack }) => {
 
             <div className="text-center py-8">
                 <div className="mb-4">
-                    <span className="inline-block w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-2xl mb-3">
+                    <span className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-2xl mb-3">
                         📍
                     </span>
                     <p className="text-lg font-semibold text-gray-900">Visit Our Table</p>
@@ -548,7 +667,7 @@ const TeamChallengeCategory = ({ activity, canSubmit, onBack }) => {
 
             <div className="text-center py-8">
                 <div className="mb-4">
-                    <span className="inline-block w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-2xl mb-3">
+                    <span className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-2xl mb-3">
                         👥
                     </span>
                     <p className="text-lg font-semibold text-gray-900">Bring Your Team</p>
@@ -593,10 +712,10 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                 </div>
             </div>
 
-            {canSubmit && (
+            {canSubmit ? (
                 <div className="text-center py-8">
                     <div className="mb-6">
-                        <span className="inline-block w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-3xl mb-4">
+                        <span className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-3xl mb-4">
                             📱
                         </span>
                         <p className="text-lg font-semibold text-gray-900 mb-2">Ready to Scan?</p>
@@ -622,9 +741,31 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
                         </button>
                     </div>
                 </div>
+            ) : (
+                <div className="text-center py-8">
+                    <div className="mb-4">
+                        <span className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
+                            🎯
+                        </span>
+                        <p className="text-lg font-semibold text-gray-900">Steal Object Activity</p>
+                        <p className="text-gray-600">
+                            {activity.submission ? 
+                                (activity.submission.status === 'APPROVED' 
+                                    ? 'Your submission has been approved and points have been awarded.'
+                                    : 'Your submission is being reviewed.'
+                                ) : 
+                                'This activity requires manual completion or is not available for submission.'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
         </div>
     );
 };
@@ -632,34 +773,29 @@ const StealObjectCategory = ({ activity, canSubmit, onSubmit, formData, onInputC
 // Default Category Component
 const DefaultCategory = ({ activity, canSubmit, onSubmit, formData, onInputChange, submitting, error, success, onBack }) => {
     return (
-        <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">📝 General Activity</h3>
-                <div className="text-gray-700 mb-4">
-                    <p>{activity.description}</p>
+        <div className="space-y-8">
+            {/* Centered Activity Description */}
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-8 text-center shadow-sm">
+                <div className="mb-6">
+                    <span className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-4 mx-auto">
+                        📷
+                    </span>
+                </div>
+                
+                <div className="max-w-2xl mx-auto">
+                    <p className="text-lg text-gray-700 leading-relaxed">{activity.description}</p>
                 </div>
             </div>
 
-            {canSubmit && (
-                <form onSubmit={onSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Submission Notes
-                        </label>
-                        <textarea
-                            value={formData.notes || ''}
-                            onChange={(e) => onInputChange('notes', e.target.value)}
-                            rows={4}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter your submission details..."
-                        />
-                    </div>
-
-                    <SubmitSection submitting={submitting} error={error} success={success} onBack={onBack} />
-                </form>
-            )}
-
-            {!canSubmit && <AlreadySubmittedSection activity={activity} onBack={onBack} />}
+            {/* Close Button Section */}
+            <div className="text-center py-6">
+                <button
+                    onClick={onBack}
+                    className="bg-blue-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                >
+                    Close
+                </button>
+            </div>
         </div>
     );
 };
@@ -716,7 +852,7 @@ const SubmitSection = ({ submitting, error, success, onBack }) => (
 const AlreadySubmittedSection = ({ activity, onBack }) => (
     <div className="text-center py-8">
         <div className="mb-4">
-            <span className="inline-block w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3">
+            <span className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-2xl mb-3">
                 ✓
             </span>
             <p className="text-lg font-semibold text-gray-900">

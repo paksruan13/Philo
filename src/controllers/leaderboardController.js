@@ -1,4 +1,4 @@
-const { calculateLeaderboard } = require('../services/leaderboardService');
+const { calculateLeaderboard, getStatistics } = require('../services/leaderboardService');
 
 const getLeaderboard = async (req, res) => {
   try {
@@ -10,6 +10,17 @@ const getLeaderboard = async (req, res) => {
   }
 };
 
+const getStatisticsData = async (req, res) => {
+  try {
+    const statistics = await getStatistics();
+    res.json(statistics);
+  } catch (err) {
+    console.error('Error fetching statistics:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
-  getLeaderboard
+  getLeaderboard,
+  getStatistics: getStatisticsData
 };
