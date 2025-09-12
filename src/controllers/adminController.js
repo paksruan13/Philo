@@ -15,6 +15,17 @@ const getAllUsers = async (req, res) => {
 const getAllTeams = async (req, res) => {
   try {
     const teams = await teamService.getTeamsWithDetails();
+    
+    // Debug logging
+    console.log('🔍 Admin getAllTeams - number of teams:', teams.length);
+    teams.forEach((team, index) => {
+      console.log(`🏀 Team ${index + 1} (${team.name}):`, {
+        members: team.members ? `${team.members.length} members` : 'NO MEMBERS',
+        stats: team.stats ? `stats: ${JSON.stringify(team.stats)}` : 'NO STATS',
+        donations: team.donations ? `${team.donations.length} donations` : 'NO DONATIONS'
+      });
+    });
+    
     res.json(teams);
   } catch (err) {
     console.error('Error fetching teams:', err);
@@ -24,8 +35,13 @@ const getAllTeams = async (req, res) => {
 
 const createTeam = async (req, res) => {
   try {
-    const { name, coachId } = req.body;
-    const team = await teamService.createTeamWithCode({ name, coachId: coachId || null });
+    const { name, coachId, groupMeLink } = req.body;
+    console.log('🔍 Creating team with data:', { name, coachId, groupMeLink });
+    const team = await teamService.createTeamWithCode({ 
+      name, 
+      coachId: coachId || null,
+      groupMeLink: groupMeLink || null
+    });
 
     res.status(201).json({
       message: 'Team created successfully',
@@ -40,12 +56,14 @@ const createTeam = async (req, res) => {
 const updateTeam = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, coachId, isActive } = req.body;
+    const { name, coachId, isActive, groupMeLink } = req.body;
+    console.log('🔍 Updating team with data:', { id, name, coachId, isActive, groupMeLink });
     
     const team = await teamService.updateTeam(id, {
       name,
       coachId: coachId || null,
-      isActive
+      isActive,
+      groupMeLink: groupMeLink || null
     });
 
     res.json({
@@ -130,17 +148,34 @@ const getAllActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
   try {
-    const { title, description, points, type, categoryId, requirements, isPublished, allowOnlinePurchase, allowPhotoUpload } = req.body;
+    const { 
+      title, 
+      description, 
+      points, 
+      type, 
+      categoryId, 
+      categoryType, 
+      requirements, 
+      isPublished, 
+      allowOnlinePurchase, 
+      allowPhotoUpload,
+      startDate,
+      endDate 
+    } = req.body;
+    
     const activity = await activityService.createActivity({
       title,
       description,
       points,
       type,
       categoryId,
+      categoryType,
       requirements: requirements || {},
       isPublished: isPublished || false,
       allowOnlinePurchase: allowOnlinePurchase || false,
-      allowPhotoUpload: allowPhotoUpload || false
+      allowPhotoUpload: allowPhotoUpload || false,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null
     }, req.user.id);
 
     res.status(201).json(activity);
@@ -153,7 +188,21 @@ const createActivity = async (req, res) => {
 const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, points, type, categoryId, requirements, isPublished, isActive, allowOnlinePurchase, allowPhotoUpload } = req.body;
+    const { 
+      title, 
+      description, 
+      points, 
+      type, 
+      categoryId, 
+      categoryType, 
+      requirements, 
+      isPublished, 
+      isActive, 
+      allowOnlinePurchase, 
+      allowPhotoUpload,
+      startDate,
+      endDate 
+    } = req.body;
 
     const activity = await activityService.updateActivity(id, {
       title,
@@ -161,17 +210,108 @@ const updateActivity = async (req, res) => {
       points,
       type,
       categoryId,
+      categoryType,
       requirements,
       isPublished,
       isActive,
       allowOnlinePurchase: allowOnlinePurchase || false,
-      allowPhotoUpload: allowPhotoUpload || false
+      allowPhotoUpload: allowPhotoUpload || false,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null
     });
 
     res.json(activity);
   } catch (err) {
     console.error('Error updating activity:', err);
     res.status(500).json({ error: 'Failed to update activity' });
+  }
+};
+
+const resetTeamPoints = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { prisma } = require('../config/database');
+    const { emitLeaderboardUpdate } = require('../services/leaderboardService');
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if team exists
+      const team = await tx.team.findUnique({
+        where: { id: teamId }
+      });
+
+      if (!team) {
+        throw new Error('Team not found');
+      }
+
+      // Delete all manual points awards for this team
+      await tx.manualPointsAward.deleteMany({
+        where: { teamId: teamId }
+      });
+
+      // Reset team points to 0
+      await tx.team.update({
+        where: { id: teamId },
+        data: { totalPoints: 0 }
+      });
+
+      return team;
+    });
+
+    await emitLeaderboardUpdate();
+    res.json({
+      message: 'Team points reset successfully',
+      team: result
+    });
+  } catch (error) {
+    console.error('Error resetting team points:', error);
+    if (error.message === 'Team not found') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'An error occurred while resetting team points' });
+  }
+};
+
+const getConfig = async (req, res) => {
+  try {
+    const { prisma } = require('../config/database');
+    const configs = await prisma.appConfig.findMany();
+    const configObj = {};
+    configs.forEach(config => {
+      configObj[config.key] = config.value;
+    });
+    res.json(configObj);
+  } catch (err) {
+    console.error('Error fetching config:', err);
+    res.status(500).json({ error: 'Failed to fetch configuration' });
+  }
+};
+
+const updateConfig = async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    const { prisma } = require('../config/database');
+    
+    if (!key || value === undefined) {
+      return res.status(400).json({ error: 'Key and value are required' });
+    }
+
+    const config = await prisma.appConfig.upsert({
+      where: { key },
+      update: { 
+        value: value.toString(),
+        updatedBy: req.user.id 
+      },
+      create: { 
+        key,
+        value: value.toString(), 
+        updatedBy: req.user.id 
+      }
+    });
+
+    res.json({ message: 'Configuration updated successfully', config });
+  } catch (err) {
+    console.error('Error updating config:', err);
+    res.status(500).json({ error: 'Failed to update configuration' });
   }
 };
 
@@ -186,5 +326,8 @@ module.exports = {
   createActivityCategory,
   getAllActivities,
   createActivity,
-  updateActivity
+  updateActivity,
+  resetTeamPoints,
+  getConfig,
+  updateConfig
 };

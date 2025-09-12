@@ -1,4 +1,15 @@
+const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
 const { prisma } = require('../config/database');
+const photoService = require('./photoService');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+})
 
 const getAllTeams = async () => {
   return await prisma.team.findMany({
@@ -84,13 +95,52 @@ const updateTeam = async (teamId, updateData) => {
 };
 
 const getTeamsWithDetails = async () => {
-  return await prisma.team.findMany({
+  const teams = await prisma.team.findMany({
     include: {
       members: {
         select: { id: true, name: true, email: true, role: true },
       },
       coach: {
         select: { id: true, name: true, email: true },
+      },
+      donations: {
+        select: { 
+          id: true, 
+          amount: true, 
+          createdAt: true, 
+          userId: true, 
+          user: { select: { name: true } }
+        },
+      },
+      shirtSales: {
+        select: {
+          id: true,
+          quantity: true,
+          amountPaid: true,
+          userId: true,
+        },
+      },
+      productSales: {
+        select: {
+          id: true,
+          quantity: true,
+          amountPaid: true,
+          userId: true,
+        },
+      },
+      activitySubmissions: {
+        where: { status: 'APPROVED' },
+        select: {
+          id: true,
+          userId: true,
+          activity: { select: { points: true } }
+        },
+      },
+      photos: {
+        select: {
+          id: true,
+          approved: true,
+        },
       },
       _count: {
         select: {
@@ -102,6 +152,15 @@ const getTeamsWithDetails = async () => {
       }
     },
     orderBy: { createdAt: 'desc' },
+  });
+
+  // Calculate stats for each team
+  return teams.map(team => {
+    const stats = calculateTeamStats(team);
+    return {
+      ...team,
+      stats
+    };
   });
 };
 
@@ -126,8 +185,6 @@ const getUserTeamWithDetails = async (userId) => {
 };
 
 const getTeamWithDetails = async (teamId) => {
-  console.log('🔍 Fetching team with ID:', teamId);
-  
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
@@ -168,6 +225,31 @@ const getTeamWithDetails = async (teamId) => {
           activity: { select: { title: true, points: true } }
         },
         orderBy: { createdAt: 'desc' }
+      },
+      shirtSales: {
+        select: {
+          id: true,
+          quantity: true,
+          shirtSize: true,
+          amountPaid: true,
+          soldAt: true,
+          userId: true,
+          user: { select: { name: true } }
+        },
+        orderBy: { soldAt: 'desc' }
+      },
+      productSales: {
+        select: {
+          id: true,
+          quantity: true,
+          size: true,
+          amountPaid: true,
+          soldAt: true,
+          userId: true,
+          user: { select: { name: true } },
+          product: { select: { name: true, type: true, points: true } }
+        },
+        orderBy: { soldAt: 'desc' }
       }
     }
   });
@@ -190,18 +272,32 @@ const calculateTeamStats = (teamData) => {
   const activitySubmissions = teamData.activitySubmissions || [];
   const photos = teamData.photos || [];
   const members = teamData.members || [];
+  const shirtSales = teamData.shirtSales || [];
+  const productSales = teamData.productSales || [];
 
   const totalDonations = donations.reduce((sum, donation) => sum + donation.amount, 0);
   const totalPoints = activitySubmissions.reduce((sum, submission) => sum + submission.activity.points, 0);
   const photoCount = photos.length;
   const activityCount = activitySubmissions.length;
+  
+  // Calculate shirt sales stats
+  const totalShirtsSold = shirtSales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const totalShirtRevenue = shirtSales.reduce((sum, sale) => sum + sale.amountPaid, 0);
+  
+  // Calculate product sales stats
+  const totalProductsSold = productSales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const totalProductRevenue = productSales.reduce((sum, sale) => sum + sale.amountPaid, 0);
 
   return {
     totalDonations,
     totalPoints,
     photoCount,
     activityCount,
-    memberCount: members.length
+    memberCount: members.length,
+    totalShirtsSold,
+    totalShirtRevenue,
+    totalProductsSold,
+    totalProductRevenue
   };
 };
 
@@ -209,6 +305,8 @@ const calculateMemberContributions = (teamData) => {
   const members = teamData.members || [];
   const donations = teamData.donations || [];
   const activitySubmissions = teamData.activitySubmissions || [];
+  const shirtSales = teamData.shirtSales || [];
+  const productSales = teamData.productSales || [];
 
   return members.map(member => {
     const memberDonations = teamData.donations
@@ -221,13 +319,42 @@ const calculateMemberContributions = (teamData) => {
     const memberPoints = memberActivities
       .reduce((sum, s) => sum + s.activity.points, 0);
 
+    // Calculate member shirt purchases
+    const memberShirtPurchases = teamData.shirtSales
+      .filter(s => s.userId === member.id);
+    
+    const memberShirtQuantity = memberShirtPurchases
+      .reduce((sum, s) => sum + s.quantity, 0);
+    
+    const memberShirtSpent = memberShirtPurchases
+      .reduce((sum, s) => sum + s.amountPaid, 0);
+
+    // Calculate member product purchases
+    const memberProductPurchases = teamData.productSales
+      .filter(s => s.userId === member.id);
+    
+    const memberProductQuantity = memberProductPurchases
+      .reduce((sum, s) => sum + s.quantity, 0);
+    
+    const memberProductSpent = memberProductPurchases
+      .reduce((sum, s) => sum + s.amountPaid, 0);
+
+    // Calculate total purchases (shirts + products)
+    const totalPurchasesSpent = memberShirtSpent + memberProductSpent;
+
     return {
       ...member,
       contributions: {
         donations: memberDonations,
         activities: memberActivities.length,
         points: memberPoints,
-        photos: 0 
+        photos: 0,
+        shirtsPurchased: memberShirtQuantity,
+        shirtSpent: memberShirtSpent,
+        productsPurchased: memberProductQuantity,
+        productSpent: memberProductSpent,
+        totalPurchasesSpent: totalPurchasesSpent,
+        purchases: [...memberShirtPurchases, ...memberProductPurchases]
       }
     };
   });
@@ -259,27 +386,16 @@ const getTeamRanking = async (teamId) => {
 };
 
 const calculateTeamScore = async (teamId) => {
-  // Get donations total
-  const donationsTotal = await prisma.donation.aggregate({
-    where: { teamId },
-    _sum: { amount: true }
-  });
-
-  // Get activity points total
-  const submissions = await prisma.activitySubmission.findMany({
-    where: {
-      user: { teamId },
-      status: 'APPROVED'
-    },
-    include: {
-      activity: { select: { points: true } }
-    }
-  });
-
-  const pointsTotal = submissions.reduce((sum, submission) => 
-    sum + (submission.activity.points || 0), 0);
-
-  return (donationsTotal._sum.amount || 0) + pointsTotal * 10;
+  try {
+    const team = await prisma.team.findUnique({
+      where: {id: teamId},
+      select: {totalPoints: true}
+    });
+    return team?.totalPoints || 0;
+  }   catch (error) {
+    console.error('Error calculating team score:', error);
+    return 0;
+  }
 };
 
 const getActivitiesWithSubmissionStatus = async (userId) => {
@@ -292,9 +408,7 @@ const getActivitiesWithSubmissionStatus = async (userId) => {
       points: true,
       allowOnlinePurchase: true,
       allowPhotoUpload: true,
-      category: {
-        select: { id: true, name: true }
-      },
+      categoryType: true,
       createdBy: { select: { name: true } }
     },
     orderBy: { createdAt: 'desc' }
@@ -325,38 +439,106 @@ const getActivitiesWithSubmissionStatus = async (userId) => {
 };
 
 const getDashboardData = async (userId) => {
-  const teamData = await getUserTeamWithDetails(userId);
+  const user = await prisma.user.findUnique({
+    where: {id: userId},
+    include: {
+      team: true,
+      coachedTeams: true
+    }
+  });
   
-  if (!teamData) {
+  // Check if user is part of a team (as student) or coaches a team
+  let teamId = null;
+  if (user?.team) {
+    // User is a student
+    teamId = user.teamId;
+  } else if (user?.coachedTeams && user.coachedTeams.length > 0) {
+    // User is a coach
+    teamId = user.coachedTeams[0].id;
+  }
+  
+  if (!teamId) {
+    throw new Error('User is not part of a team');
+  }
+
+  // Get team with full details including shirt sales
+  const fullTeamData = await getTeamWithDetails(teamId);
+  
+  if (!fullTeamData) {
     throw new Error('Team not found');
   }
 
+  // Calculate team stats and member contributions
+  const stats = calculateTeamStats(fullTeamData);
+  const membersWithContributions = calculateMemberContributions(fullTeamData);
   
+  // Get team ranking
+  const ranking = await getTeamRanking(user.teamId);
+  
+  const recentDonations = await prisma.donation.findMany({
+    where: {teamId: fullTeamData.id},
+    orderBy: {createdAt: 'desc'},
+    take: 5,
+    include: {
+      user: {
+        select: {name: true}
+      }
+    }
+  });
 
-  const stats = calculateTeamStats(teamData);
-  const members = calculateMemberContributions(teamData);
-  const ranking = await getTeamRanking(teamData.id);
+  const recentPhotos = await prisma.photo.findMany({
+    where: { teamId: fullTeamData.id, approved: true},
+    orderBy: { uploadedAt: 'desc' },
+    take: 6
+  });
+
+  const photosWithUrls = await Promise.all(
+    recentPhotos.map(async (photo) => {
+      try {
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: photo.fileName
+        });
+        const presignedUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600
+        });
+        return {
+          ...photo,
+          url: presignedUrl
+        };
+      } catch (err) {
+        console.error('Error generating presigned URL:', err);
+        return null;
+      }
+    })
+  );
+
+  const validPhotos = photosWithUrls.filter(photo => photo !== null);
 
   return {
     team: {
-      id: teamData.id,
-      name: teamData.name,
-      teamCode: teamData.teamCode,
-      coach: teamData.coach,
-      createdAt: teamData.createdAt
+      id: fullTeamData.id,
+      name: fullTeamData.name,
+      teamCode: fullTeamData.teamCode,
+      coach: fullTeamData.coach,
+      groupMeLink: fullTeamData.groupMeLink,
+      members: membersWithContributions, // Include contributions with shirt purchases
     },
     stats: {
-      ...stats,
+      totalPoints: fullTeamData.totalPoints,
       rank: ranking.rank,
-      totalTeams: ranking.totalTeams
+      totalTeams: ranking.totalTeams,
+      memberCount: membersWithContributions.length,
+      totalDonations: stats.totalDonations,
+      photoCount: stats.photoCount,
+      activityCount: stats.activityCount,
+      totalShirtsSold: stats.totalShirtsSold,
+      totalShirtRevenue: stats.totalShirtRevenue
     },
-    members,
-    recentDonations: teamData.donations.slice(0, 5),
-    recentPhotos: teamData.photos.slice(0, 5),
-    recentActivities: teamData.activitySubmissions.slice(0, 5)
-  };
+    recentDonations,
+    photos: validPhotos
+  }
 };
-
 
 module.exports = {
   getAllTeams,
@@ -373,5 +555,5 @@ module.exports = {
   getTeamRanking,
   calculateTeamScore,
   getActivitiesWithSubmissionStatus,
-  getDashboardData
+  getDashboardData,
 };

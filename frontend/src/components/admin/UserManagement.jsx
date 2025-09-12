@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const { token } = useAuth();
 
@@ -17,7 +19,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/admin/users', {
+      const response = await fetch(API_ROUTES.admin.users, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -37,7 +39,7 @@ const UserManagement = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch('http://localhost:4243/api/admin/teams', {
+      const response = await fetch(API_ROUTES.admin.teams, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -56,7 +58,7 @@ const UserManagement = () => {
 
   const updateUser = async (userId, userData) => {
     try {
-      const response = await fetch(`http://localhost:4243/api/admin/users/${userId}`, {
+      const response = await fetch(API_ROUTES.admin.updateUser(userId), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -64,11 +66,13 @@ const UserManagement = () => {
         },
         body: JSON.stringify(userData)
       });
-
       if (response.ok) {
-        await fetchUsers(); // Refresh the list
+        await fetchUsers();
+        await fetchTeams();
         setEditingUser(null);
         setError('');
+        setSuccessMessage('User updated successfully');
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to update user');
@@ -99,6 +103,7 @@ const UserManagement = () => {
   const getRoleBadgeColor = (role) => {
     switch (role) {
       case 'ADMIN': return 'bg-purple-100 text-purple-800';
+      case 'STAFF': return 'bg-orange-100 text-orange-800';
       case 'COACH': return 'bg-blue-100 text-blue-800';
       case 'STUDENT': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -127,6 +132,12 @@ const UserManagement = () => {
       {error && (
         <div className="mx-6 mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mx-6 mt-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          {successMessage}
         </div>
       )}
 
@@ -220,6 +231,7 @@ const UserManagement = () => {
                   >
                     <option value="STUDENT">Student</option>
                     <option value="COACH">Coach</option>
+                    <option value="STAFF">Staff</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>

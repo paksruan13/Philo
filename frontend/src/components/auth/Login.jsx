@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import ChangePassword from './ChangePassword';
 
-const Login = ({ onSwitchToRegister, isModal = false }) => {
+const Login = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -16,9 +20,15 @@ const Login = ({ onSwitchToRegister, isModal = false }) => {
     const result = await login(email, password);
     
     if (result.success) {
-      console.log('Login successful');
+      if (result.mustChangePassword) {
+        setShowPasswordChange(true);
+        setLoading(false);
+        return;
+      }
+      
       setEmail('');
       setPassword('');
+      navigate('/dashboard');
     } else {
       setError(result.error || 'Login failed');
       setLoading(false);
@@ -27,79 +37,166 @@ const Login = ({ onSwitchToRegister, isModal = false }) => {
     setLoading(false);
   };
 
-  const formContent = (
-    <form className="space-y-4" onSubmit={handleSubmit}>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
-          {error}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      <div className="min-h-screen flex">
+        {/* Left Side - Login Form (2/3) */}
+        <div className="w-2/3 flex items-center justify-center p-12 bg-white">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+              <p className="text-gray-600 mt-2">Sign in to your Project Phi account</p>
+            </div>
+            
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <span>⚠️</span>
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/register')}
+                    className="text-purple-600 font-medium hover:text-purple-700"
+                  >
+                    Register here
+                  </button>
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
-      )}
-      
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        />
+        
+        {/* Right Side - Color Palette (1/3) */}
+        <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
+          <div className="text-center text-white w-full">
+            <h2 className="text-4xl font-bold mb-6">Project Phi</h2>
+            <p className="text-xl mb-8 text-white/90">
+              Join the community of teams competing, collaborating, and making a difference together.
+            </p>
+            <div className="space-y-4 text-left">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🏆</span>
+                <span>Compete on the leaderboard</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🛒</span>
+                <span>Shop and support your team</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📸</span>
+                <span>Submit activities and earn points</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {showPasswordChange && (
+          <ChangePassword 
+            mustChange={true} 
+            onClose={() => setShowPasswordChange(false)} 
+          />
+        )}
       </div>
-      
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </button>
-      </div>
-
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={onSwitchToRegister}
-          className="text-blue-600 hover:text-blue-500 text-sm"
-        >
-          Don't have an account? Sign up
-        </button>
-      </div>
-    </form>
+    </div>
   );
 
-  if (isModal) {
-    return formContent;
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            Sign in to Project Phi
-          </h2>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50">
+      <div className="min-h-screen flex">
+        {/* Left Side - Login Form (2/3) */}
+        <div className="w-2/3 flex items-center justify-center p-12 bg-white">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+              <p className="text-gray-600 mt-2">Sign in to your Project Phi account</p>
+            </div>
+            
+            {formContent}
+          </div>
         </div>
-        {formContent}
+        
+        {/* Right Side - Color Palette (1/3) */}
+        <div className="w-1/3 bg-gradient-to-br from-purple-600 via-red-500 to-yellow-500 flex items-center justify-center p-8">
+          <div className="text-center text-white w-full">
+            <h2 className="text-4xl font-bold mb-6">Project Phi</h2>
+            <p className="text-xl mb-8 text-white/90">
+              Join the community of teams competing, collaborating, and making a difference together.
+            </p>
+            <div className="space-y-4 text-left">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">�</span>
+                <span>Compete on the leaderboard</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🛒</span>
+                <span>Shop and support your team</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📸</span>
+                <span>Submit activities and earn points</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {showPasswordChange && (
+          <ChangePassword 
+            mustChange={true} 
+            onClose={() => setShowPasswordChange(false)} 
+          />
+        )}
       </div>
     </div>
   );

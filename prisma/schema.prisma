@@ -8,132 +8,261 @@ generator client {
 }
 
 enum UserRole {
-  STUDENT 
+  STUDENT
   COACH
+  STAFF
   ADMIN
 }
-
-model Team {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  teamCode  String    @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  members   User[]
-  donations Donation[]
-  photos    Photo[]
-  shirtSales ShirtSale[]
-  coachId   String?
-  coach     User?     @relation("CoachTeams", fields: [coachId], references: [id])
-  activitySubmissions   ActivitySubmission[]
-}
-
-model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String    @default("CHANGE_ME")
-  team      Team?     @relation(fields: [teamId], references: [id])
-  teamId    String?
-  role      UserRole  @default(STUDENT)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  isActive  Boolean   @default(true)
-  donations    Donation[]
-  coachedTeams  Team[]  @relation("CoachTeams")
-  createdActivities  Activity[]    @relation("CreatedActivities")
-  Submissions   ActivitySubmission[]    @relation("UserSubmissions")
-  reviewedSubmissions   ActivitySubmission[]    @relation("ReviewedSubmissions")
-}
-
-model Donation {
-  id              String   @id @default(cuid())
-  amount          Float
-  currency        String   @default("usd")
-  stripeSessionId String?  @unique
-  createdAt       DateTime @default(now())
-  user            User?    @relation(fields: [userId], references: [id])
-  userId          String?
-  team            Team     @relation(fields: [teamId], references: [id])
-  teamId          String
-}
-
-model Photo {
-  id        String   @id @default(uuid())
-  url       String
-  fileName  String
-  approved  Boolean  @default(false)
-  status    String   @default("PENDING")
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-  uploadedAt DateTime @default(now())
-  createdAt DateTime @default(now())
-}
-
-model ShirtSale {
-  id        String   @id @default(uuid())
-  quantity  Int
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-  soldAt    DateTime @default(now())
-}
-
-model ActivityCategory {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  description String?
-  color       String? //for UI
-  icon        String?
-  activities  Activity[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model Activity {
-  id          String      @id @default(uuid())
-  title       String
-  description String
-  points      Int
-  isPublished Boolean     @default(false)
-  isActive    Boolean     @default(true)
-  requirements  Json?
-  categoryId  String
-  category    ActivityCategory @relation(fields: [categoryId], references: [id])
-  submission  ActivitySubmission[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  createdById String?
-  createdBy   User?       @relation("CreatedActivities", fields: [createdById], references: [id])
-  allowOnlinePurchase Boolean     @default(false)
-  allowPhotoUpload  Boolean       @default(false)
-}
-
-model ActivitySubmission {
-  id             String       @id @default(uuid())
-  activityId     String
-  activity       Activity     @relation(fields: [activityId], references: [id])
-  userId         String       
-  user           User         @relation("UserSubmissions", fields: [userId], references: [id])
-  teamId         String?      
-  team           Team?        @relation(fields: [teamId], references: [id])
-  submissionData Json?        
-  notes          String?
-  pointsAwarded  Int?
-  status         SubmissionStatus   @default(PENDING)
-  reviewedById   String?
-  reviewedBy     User?        @relation("ReviewedSubmissions", fields: [reviewedById], references: [id])
-  reviewNotes    String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  reviewedAt     DateTime?
-}
-
 
 enum SubmissionStatus {
   PENDING
   APPROVED
   REJECTED
   DRAFT
+}
+
+enum ActivityCategoryType {
+  PHOTO
+  PURCHASE
+  DONATION
+  OTHER
+}
+
+model Team {
+  id                  String               @id @default(uuid())
+  name                String               @unique
+  teamCode            String               @unique
+  groupMeLink         String?
+  isActive            Boolean              @default(true)
+  totalPoints         Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  members             User[]
+  donations           Donation[]
+  photos              Photo[]
+  shirtSales          ShirtSale[]
+  productSales        ProductSale[]        @relation("TeamProductSales")
+  coachId             String?
+  coach               User?                @relation("CoachTeams", fields: [coachId], references: [id])
+  activitySubmissions ActivitySubmission[]
+  announcements       Announcement[]  
+  manualPointsAwards  ManualPointsAward[]
+}
+
+model User {
+  id                   String               @id @default(uuid())
+  name                 String
+  email                String               @unique
+  password             String               @default("CHANGE_ME")
+  team                 Team?                @relation(fields: [teamId], references: [id])
+  teamId               String?
+  role                 UserRole             @default(STUDENT)
+  mustChangePassword   Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  isActive             Boolean              @default(true)
+  donations            Donation[]
+  coachedTeams         Team[]               @relation("CoachTeams")
+  createdActivities    Activity[]           @relation("CreatedActivities")
+  Submissions          ActivitySubmission[] @relation("UserSubmissions")
+  reviewedSubmissions  ActivitySubmission[] @relation("ReviewedSubmissions")
+  createdAnnouncements Announcement[]       @relation("CreatedAnnouncements")
+  awardedPoints        ManualPointsAward[]  @relation("AwardedPoints")
+  receivedManualPoints ManualPointsAward[]  @relation("ReceivedPoints")
+  soldShirts           ShirtSale[]
+  shirtPurchases       ShirtSale[]          @relation("UserShirtSales")
+  productPurchases     ProductSale[]        @relation("UserProductSales")
+  soldProducts         ProductSale[]        @relation("CoachProductSales")
+  updatedShirtConfigs  ShirtConfig[]
+}
+
+model Donation {
+  id              String       @id @default(cuid())
+  amount          Float
+  currency        String       @default("usd")
+  // stripeSessionId String?      @unique  // Commented out - no online payments
+  productSaleId   String?      @unique // Link to ProductSale for external sales
+  createdAt       DateTime     @default(now())
+  user            User?        @relation(fields: [userId], references: [id])
+  userId          String?
+  team            Team?        @relation(fields: [teamId], references: [id])
+  teamId          String?
+  productSale     ProductSale? @relation(fields: [productSaleId], references: [id])
+}
+
+model Photo {
+  id         String   @id @default(uuid())
+  url        String
+  fileName   String
+  approved   Boolean  @default(false)
+  status     String   @default("PENDING")
+  team       Team     @relation(fields: [teamId], references: [id])
+  teamId     String
+  uploadedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+enum ProductType {
+  HOODIE
+  PANTS
+  SHIRT
+  TICKET
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String        // e.g. "Team Hoodie", "Team Pants"
+  type        ProductType
+  price       Float
+  points      Int           @default(10)
+  isActive    Boolean       @default(true)
+  imageUrl    String?       // S3 bucket URL for product image
+  description String?       // Optional product description
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  inventory   ProductInventory[]
+  sales       ProductSale[]
+}
+
+model ProductInventory {
+  id         String    @id @default(uuid())
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  String
+  size       String    
+  quantity   Int       @default(0)
+  updatedAt  DateTime  @updatedAt
+  
+  @@unique([productId, size])
+}
+
+model ProductSale {
+  id        String     @id @default(uuid())
+  quantity  Int
+  size      String
+  product   Product    @relation(fields: [productId], references: [id])
+  productId String
+  user      User?      @relation("UserProductSales", fields: [userId], references: [id])
+  userId    String?    // Make optional for external sales
+  team      Team?      @relation("TeamProductSales", fields: [teamId], references: [id])
+  teamId    String?    // Already optional
+  soldAt    DateTime   @default(now())
+  paymentMethod    String
+  amountPaid  Float
+  coachId   String
+  coach     User       @relation("CoachProductSales", fields: [coachId], references: [id])
+  donation  Donation?  // Link to donation record for external sales
+  
+  // External customer fields
+  externalCustomerName  String?  // For non-system customers
+  externalCustomerEmail String?  // Optional email
+  isExternalSale       Boolean  @default(false) // Flag to identify external sales
+}
+
+// Keep legacy models for backward compatibility during migration
+model ShirtInventory {
+  id         String    @id @default(uuid())
+  size       String    @unique
+  quantity   Int       @default(0)
+  updatedAt  DateTime  @updatedAt
+}
+
+model ShirtSale {
+  id        String   @id @default(uuid())
+  quantity  Int
+  shirtSize String
+  user      User     @relation("UserShirtSales", fields: [userId], references: [id])
+  userId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    String
+  soldAt    DateTime @default(now())
+  paymentMethod    String
+  amountPaid  Float
+  coachId   String
+  coach     User     @relation(fields: [coachId], references: [id])
+}
+
+model ShirtConfig {
+  id               String   @id @default(uuid())
+  pointsPerShirt   Int      @default(10)
+  price            Float    @default(15.00)
+  updatedAt        DateTime @updatedAt
+  updatedBy        String
+  user             User     @relation(fields: [updatedBy], references: [id])
+}
+
+model AppConfig {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  value        String
+  updatedAt    DateTime @updatedAt
+  updatedBy    String
+}
+
+model Activity {
+  id                  String               @id @default(uuid())
+  title               String
+  description         String
+  points              Int
+  isPublished         Boolean              @default(false)
+  type                String               @default("SINGLE_COMPLETION")
+  isActive            Boolean              @default(true)
+  requirements        Json?
+  categoryType        ActivityCategoryType  @default(OTHER)
+  submissions         ActivitySubmission[]
+  startDate           DateTime?            // Optional start date for the activity
+  endDate             DateTime?            // Optional end date for the activity
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  createdById         String?
+  createdBy           User?                @relation("CreatedActivities", fields: [createdById], references: [id])
+  allowOnlinePurchase Boolean              @default(false)
+  allowPhotoUpload    Boolean              @default(false)
+}
+
+model ActivitySubmission {
+  id             String           @id @default(uuid())
+  activityId     String
+  activity       Activity         @relation(fields: [activityId], references: [id])
+  userId         String
+  user           User             @relation("UserSubmissions", fields: [userId], references: [id])
+  teamId         String?
+  team           Team?            @relation(fields: [teamId], references: [id])
+  submissionData Json?
+  notes          String?
+  pointsAwarded  Int?
+  status         SubmissionStatus @default(PENDING)
+  reviewedById   String?
+  reviewedBy     User?            @relation("ReviewedSubmissions", fields: [reviewedById], references: [id])
+  reviewNotes    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  reviewedAt     DateTime?
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  teamId      String?  // Optional for global announcements
+  team        Team?    @relation(fields: [teamId], references: [id])
+  isGlobal    Boolean  @default(false) // Flag for global announcements
+  createdById String
+  createdBy   User     @relation("CreatedAnnouncements", fields: [createdById], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+}
+
+model ManualPointsAward {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation("ReceivedPoints", fields: [userId], references: [id])
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id])
+  points      Int
+  activityDescription   String
+  awardedById String
+  awardedBy   User      @relation("AwardedPoints", fields: [awardedById], references: [id])
+  createdAt    DateTime @default(now())
 }
 

@@ -1,6 +1,7 @@
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { prisma } = require('../config/database');
 const s3 = require('../config/s3');
-const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
 
 const s3Client = new S3Client({
@@ -13,12 +14,8 @@ const s3Client = new S3Client({
   }
 })
 
-
 const uploadPhoto = async (file, teamId) => {
   try {
-    console.log('🔧 AWS S3 Upload Debug:');
-    console.log('  Region:', process.env.AWS_REGION);
-    console.log('  Bucket:', process.env.S3_BUCKET_NAME);
     console.log('  Access Key:', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '***');
 
     const bucketName = process.env.S3_BUCKET_NAME;
@@ -36,7 +33,6 @@ const uploadPhoto = async (file, teamId) => {
 
     const photoUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
-    const {prisma} = require('../config/database');
     const photo = await prisma.photo.create({
       data:{ 
         fileName: key,
@@ -98,11 +94,85 @@ const rejectPhoto = async (photoId) => {
   });
 };
 
+const getTeamPhotos = async (teamId) => {
+  const photos = await prisma.photo.findMany({
+    where: {
+      teamId: teamId,
+      approved: true
+    },
+    orderBy: {uploadedAt: 'desc'},
+    take: 10,
+  });
+  const photosWithSignedUrls = await Promise.all(
+    photos.map(async (photo) => {
+      try {
+        const key = photo.fileName || photo.url.split('.amazonaws.com/')[1];
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: key
+        });
+        const presignedUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600
+        });
+        return {
+          ...photo,
+          url: presignedUrl
+        };
+      } catch (err) {
+        console.error('Error generating presigned URL:', err);
+        return {
+          ...photo,
+          url: null
+        };
+      }
+    })
+  );
+  return photosWithSignedUrls.filter(photo => photo.url !== null);
+}
+
+const uploadProductImage = async (file) => {
+  try {
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const key = `product-images/${uuidv4()}-${file.originalname}`;
+
+    const uploadParams = {
+      Bucket: bucketName,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    // Generate a signed URL that expires in 7 days (maximum allowed)
+    const getObjectParams = {
+      Bucket: bucketName,
+      Key: key,
+    };
+
+    const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
+      expiresIn: 604800, // 7 days in seconds (maximum allowed)
+    });
+
+    return {
+      url: signedUrl,
+      fileName: key,
+      success: true
+    };
+  } catch (error) {
+    console.error('Error uploading product image:', error);
+    throw new Error('Failed to upload product image');
+  }
+};
+
 module.exports = {
   uploadPhoto,
+  uploadProductImage,
   getAllPhotos,
   getPendingPhotos,
   getApprovedPhotos,
   approvePhoto,
-  rejectPhoto
+  rejectPhoto,
+  getTeamPhotos
 };

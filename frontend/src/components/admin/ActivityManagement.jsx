@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ROUTES } from '../../services/api';
 
 const ActivityManagement = () => {
     const [activities, setActivities] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [editingActivity, setEditingActivity] = useState(null);
@@ -12,12 +12,11 @@ const ActivityManagement = () => {
 
     useEffect(() => {
     fetchActivities();
-    fetchCategories();
 }, []);
 
 const fetchActivities = async () => {
     try {
-        const response = await fetch('http://localhost:4243/api/admin/activities', {
+        const response = await fetch(API_ROUTES.admin.activities, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -35,22 +34,6 @@ const fetchActivities = async () => {
     }
 }
 
-const fetchCategories = async () => {
-    try{
-        const response = await fetch('http://localhost:4243/api/admin/activity-categories', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if(response.ok) {
-            const data = await response.json();
-            setCategories(data);
-            console.log('Categories Loaded:', data);
-        }
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        setError('Error fetching categories');
-    }
-};
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -59,28 +42,31 @@ const fetchCategories = async () => {
     );
   }
 
-  const toggleActivityStatus = async (activityId, isPublished) => {
-    try {
-
-      const currentActivity = activities.find(a => a.id === activityId);
-      const response = await fetch(`http://localhost:4243/api/admin/activities/${activityId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ...currentActivity, isPublished })
-      });
-      if (response.ok) {
-        fetchActivities(); // Refresh the list
-      } else {
-        setError('Failed to update activity status');
+const deleteActivity = async (activityId) => {
+  if (!confirm('Are you sure you want to delete this activity? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(API_ROUTES.activities.delete(activityId), {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    } catch (error) {
-      console.error('Error updating activity:', error);
-      setError('Error updating activity');
+    });
+    
+    if (response.ok) {
+      alert('Activity deleted successfully');
+      fetchActivities(); // Refresh the list
+    } else {
+      const data = await response.json();
+      setError(data.error || 'Failed to delete activity');
     }
-  };
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    setError('Error deleting activity');
+  }
+};
 
 return (
     <div className="space-y-6">
@@ -124,7 +110,7 @@ return (
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Categories</h3>
-          <p className="text-2xl font-bold text-blue-600">{categories.length}</p>
+          <p className="text-2xl font-bold text-blue-600">{ACTIVITY_CATEGORIES.length}</p>
         </div>
       </div>
 
@@ -145,6 +131,9 @@ return (
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Points
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Schedule
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status & Features
@@ -172,11 +161,44 @@ return (
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                      {activity.category.name}
+                      {activity.categoryType}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {activity.points} pts
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {activity.startDate && (
+                        <div className="flex items-center text-green-600 mb-1">
+                          <span className="text-xs">Start:</span>
+                          <span className="ml-1 text-xs">
+                            {new Date(activity.startDate).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {activity.endDate && (
+                        <div className="flex items-center text-red-600">
+                          <span className="text-xs">End:</span>
+                          <span className="ml-1 text-xs">
+                            {new Date(activity.endDate).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {!activity.startDate && !activity.endDate && (
+                        <span className="text-xs text-gray-500">No schedule set</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-1">
@@ -202,6 +224,13 @@ return (
                           </span>
                         )}
 
+                        {/* Show submission enabled indicator */}
+                        {activity.allowSubmission && (
+                          <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                              ✍️ Submittable
+                          </span>
+                        )}
+
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -220,14 +249,10 @@ return (
                         Edit
                       </button>
                       <button
-                        onClick={() => toggleActivityStatus(activity.id, !activity.isPublished)}
-                        className={`${
-                          activity.isPublished 
-                            ? 'text-yellow-600 hover:text-yellow-900' 
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
+                        onClick={() => deleteActivity(activity.id)}
+                        className="text-red-600 hover:text-red-900"
                       >
-                        {activity.isPublished ? 'Unpublish' : 'Publish'}
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -242,7 +267,7 @@ return (
       {(showCreateForm || editingActivity) && (
         <ActivityForm
           activity={editingActivity}
-          categories={categories}
+          categories={ACTIVITY_CATEGORIES}
           onClose={() => {
             setShowCreateForm(false);
             setEditingActivity(null);
@@ -259,17 +284,26 @@ return (
   );
 };
 
+const ACTIVITY_CATEGORIES = [
+  { value: 'PHOTO', label: 'Photo'},
+  { value: 'PURCHASE', label: 'Purchase'},
+  { value: 'DONATION', label: 'Donation'},
+  { value: 'OTHER', label: 'OTHER'},
+]
 
 const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
     const [formData, setFormData] = useState({
         title: activity ? activity.title : '',
         description: activity?.description || '',
         points: activity?.points || 100,
-        categoryId: activity?.categoryId || '',
+        categoryType: activity?.categoryType || 'OTHER',
         requirements: activity?.requirements || {},
         isPublished: activity?.isPublished || false,
         allowOnlinePurchase: activity?.allowOnlinePurchase || false,
-        allowPhotoUpload: activity?.allowPhotoUpload || false
+        allowPhotoUpload: activity?.allowPhotoUpload || false,
+        allowSubmission: activity?.allowSubmission || false,
+        startDate: activity?.startDate ? new Date(activity.startDate).toISOString().slice(0, 16) : '',
+        endDate: activity?.endDate ? new Date(activity.endDate).toISOString().slice(0, 16) : ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -280,18 +314,37 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
         setError('');
 
         try {
+            // Validate date range
+            if (formData.startDate && formData.endDate) {
+                const startDate = new Date(formData.startDate);
+                const endDate = new Date(formData.endDate);
+                if (endDate <= startDate) {
+                    setError('End date must be after start date');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const url = activity
-            ? `http://localhost:4243/api/admin/activities/${activity.id}`
-            : 'http://localhost:4243/api/admin/activities';
+            ? API_ROUTES.admin.activityDetail(activity.id)
+            : API_ROUTES.admin.activities;
 
             const method = activity ? 'PUT' : 'POST';
+            
+            // Prepare form data with proper date formatting
+            const submitData = {
+                ...formData,
+                startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+                endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null
+            };
+            
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(submitData)
             });
 
             if(response.ok) {
@@ -370,18 +423,40 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Start Date & Time</label>
+              <input
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional: When the activity begins</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">End Date & Time</label>
+              <input
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional: When the activity ends</p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700">Category</label>
             <select
-              value={formData.categoryId}
-              onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
+              value={formData.categoryType}
+              onChange={(e) => setFormData({...formData, categoryType: e.target.value})}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               required
             >
-              <option value="">Select a category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
+              {ACTIVITY_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
                 </option>
               ))}
             </select>
@@ -432,6 +507,23 @@ const ActivityForm = ({ activity, categories, onClose, onSave, token }) => {
                   Allow Photo Upload
                   <span className="text-gray-500 ml-1">
                     (shows upload button to students)
+                  </span>
+                </label>
+            </div>
+
+          {/* Allow Submission Option */}
+          <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="allowSubmission"
+                checked={formData.allowSubmission}
+                onChange={(e) => setFormData({...formData, allowSubmission: e.target.checked})}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                />
+                <label htmlFor="allowSubmission" className="ml-2 block text-sm text-gray-900">
+                  Allow Student Submission
+                  <span className="text-gray-500 ml-1">
+                    (enables submission forms and buttons)
                   </span>
                 </label>
             </div>

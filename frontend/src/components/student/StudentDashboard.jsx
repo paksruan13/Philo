@@ -1,14 +1,15 @@
 import React, {useState, useEffect} from "react";
 import { useAuth } from '../../contexts/AuthContext';
-import ActivitySubmission from "./ActivitySubmission";
+import { useNavigate } from 'react-router-dom';
+import { API_ROUTES } from '../../services/api';
 
 const StudentDashboard = () => {
     const [teamData, setTeamData] = useState(null);
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [currentView, setCurrentView] = useState('dashboard'); 
     const { token } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchTeamDashboard();
@@ -17,7 +18,7 @@ const StudentDashboard = () => {
 
     const fetchTeamDashboard = async () => {
         try {
-            const response = await fetch('http://localhost:4243/api/teams/my-team', {
+            const response = await fetch(API_ROUTES.teams.myTeam, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -35,7 +36,7 @@ const StudentDashboard = () => {
 
     const fetchTeamActivities = async () => {
         try {
-            const response = await fetch('http://localhost:4243/api/teams/my-team/activities', {
+            const response = await fetch(API_ROUTES.teams.activities(), {
                 headers: { 'Authorization': `Bearer ${token}`}
             });
 
@@ -51,239 +52,493 @@ const StudentDashboard = () => {
     };
 
     const handleActivitySubmission = (activityId) => {
-      setCurrentView(`activity-submission-${activityId}`);
-    }
+        navigate(`/dashboard/student/activity/${activityId}`);
+    };
  
-    if (loading) return <div className= "flex justify-center p-8">Loading...</div>;
-    if (error) return <div className="text-red-500 p-4">{error}</div>;
-    if(!teamData) return <div className="p-4">No team assigned</div>
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="card-base p-8 text-center space-y-4 pulse-glow">
+                    <div className="w-16 h-16 bg-gradient-primary rounded-full mx-auto animate-pulse"></div>
+                    <h3 className="text-xl font-semibold text-foreground">Loading your dashboard...</h3>
+                    <p className="text-muted-foreground">Gathering your team's latest data</p>
+                </div>
+            </div>
+        );
+    }
 
-    if(currentView.startsWith('activity-submission-')) {
-      const activityId = currentView.replace('activity-submission-', '');
-      return (
-        <ActivitySubmission 
-          activityId={activityId} 
-          onBack={() => setCurrentView('dashboard')} 
-        />
-      )
+    if (error) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="card-base p-8 text-center space-y-4 max-w-md">
+                    <div className="text-6xl">⚠️</div>
+                    <h3 className="text-xl font-semibold text-destructive">Dashboard Error</h3>
+                    <p className="text-muted-foreground">{error}</p>
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="btn-primary px-6 py-3"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!teamData) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="card-base p-8 text-center space-y-4 max-w-md">
+                    <div className="text-6xl">👥</div>
+                    <h3 className="text-xl font-semibold text-foreground">No Team Assigned</h3>
+                    <p className="text-muted-foreground">You haven't been assigned to a team yet. Please contact your coach.</p>
+                </div>
+            </div>
+        );
     }
 
     return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Team Dashboard</h1>
-      
-      {/* Team Overview */}
-      <TeamOverviewCard team={teamData.team} stats={teamData.stats} />
-      
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <FinancialSummary stats={teamData.stats} recentDonations={teamData.recentDonations} />
-        <ActivitySummary activities={activities} stats={teamData.stats} onActivitySubmit={handleActivitySubmission} />
-        <TeamMembersCard members={teamData.members} />
-        <PhotoGallery photos={teamData.photos} />
-      </div>
-      
-      {/* Activities Feed */}
-      <ActivitiesFeed activities={activities} onActivitySubmit={handleActivitySubmission} />
-    </div>
-  );
+        <div className="min-h-screen bg-background">
+            {/* Header */}
+            <div className="bg-gradient-primary/5 border-b border-border/30">
+                <div className="container mx-auto px-6 py-8">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
+                            <span className="text-2xl text-primary-foreground">🎯</span>
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold text-gradient-primary">Team Dashboard</h1>
+                            <p className="text-muted-foreground">Track your progress and team achievements</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="container mx-auto px-6 py-8 space-y-8">
+                {/* Team Overview */}
+                <TeamOverviewCard team={teamData.team} stats={teamData.stats} />
+                
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <FinancialSummary stats={teamData.stats} recentDonations={teamData.recentDonations} />
+                    <ShirtSummary stats={teamData.stats} />
+                    <ActivitySummary activities={activities} stats={teamData.stats} onActivitySubmit={handleActivitySubmission} />
+                    <TeamMembersCard members={teamData.team?.members} />
+                </div>
+                
+                {/* Photo Gallery */}
+                <PhotoGallery photos={teamData.photos} />
+            </div>
+        </div>
+    );
 };
 
-
 const TeamOverviewCard = ({ team, stats }) => (
-  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-xl mb-6">
-    <div className="flex justify-between items-start">
-      <div>
-        <h2 className="text-2xl font-bold">{team.name}</h2>
-        <p className="text-blue-100">Code: {team.teamCode}</p>
-        {team.coach && <p className="text-blue-100">Coach: {team.coach.name}</p>}
-      </div>
-      <div className="text-right">
-        <div className="text-3xl font-bold">{stats.totalPoints}</div>
-        <div className="text-blue-100">Total Points</div>
-        <div className="text-lg">Rank #{stats.rank} of {stats.totalTeams}</div>
-      </div>
+    <div className="relative overflow-hidden card-base border-2 border-primary/20 hover-lift group">
+        {/* Background Gradient */}
+        <div className="absolute inset-0 bg-gradient-primary opacity-10"></div>
+        
+        {/* Content */}
+        <div className="relative p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                {/* Team Info */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center shadow-lg">
+                            <span className="text-2xl text-primary-foreground">🏆</span>
+                        </div>
+                        <div>
+                            <h2 className="text-3xl font-bold text-gradient-primary">{team.name}</h2>
+                            <div className="flex items-center space-x-4 text-muted-foreground">
+                                <div className="flex items-center space-x-2">
+                                    <span>🔑</span>
+                                    <span className="font-medium">Code: {team.teamCode}</span>
+                                </div>
+                                {team.coach && (
+                                    <div className="flex items-center space-x-2">
+                                        <span>👨‍🏫</span>
+                                        <span className="font-medium">Coach: {team.coach.name}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats */}
+                <div className="bg-secondary/30 rounded-xl p-6 text-center space-y-3">
+                    <div className="text-4xl font-bold text-gradient-primary">{stats.totalPoints}</div>
+                    <div className="text-sm text-muted-foreground font-medium uppercase tracking-wide">Total Points</div>
+                    <div className="badge-base bg-gradient-accent text-accent-foreground">
+                        🥇 Rank #{stats.rank} of {stats.totalTeams}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Hover Effect */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 via-accent/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-smooth pointer-events-none"></div>
     </div>
-  </div>
 );
 
 const PhotoGallery = ({ photos }) => {
-  const [teamPhotos, setTeamPhotos] = useState(photos || []);
-  const [loading, setLoading] = useState(!photos);
-  const { token } = useAuth();
-
-  useEffect(() => {
-    if(!photos || photos.length === 0) {
-      fetchPhotos();
-    } else {
-      setTeamPhotos(photos);
-    }
-  }, [photos]);
-
-  const fetchPhotos = async () => {
-    try {
-      const response = await fetch('http://localhost:4243/api/photos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if(response.ok) {
-        const data = await response.json();
-        const sortedPhotos = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setTeamPhotos(sortedPhotos.slice(0, 4));
-      }
-    } catch (error) {
-      console.error('Error fetching photos:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if(loading) {
+    const validPhotos = photos?.filter(p => p.url) || [];
+    
     return (
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h3 className="text-xl font-bold mb-4">📸 Photos</h3>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading photos...</p>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="bg-white p-6 rounded-xl shadow-lg">
-      <h3 className="text-xl font-bold mb-4">📸 Recent Photos</h3>
-      <div className="text-3xl font-bold text-blue-600 mb-2">
-        {teamPhotos?.length || 0}
-      </div>
-      <p className="text-gray-600 mb-4">Team Photos</p>
-      
-      {teamPhotos && teamPhotos.length > 0 ? (
-        <div className="grid grid-cols-2 gap-2">
-          {teamPhotos.slice(0, 4).map((photo, index) => (
-            <div
-              key={photo.id}
-              className="relative group cursor-pointer overflow-hidden rounded-lg aspect-square"
-              onClick={() => window.open(photo.url, '_blank')}
-            >
-              <img
-                src={photo.url}
-                alt={`Team photo ${index + 1}`}
-                className="w-full h-full object-cover transition-transform group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all"></div>
+        <div className="card-base hover-lift group">
+            <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-pink-400 to-violet-600 rounded-full flex items-center justify-center shadow-lg">
+                            <span className="text-xl text-white">📸</span>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-foreground">Team Photos</h3>
+                            <p className="text-sm text-muted-foreground">
+                                {validPhotos.length} {validPhotos.length === 1 ? 'photo' : 'photos'} uploaded
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="text-center">
+                        <div className="text-3xl font-bold text-gradient-primary">
+                            {validPhotos.length}
+                        </div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Photos
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Photo Grid */}
+                {validPhotos.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {validPhotos.slice(0, 8).map((photo, index) => (
+                            <div
+                                key={photo.id}
+                                className="relative group cursor-pointer overflow-hidden rounded-xl aspect-square bg-secondary/30 hover-lift"
+                                onClick={() => window.open(photo.url, '_blank')}
+                            >
+                                <img
+                                    src={photo.url}
+                                    alt={`Team photo ${index + 1}`}
+                                    className="w-full h-full object-cover transition-smooth group-hover:scale-110"
+                                    loading="lazy"
+                                />
+                                
+                                {/* Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-smooth">
+                                    <div className="absolute bottom-2 left-2 right-2">
+                                        <div className="text-white text-xs font-medium">
+                                            Photo #{index + 1}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 space-y-4">
+                        <div className="text-6xl">📷</div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-foreground">No Photos Yet</h4>
+                            <p className="text-muted-foreground">Upload photos to share your team's journey</p>
+                        </div>
+                    </div>
+                )}
             </div>
-          ))}
         </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="text-gray-300 text-4xl mb-2">📷</div>
-          <p className="text-gray-500 text-sm">No photos uploaded yet</p>
-        </div>
-      )}
-    </div>
-  );
+    );
 };
 
 const FinancialSummary = ({ stats, recentDonations }) => (
-  <div className="bg-white p-6 rounded-xl shadow-lg">
-    <h3 className="text-xl font-bold mb-4">💰 Donations</h3>
-    <div className="text-3xl font-bold text-green-600 mb-2">
-      ${stats.totalDonations.toFixed(2)}
+    <div className="card-base hover-lift group">
+        <div className="p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-xl text-white">💰</span>
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-foreground">Donations</h3>
+                    <p className="text-sm text-muted-foreground">Total raised by your team</p>
+                </div>
+            </div>
+
+            {/* Amount */}
+            <div className="text-center py-4">
+                <div className="text-4xl font-bold text-gradient-primary">
+                    ${stats.totalDonations.toFixed(2)}
+                </div>
+                <div className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                    Total Raised
+                </div>
+            </div>
+            
+            {/* Recent Donations */}
+            {recentDonations?.length > 0 ? (
+                <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center space-x-2">
+                        <span>📈</span>
+                        <span>Recent Donations</span>
+                    </h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {recentDonations.map(donation => (
+                            <div key={donation.id} className="bg-secondary/30 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-foreground">
+                                        ${donation.amount}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {donation.user ? donation.user.name : 'Anonymous'}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center py-4">
+                    <div className="text-2xl">🎯</div>
+                    <p className="text-xs text-muted-foreground">No donations yet</p>
+                </div>
+            )}
+        </div>
     </div>
-    <p className="text-gray-600 mb-4">Total Raised</p>
-    
-    {recentDonations.length > 0 && (
-      <div>
-        <h4 className="font-semibold mb-2">Recent Donations:</h4>
-        {recentDonations.map(donation => (
-          <div key={donation.id} className="text-sm text-gray-600">
-            ${donation.amount} from {donation.user ? `from ${donation.user.name}` : 'Anonymous'} 
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
 );
+
+const ShirtSummary = ({ stats }) => {
+    const totalContributed = (stats.totalDonations || 0) + (stats.totalShirtRevenue || 0) + (stats.totalProductRevenue || 0);
+    
+    return (
+        <div className="card-base hover-lift group">
+            <div className="p-6 space-y-4">
+                {/* Header */}
+                <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-600 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-xl text-white">�️</span>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-foreground">Total Contribution</h3>
+                        <p className="text-sm text-muted-foreground">All team contributions</p>
+                    </div>
+                </div>
+
+                {/* Total Amount */}
+                <div className="text-center py-4">
+                    <div className="text-4xl font-bold text-gradient-primary">
+                        ${totalContributed.toFixed(2)}
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                        Total Contributed
+                    </div>
+                </div>
+                
+                {/* Breakdown */}
+                <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center space-x-2">
+                        <span>📊</span>
+                        <span>Breakdown</span>
+                    </h4>
+                    
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center p-2 bg-secondary/30 rounded-lg">
+                            <span className="text-sm text-muted-foreground flex items-center space-x-2">
+                                <span>💰</span>
+                                <span>Donations</span>
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                                ${(stats.totalDonations || 0).toFixed(2)}
+                            </span>
+                        </div>
+                        
+                        {stats.totalShirtRevenue > 0 && (
+                            <div className="flex justify-between items-center p-2 bg-secondary/30 rounded-lg">
+                                <span className="text-sm text-muted-foreground flex items-center space-x-2">
+                                    <span>👕</span>
+                                    <span>Shirts</span>
+                                </span>
+                                <span className="text-sm font-medium text-foreground">
+                                    ${(stats.totalShirtRevenue || 0).toFixed(2)}
+                                </span>
+                            </div>
+                        )}
+                        
+                        {stats.totalProductRevenue > 0 && (
+                            <div className="flex justify-between items-center p-2 bg-secondary/30 rounded-lg">
+                                <span className="text-sm text-muted-foreground flex items-center space-x-2">
+                                    <span>🛒</span>
+                                    <span>Products</span>
+                                </span>
+                                <span className="text-sm font-medium text-foreground">
+                                    ${(stats.totalProductRevenue || 0).toFixed(2)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ActivitySummary = ({ activities, stats, onActivitySubmit }) => (
-  <div className="bg-white p-6 rounded-xl shadow-lg">
-    <h3 className="text-xl font-bold mb-4">📋 Activities</h3>
-    <div className="text-3xl font-bold text-purple-600 mb-2">
-      {stats.activityCount}
-    </div>
-    <p className="text-gray-600 mb-4">Completed</p>
-    
-    {activities.length > 0 && (
-      <div>
-        <h4 className="font-semibold mb-2">Available Activities:</h4>
-        <div className="space-y-2">
-          {activities.slice(0, 3).map(activity => (
-            <div key={activity.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <div>
-                <div className="font-medium text-sm">{activity.title}</div>
-                <div className="text-xs text-gray-500">{activity.points} pts</div>
-              </div>
-              <button
-                onClick={() => onActivitySubmit(activity.id)} // ← Changed from Link to button
-                className={`px-3 py-1 rounded text-xs font-semibold ${
-                  activity.submissionStatus === 'NOT_SUBMITTED' 
-                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                    : activity.submissionStatus === 'PENDING'
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : activity.submissionStatus === 'APPROVED'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
-              >
-                {activity.submissionStatus === 'NOT_SUBMITTED' ? 'Submit' : activity.submissionStatus}
-              </button>
+    <div className="card-base hover-lift group">
+        <div className="p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-xl text-white">📋</span>
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-foreground">Activities</h3>
+                    <p className="text-sm text-muted-foreground">Track your submissions</p>
+                </div>
             </div>
-          ))}
+
+            {/* Count */}
+            <div className="text-center py-4">
+                <div className="text-4xl font-bold text-gradient-primary">
+                    {stats.activityCount}
+                </div>
+                <div className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                    Completed
+                </div>
+            </div>
+            
+            {/* Activities List */}
+            {activities?.length > 0 ? (
+                <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center space-x-2">
+                        <span>⚡</span>
+                        <span>Available Activities</span>
+                    </h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {activities.slice(0, 3).map((activity, index) => {
+                            const colorSchemes = [
+                                'from-blue-400/20 to-cyan-400/20 border-blue-300/30',
+                                'from-green-400/20 to-emerald-400/20 border-green-300/30',
+                                'from-purple-400/20 to-pink-400/20 border-purple-300/30'
+                            ];
+                            const currentScheme = colorSchemes[index % colorSchemes.length];
+                            
+                            return (
+                                <div key={activity.id} className={`bg-gradient-to-r ${currentScheme} border rounded-lg p-3 space-y-2 hover:shadow-md transition-smooth`}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-foreground truncate">
+                                                {activity.title}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground flex items-center space-x-1">
+                                                <span>⭐</span>
+                                                <span>{activity.points} points</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => onActivitySubmit(activity.id)}
+                                            className={`px-3 py-1 rounded-full text-xs font-semibold transition-smooth shadow-sm ${
+                                                activity.submissionStatus === 'NOT_SUBMITTED' 
+                                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700' 
+                                                    : activity.submissionStatus === 'PENDING'
+                                                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white'
+                                                    : activity.submissionStatus === 'APPROVED'
+                                                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                                                    : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                                            }`}
+                                        >
+                                            {activity.submissionStatus === 'NOT_SUBMITTED' ? 'Submit' : activity.submissionStatus}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center py-4">
+                    <div className="text-2xl">📝</div>
+                    <p className="text-xs text-muted-foreground">No activities available</p>
+                </div>
+            )}
         </div>
-      </div>
-    )}
-  </div>
+    </div>
 );
 
-const TeamMembersCard = ({ members }) => (
-  <div className="bg-white p-6 rounded-xl shadow-lg">
-    <h3 className="text-xl font-bold mb-4">👥 Team Members</h3>
-    <div className="space-y-2">
-      {members.map(member => (
-        <div key={member.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-          <div>
-            <div className="font-semibold">{member.name}</div>
-            <div className="text-sm text-gray-600">{member.contributions.points} pts</div>
-          </div>
-          <div className="text-sm">
-            ${member.contributions.donations.toFixed(2)}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+const TeamMembersCard = ({ members }) => {
+    if (!members || members.length === 0) {
+        return (
+            <div className="card-base hover-lift">
+                <div className="p-6 space-y-4">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
+                            <span className="text-xl text-white">👥</span>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground">Team Members</h3>
+                            <p className="text-sm text-muted-foreground">Your teammates</p>
+                        </div>
+                    </div>
+                    <div className="text-center py-8">
+                        <div className="text-3xl">👋</div>
+                        <p className="text-muted-foreground">No team members to display</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-const ActivitiesFeed = ({ activities, onActivitySubmit }) => (
-    <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h3 className="text-xl font-bold mb-4">📋 Available Activities</h3>
-        {activities && activities.length > 0 ? (
-            <div className="space-y-4">
-                {activities.map(activity => (
-                    <ActivityCard 
-                        key={activity.id} 
-                        activity={activity} 
-                        onActivitySubmit={onActivitySubmit} // ✅ Pass the prop
-                    />
-                ))}
+    return (
+        <div className="card-base hover-lift group">
+            <div className="p-6 space-y-4">
+                {/* Header */}
+                <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-xl text-white">👥</span>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-foreground">Team Members</h3>
+                        <p className="text-sm text-muted-foreground">{members.length} teammates</p>
+                    </div>
+                </div>
+
+                {/* Members List */}
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {members.map(member => (
+                        <div key={member.id} className="bg-secondary/30 rounded-lg p-4 hover:bg-secondary/40 transition-smooth">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <div className="font-semibold text-foreground flex items-center space-x-2">
+                                        <span className="text-base">
+                                            {member.role === 'STUDENT' ? '👨‍🎓' : member.role === 'COACH' ? '👨‍🏫' : '👤'}
+                                        </span>
+                                        <span>{member.name}</span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground capitalize">
+                                        {member.role.toLowerCase()}
+                                    </div>
+                                </div>
+                                
+                                {member.contributions && (
+                                    <div className="text-right space-y-1">
+                                        <div className="badge-base bg-primary/20 text-primary text-xs">
+                                            {(member.contributions.totalPoints || member.contributions.activityPoints || member.contributions.points || 0)} pts
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            ${((member.contributions.donations || 0) + 
+                                               (member.contributions.totalPurchasesSpent || member.contributions.shirtSpent || 0)
+                                             ).toFixed(2)} contributed
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-        ) : (
-            <div className="text-center py-8 text-gray-500">
-                <p>No activities available yet</p>
-            </div>
-        )}
-    </div>
-);
+        </div>
+    );
+};
 
 // Replace your ActivityCard component with this fixed version
 const ActivityCard = ({ activity, onActivitySubmit }) => {
@@ -296,8 +551,9 @@ const ActivityCard = ({ activity, onActivitySubmit }) => {
     }
   };
 
-  const isPurchaseActivity = activity.category?.name?.toLowerCase() === 'purchase';
-  const isDonationActivity = activity.category?.name?.toLowerCase() === 'donation';
+  const isPurchaseActivity = activity.categoryType === 'PURCHASE';
+  const isPhotoActivity = activity.categoryType === 'PHOTO';
+  const isDonationActivity = activity.categoryType === 'DONATION'
   const hasOnlinePurchase = activity.allowOnlinePurchase === true;
 
   const handleOnlineAction = (activity) => {
@@ -317,7 +573,7 @@ const ActivityCard = ({ activity, onActivitySubmit }) => {
             <h4 className="font-bold text-lg">{activity.title}</h4>
             {activity.category && (
               <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                {activity.category.name}
+                {activity.categoryType}
               </span>
             )}
           </div>
