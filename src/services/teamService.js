@@ -472,8 +472,8 @@ const getDashboardData = async (userId) => {
   const stats = calculateTeamStats(fullTeamData);
   const membersWithContributions = calculateMemberContributions(fullTeamData);
   
-  // Get team ranking
-  const ranking = await getTeamRanking(user.teamId);
+  // Get team ranking - use the correct teamId
+  const ranking = await getTeamRanking(teamId);
   
   const recentDonations = await prisma.donation.findMany({
     where: {teamId: fullTeamData.id},
