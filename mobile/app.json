@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Project Phi",
-    "slug": "project-phi",
+    "name": "SigEp Bounce",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "project-phi",
+    "scheme": "sigepbounce",
     "privacy": "unlisted",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -16,11 +16,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.projectphi.app",
+      "bundleIdentifier": "com.sigepbounce.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload product images.",
-        "NSCameraUsageDescription": "This app needs access to your camera to take product photos."
+        "NSCameraUsageDescription": "This app needs access to your camera to take product photos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,7 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.projectphi.app",
+      "package": "com.sigepbounce.app",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -50,6 +51,7 @@
       "eas": {
         "projectId": "d29cfd38-f0ff-40a4-911d-862662d01179"
       }
-    }
+    },
+    "owner": "pacoruan04"
   }
 }
