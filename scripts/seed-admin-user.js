@@ -20,7 +20,7 @@ async function createDefaultAdmin() {
     }
 
     // Default admin credentials
-    const defaultAdminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@projectphi.com';
+    const defaultAdminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@admin.com';
     const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!';
     const hashedPassword = await bcrypt.hash(defaultAdminPassword, 10);
 

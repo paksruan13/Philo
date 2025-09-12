@@ -23,7 +23,6 @@ const {
 
 // Import routes
 const routes = require('./routes');
-const webhookRoutes = require('./routes/webhooks');
 const announcementRoutes = require('./routes/announcements');
 const coachRoutes = require('./routes/coach');
 
@@ -50,9 +49,6 @@ app.use(corsConfig);
 
 // Rate limiting (before body parsing to prevent large payload attacks)
 app.use('/api/', apiLimiter);
-
-// Special webhook route (needs raw body) - before body parsing
-app.use('/webhook', webhookRoutes);
 
 // Secure body parsers with size limits
 const bodyParsers = createSecureBodyParsers();

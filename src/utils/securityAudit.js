@@ -116,27 +116,6 @@ class EnvironmentSecurityAudit {
   }
 
   /**
-   * Check Stripe configuration
-   */
-  checkStripeConfig() {
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    const stripePub = process.env.STRIPE_PUBLISHABLE_KEY;
-
-    if (!stripeSecret || !stripePub) {
-      this.addFinding('Stripe', 'Stripe keys not fully configured', 'warning');
-      return;
-    }
-
-    if (process.env.NODE_ENV === 'production' && stripeSecret.startsWith('sk_test_')) {
-      this.addFinding('Stripe', 'Using Stripe test keys in production', 'critical');
-    }
-
-    if (process.env.NODE_ENV === 'production' && stripePub.startsWith('pk_test_')) {
-      this.addFinding('Stripe', 'Using Stripe test publishable key in production', 'critical');
-    }
-  }
-
-  /**
    * Check Node.js environment
    */
   checkNodeEnvironment() {
@@ -188,7 +167,6 @@ class EnvironmentSecurityAudit {
     this.checkDatabaseSecurity();
     this.checkEncryptionSecurity();
     this.checkAWSCredentials();
-    this.checkStripeConfig();
     this.checkNodeEnvironment();
     this.checkCORSConfig();
 

@@ -23,6 +23,25 @@ const uploadPhoto = async (req, res) => {
   }
 };
 
+const uploadProductImage = async (req, res) => {
+  // Check if user is admin or coach
+  if (!['ADMIN', 'COACH'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Only admins and coaches can upload product images' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    const result = await photoService.uploadProductImage(req.file);
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Error uploading product image:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const getPendingPhotos = async (req, res) => {
   try {
     const pendingPhotos = await photoService.getPendingPhotos();
@@ -119,6 +138,7 @@ const getSignedUrl = async (req, res) => {
 
 module.exports = {
   uploadPhoto,
+  uploadProductImage,
   getPendingPhotos,
   getApprovedPhotos,
   approvePhoto,

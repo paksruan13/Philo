@@ -11,8 +11,10 @@ import {
   FlatList,
   StyleSheet,
   SafeAreaView,
+  Animated,
+  Image,
 } from 'react-native';
-// Using custom dropdowns instead of picker for better UX
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
@@ -35,28 +37,54 @@ const ProductSales = ({ navigation }) => {
     size: '',
     studentId: '',
     paymentMethod: 'CASH',
-    quantity: 1
+    quantity: 1,
+    isExternalSale: false,
+    externalCustomerName: '',
+    externalCustomerEmail: ''
   });
   
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   
-  // Dropdown states
+  // Modern dropdown states with search
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
+  
+  // Search states
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  
+  // Animation
+  const modalAnimation = new Animated.Value(0);
 
-  // Debug modal states
-  useEffect(() => {
-    console.log('Modal states:', {
-      showSaleModal,
-      showProductDropdown,
-      showStudentDropdown,
-      showSizeDropdown,
-      showPaymentDropdown
-    });
-  }, [showSaleModal, showProductDropdown, showStudentDropdown, showSizeDropdown, showPaymentDropdown]);
+  // Filter functions for searchable dropdowns
+  const getFilteredProducts = () => {
+    if (!productSearchQuery.trim()) return products;
+    
+    return products.filter(product =>
+      product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+      product.type.toLowerCase().includes(productSearchQuery.toLowerCase())
+    );
+  };
+
+  const getFilteredStudents = () => {
+    if (!studentSearchQuery.trim()) return students;
+    
+    return students.filter(student =>
+      student.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+      student.team?.name.toLowerCase().includes(studentSearchQuery.toLowerCase())
+    );
+  };
+
+  const getSelectedProduct = () => {
+    return products.find(p => p.id == saleForm.productId);
+  };
+
+  const getSelectedStudent = () => {
+    return students.find(s => s.id == saleForm.studentId);
+  };
 
   const fetchData = async () => {
     try {
@@ -74,7 +102,6 @@ const ProductSales = ({ navigation }) => {
       
       // Fetch all students (coach endpoint provides access to all students for sales)
       try {
-        console.log('Fetching all students from:', API_ROUTES.coach.students);
         const studentsResponse = await fetchWithTimeout(API_ROUTES.coach.students, {
           headers
         }, 15000);
@@ -84,15 +111,12 @@ const ProductSales = ({ navigation }) => {
         }
         studentsData = await studentsResponse.json();
         studentsData = Array.isArray(studentsData) ? studentsData : [];
-        console.log('All students fetched successfully:', studentsData.length);
       } catch (studentsError) {
-        console.error('Failed to fetch all students:', studentsError);
         setError(prev => prev ? `${prev}; Students: ${studentsError.message}` : `Students: ${studentsError.message}`);
       }
 
       // Fetch products with inventory
       try {
-        console.log('Fetching products from:', API_ROUTES.products.list);
         const productsResponse = await fetchWithTimeout(API_ROUTES.products.list, {
           headers
         }, 15000);
@@ -101,15 +125,12 @@ const ProductSales = ({ navigation }) => {
           throw new Error(`HTTP ${productsResponse.status}: ${productsResponse.statusText}`);
         }
         productsData = await productsResponse.json();
-        console.log('Products fetched successfully:', productsData.length);
       } catch (productsError) {
-        console.error('Failed to fetch products:', productsError);
         setError(prev => prev ? `${prev}; Products: ${productsError.message}` : `Products: ${productsError.message}`);
       }
 
       // Fetch coach's sales
       try {
-        console.log('Fetching sales from:', API_ROUTES.productSales.coachSales);
         const salesResponse = await fetchWithTimeout(API_ROUTES.productSales.coachSales, {
           headers
         }, 15000);
@@ -118,9 +139,7 @@ const ProductSales = ({ navigation }) => {
           throw new Error(`HTTP ${salesResponse.status}: ${salesResponse.statusText}`);
         }
         salesData = await salesResponse.json();
-        console.log('Sales fetched successfully:', salesData.length);
       } catch (salesError) {
-        console.error('Failed to fetch sales:', salesError);
         setError(prev => prev ? `${prev}; Sales: ${salesError.message}` : `Sales: ${salesError.message}`);
       }
 
@@ -154,11 +173,6 @@ const ProductSales = ({ navigation }) => {
     return sales.reduce((sum, sale) => sum + (sale.product.points * sale.quantity), 0);
   };
 
-  // Get selected product details
-  const getSelectedProduct = () => {
-    return products.find(p => p.id == saleForm.productId); // Use == to handle string/number comparison
-  };
-
   // Get available sizes for selected product
   const getAvailableSizes = () => {
     const product = getSelectedProduct();
@@ -166,7 +180,6 @@ const ProductSales = ({ navigation }) => {
   };
 
   const handleSaleFormChange = (field, value) => {
-    console.log('Form field changed:', field, '=', value);
     
     setSaleForm(prev => {
       const newForm = { ...prev, [field]: value };
@@ -182,7 +195,6 @@ const ProductSales = ({ navigation }) => {
         newForm.quantity = 1;
       }
       
-      console.log('Updated form state:', newForm);
       return newForm;
     });
   };
@@ -203,7 +215,10 @@ const ProductSales = ({ navigation }) => {
         size: '',
         studentId: '',
         paymentMethod: 'CASH',
-        quantity: 1
+        quantity: 1,
+        isExternalSale: false,
+        externalCustomerName: '',
+        externalCustomerEmail: ''
       });
     }
     setError(''); // Clear any existing errors
@@ -212,9 +227,16 @@ const ProductSales = ({ navigation }) => {
 
   const handleSubmitSale = async () => {
     // Comprehensive validation checks
-    if (!saleForm.studentId) {
-      setError('Please select a student');
-      return;
+    if (saleForm.isExternalSale) {
+      if (!saleForm.externalCustomerName.trim()) {
+        setError('Please enter external customer name');
+        return;
+      }
+    } else {
+      if (!saleForm.studentId) {
+        setError('Please select a student');
+        return;
+      }
     }
     
     if (!saleForm.productId) {
@@ -257,20 +279,31 @@ const ProductSales = ({ navigation }) => {
         throw new Error('Product not found');
       }
 
+      const requestBody = {
+        productId: saleForm.productId,
+        size: saleForm.size,
+        paymentMethod: saleForm.paymentMethod,
+        quantity: parseInt(saleForm.quantity),
+        amountPaid: selectedProduct.price * saleForm.quantity,
+        isExternalSale: saleForm.isExternalSale
+      };
+
+      if (saleForm.isExternalSale) {
+        requestBody.externalCustomerName = saleForm.externalCustomerName;
+        if (saleForm.externalCustomerEmail.trim()) {
+          requestBody.externalCustomerEmail = saleForm.externalCustomerEmail;
+        }
+      } else {
+        requestBody.userId = saleForm.studentId;
+      }
+
       const response = await fetchWithTimeout(API_ROUTES.productSales.sell, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          productId: saleForm.productId, // Send as-is like web version
-          size: saleForm.size,
-          userId: saleForm.studentId, // Send as-is like web version
-          paymentMethod: saleForm.paymentMethod,
-          quantity: parseInt(saleForm.quantity),
-          amountPaid: selectedProduct.price * saleForm.quantity
-        })
+        body: JSON.stringify(requestBody)
       }, 15000);
 
       if (!response.ok) {
@@ -281,7 +314,9 @@ const ProductSales = ({ navigation }) => {
       const saleData = await response.json();
 
       // Store sale details for confirmation
-      const studentName = students.find(s => s.id == saleForm.studentId)?.name || 'Unknown Student';
+      const customerName = saleForm.isExternalSale 
+        ? saleForm.externalCustomerName 
+        : (students.find(s => s.id == saleForm.studentId)?.name || 'Unknown Student');
 
       setCompletedSale({
         productName: selectedProduct.name,
@@ -290,10 +325,11 @@ const ProductSales = ({ navigation }) => {
         unitPrice: selectedProduct.price,
         totalPrice: selectedProduct.price * saleForm.quantity,
         pointsPerItem: selectedProduct.points,
-        totalPoints: selectedProduct.points * saleForm.quantity,
-        studentName: studentName,
+        totalPoints: saleForm.isExternalSale ? 0 : (selectedProduct.points * saleForm.quantity),
+        studentName: customerName,
         paymentMethod: saleForm.paymentMethod,
-        saleId: saleData.sale?.id || saleData.id
+        saleId: saleData.sale?.id || saleData.id,
+        isExternalSale: saleForm.isExternalSale
       });
 
       // Show confirmation modal
@@ -309,7 +345,10 @@ const ProductSales = ({ navigation }) => {
         size: '',
         studentId: '',
         paymentMethod: 'CASH',
-        quantity: 1
+        quantity: 1,
+        isExternalSale: false,
+        externalCustomerName: '',
+        externalCustomerEmail: ''
       });
 
       setSuccess('Sale completed successfully!');
@@ -333,16 +372,43 @@ const ProductSales = ({ navigation }) => {
   const handleDeleteSale = (saleId) => {
     Alert.alert(
       'Delete Sale',
-      'Are you sure you want to delete this sale?',
+      'Are you sure you want to delete this sale? This will restore inventory and remove any points awarded.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setSuccess('Sale deleted successfully!');
-            // Remove from sales array
-            setSales(prevSales => prevSales.filter(sale => sale.id !== saleId));
+          onPress: async () => {
+            try {
+              setLoading(true);
+              setError('');
+              setSuccess('');
+
+              const response = await fetchWithTimeout(API_ROUTES.productSales.delete(saleId), {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                }
+              }, 15000);
+
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete sale');
+              }
+
+              // Remove from sales array after successful API call
+              setSales(prevSales => prevSales.filter(sale => sale.id !== saleId));
+              setSuccess('Sale deleted successfully! Inventory has been restored.');
+              
+              // Refresh data to ensure everything is up to date
+              await fetchData();
+            } catch (err) {
+              console.error('Error deleting sale:', err);
+              setError(err.message || 'Failed to delete sale');
+            } finally {
+              setLoading(false);
+            }
           }
         }
       ]
@@ -353,21 +419,42 @@ const ProductSales = ({ navigation }) => {
     <View style={styles.productCard}>
       <View style={styles.productHeader}>
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productType}>{product.type}</Text>
-          <Text style={styles.productPrice}>${product.price} • {product.points} points</Text>
+          <View style={styles.productTitleRow}>
+            <Ionicons name="cube-outline" size={18} color={Colors.primary} />
+            <Text style={styles.productName}>{product.name}</Text>
+          </View>
+          <View style={styles.productDetailsRow}>
+            <View style={styles.productDetail}>
+              <Ionicons name="pricetag" size={14} color={Colors.mutedForeground} />
+              <Text style={styles.productType}>{product.type}</Text>
+            </View>
+          </View>
+          <View style={styles.productPriceRow}>
+            <View style={styles.productDetail}>
+              <Ionicons name="cash" size={16} color="#22c55e" />
+              <Text style={styles.productPrice}>${product.price}</Text>
+            </View>
+            <View style={styles.productDetail}>
+              <Ionicons name="star" size={16} color="#f59e0b" />
+              <Text style={styles.productPoints}>{product.points} pts</Text>
+            </View>
+          </View>
         </View>
         <TouchableOpacity
           style={styles.sellButton}
           onPress={() => handleNewSale(product.id)}
         >
+          <Ionicons name="bag-add" size={16} color={Colors.primaryForeground} />
           <Text style={styles.sellButtonText}>Sell</Text>
         </TouchableOpacity>
       </View>
 
       {/* Inventory */}
       <View style={styles.inventorySection}>
-        <Text style={styles.inventoryTitle}>Available Sizes:</Text>
+        <View style={styles.inventoryHeader}>
+          <Ionicons name="cube" size={14} color={Colors.mutedForeground} />
+          <Text style={styles.inventoryTitle}>Available Sizes</Text>
+        </View>
         <View style={styles.inventoryRow}>
           {product.inventory?.map((inv, index) => (
             <View
@@ -394,18 +481,56 @@ const ProductSales = ({ navigation }) => {
     <View style={styles.saleCard}>
       <View style={styles.saleHeader}>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleProduct}>{sale.product.name}</Text>
-          <Text style={styles.saleStudent}>{sale.user.name} • {sale.user.team?.name || 'No Team'}</Text>
-          <Text style={styles.saleDetails}>
-            Size: {sale.size} • Qty: {sale.quantity} • {sale.paymentMethod}
-          </Text>
-          <Text style={styles.saleDate}>
-            {new Date(sale.soldAt).toLocaleDateString()} • {new Date(sale.soldAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-          </Text>
+          <View style={styles.saleProductRow}>
+            <Ionicons name="cube" size={16} color={Colors.primary} />
+            <Text style={styles.saleProduct}>{sale.product.name}</Text>
+          </View>
+          <View style={styles.saleStudentRow}>
+            <Ionicons name="person" size={14} color={Colors.mutedForeground} />
+            <Text style={styles.saleStudent}>
+              {sale.isExternalSale 
+                ? sale.externalCustomerName 
+                : (sale.user?.name || 'Unknown User')
+              }
+            </Text>
+            <Ionicons name="people" size={12} color={Colors.mutedForeground} />
+            <Text style={styles.saleTeam}>
+              {sale.isExternalSale 
+                ? 'External Customer' 
+                : (sale.user?.team?.name || 'No Team')
+              }
+            </Text>
+          </View>
+          <View style={styles.saleDetailsRow}>
+            <View style={styles.saleDetailItem}>
+              <Ionicons name="resize" size={12} color={Colors.mutedForeground} />
+              <Text style={styles.saleDetails}>Size: {sale.size}</Text>
+            </View>
+            <View style={styles.saleDetailItem}>
+              <Ionicons name="copy" size={12} color={Colors.mutedForeground} />
+              <Text style={styles.saleDetails}>Qty: {sale.quantity}</Text>
+            </View>
+            <View style={styles.saleDetailItem}>
+              <Ionicons name={sale.paymentMethod === 'CASH' ? "cash" : "card"} size={12} color={Colors.mutedForeground} />
+              <Text style={styles.saleDetails}>{sale.paymentMethod}</Text>
+            </View>
+          </View>
+          <View style={styles.saleDateRow}>
+            <Ionicons name="time" size={12} color={Colors.mutedForeground} />
+            <Text style={styles.saleDate}>
+              {new Date(sale.soldAt).toLocaleDateString()} • {new Date(sale.soldAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            </Text>
+          </View>
         </View>
         <View style={styles.saleAmount}>
-          <Text style={styles.salePrice}>${sale.amountPaid.toFixed(2)}</Text>
-          <Text style={styles.salePoints}>+{sale.product.points * sale.quantity} pts</Text>
+          <View style={styles.salePriceRow}>
+            <Ionicons name="cash" size={16} color="#22c55e" />
+            <Text style={styles.salePrice}>${sale.amountPaid.toFixed(2)}</Text>
+          </View>
+          <View style={styles.salePointsRow}>
+            <Ionicons name="star" size={14} color="#f59e0b" />
+            <Text style={styles.salePoints}>+{sale.product.points * sale.quantity} pts</Text>
+          </View>
         </View>
       </View>
       
@@ -414,7 +539,8 @@ const ProductSales = ({ navigation }) => {
         onPress={() => handleDeleteSale(sale.id)}
         disabled={loading}
       >
-        <Text style={styles.deleteSaleText}>Delete Sale</Text>
+        <Ionicons name="trash" size={14} color={Colors.destructiveForeground} />
+        <Text style={styles.deleteSaleText}>Delete</Text>
       </TouchableOpacity>
     </View>
   );
@@ -441,15 +567,15 @@ const ProductSales = ({ navigation }) => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Ionicons name="chevron-back" size={24} color={Colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Product Sales 🛍️</Text>
-          <TouchableOpacity 
-            style={styles.newSaleButton} 
-            onPress={handleNewSale}
-          >
-            <Text style={styles.newSaleButtonText}>+ New</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.headerTitleContainer}>
+            <Ionicons name="storefront" size={24} color={Colors.primary} />
+            <Text style={styles.title}>Product Sales</Text>
+          </View>
+          
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Messages */}
@@ -467,21 +593,30 @@ const ProductSales = ({ navigation }) => {
 
         {/* Summary Stats */}
         <View style={styles.summarySection}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{sales.length}</Text>
-            <Text style={styles.summaryLabel}>Total Sales</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>${getTotalRevenue().toFixed(2)}</Text>
-            <Text style={styles.summaryLabel}>Revenue</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{getTotalPointsAwarded()}</Text>
-            <Text style={styles.summaryLabel}>Points Awarded</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIconContainer}>
+                <Ionicons name="receipt" size={20} color={Colors.primary} />
+              </View>
+              <Text style={styles.summaryNumber}>{sales.length}</Text>
+              <Text style={styles.summaryLabel}>Total Sales</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIconContainer}>
+                <Ionicons name="cash" size={20} color="#22c55e" />
+              </View>
+              <Text style={[styles.summaryNumber, { color: '#22c55e' }]}>${getTotalRevenue().toFixed(2)}</Text>
+              <Text style={styles.summaryLabel}>Revenue</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIconContainer}>
+                <Ionicons name="star" size={20} color="#f59e0b" />
+              </View>
+              <Text style={[styles.summaryNumber, { color: '#f59e0b' }]}>{getTotalPointsAwarded()}</Text>
+              <Text style={styles.summaryLabel}>Points Awarded</Text>
+            </View>
           </View>
         </View>
-      </View>
 
         {/* Tab Navigation */}
         <View style={styles.tabContainer}>
@@ -489,6 +624,11 @@ const ProductSales = ({ navigation }) => {
             style={[styles.tab, activeTab === 'products' && styles.activeTab]}
             onPress={() => setActiveTab('products')}
           >
+            <Ionicons 
+              name="cube" 
+              size={16} 
+              color={activeTab === 'products' ? Colors.primary : Colors.mutedForeground} 
+            />
             <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
               Products ({products.length})
             </Text>
@@ -497,6 +637,11 @@ const ProductSales = ({ navigation }) => {
             style={[styles.tab, activeTab === 'sales' && styles.activeTab]}
             onPress={() => setActiveTab('sales')}
           >
+            <Ionicons 
+              name="receipt" 
+              size={16} 
+              color={activeTab === 'sales' ? Colors.primary : Colors.mutedForeground} 
+            />
             <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>
               Sales ({sales.length})
             </Text>
@@ -537,17 +682,20 @@ const ProductSales = ({ navigation }) => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {saleForm.productId ? 
-                `Sell ${products.find(p => p.id == saleForm.productId)?.name || 'Product'}` : 
-                'New Sale'
-              }
-            </Text>
+            <View style={styles.modalTitleContainer}>
+              <Ionicons name="bag-add" size={24} color={Colors.primary} />
+              <Text style={styles.modalTitle}>
+                {saleForm.productId ? 
+                  `Sell ${products.find(p => p.id == saleForm.productId)?.name || 'Product'}` : 
+                  'New Sale'
+                }
+              </Text>
+            </View>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => setShowSaleModal(false)}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color={Colors.mutedForeground} />
             </TouchableOpacity>
           </View>
 
@@ -558,7 +706,12 @@ const ProductSales = ({ navigation }) => {
             </View>
           ) : null}
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Product Preview when pre-selected */}
             {saleForm.productId && (
               <View style={styles.productPreview}>
@@ -593,195 +746,440 @@ const ProductSales = ({ navigation }) => {
               </View>
             )}
 
-            {/* Student Selection - Like UserManagement */}
+            {/* Customer Type Toggle */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Student *</Text>
+              <Text style={styles.formLabel}>
+                <Ionicons name="people" size={16} color="#374151" /> Customer Type
+              </Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleOption,
+                    !saleForm.isExternalSale && styles.toggleOptionActive
+                  ]}
+                  onPress={() => {
+                    handleSaleFormChange('isExternalSale', false);
+                    // Clear external customer fields when switching to internal
+                    handleSaleFormChange('externalCustomerName', '');
+                    handleSaleFormChange('externalCustomerEmail', '');
+                  }}
+                >
+                  <Ionicons 
+                    name="school" 
+                    size={16} 
+                    color={!saleForm.isExternalSale ? Colors.primary : '#6b7280'} 
+                  />
+                  <Text style={[
+                    styles.toggleOptionText,
+                    !saleForm.isExternalSale && styles.toggleOptionActiveText
+                  ]}>
+                    Student
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.toggleOption,
+                    saleForm.isExternalSale && styles.toggleOptionActive
+                  ]}
+                  onPress={() => {
+                    handleSaleFormChange('isExternalSale', true);
+                    // Clear student selection when switching to external
+                    handleSaleFormChange('studentId', '');
+                  }}
+                >
+                  <Ionicons 
+                    name="person-add" 
+                    size={16} 
+                    color={saleForm.isExternalSale ? Colors.primary : '#6b7280'} 
+                  />
+                  <Text style={[
+                    styles.toggleOptionText,
+                    saleForm.isExternalSale && styles.toggleOptionActiveText
+                  ]}>
+                    External Customer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* External Customer Fields */}
+            {saleForm.isExternalSale && (
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>
+                    <Ionicons name="person" size={16} color="#374151" /> Customer Name *
+                  </Text>
+                  <View style={[styles.inputContainer, !saleForm.externalCustomerName.trim() && styles.inputRequired]}>
+                    <Ionicons name="person-outline" size={18} color="#6b7280" />
+                    <TextInput
+                      style={styles.textInput}
+                      value={saleForm.externalCustomerName}
+                      onChangeText={(text) => handleSaleFormChange('externalCustomerName', text)}
+                      placeholder="Enter customer name"
+                      placeholderTextColor="#9ca3af"
+                    />
+                  </View>
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>
+                    <Ionicons name="mail" size={16} color="#374151" /> Customer Email (Optional)
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="mail-outline" size={18} color="#6b7280" />
+                    <TextInput
+                      style={styles.textInput}
+                      value={saleForm.externalCustomerEmail}
+                      onChangeText={(text) => handleSaleFormChange('externalCustomerEmail', text)}
+                      placeholder="Enter customer email"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* Student Selection */}
+            {!saleForm.isExternalSale && (
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>
+                <Ionicons name="person" size={16} color="#374151" /> Student
+              </Text>
               <TouchableOpacity
-                style={[styles.dropdownButton, !saleForm.studentId && styles.required]}
-                onPress={() => setShowStudentDropdown(!showStudentDropdown)}
+                style={[styles.inputContainer, !saleForm.studentId && styles.inputRequired]}
+                onPress={() => {
+                  setShowStudentDropdown(!showStudentDropdown);
+                  if (!showStudentDropdown) {
+                    setStudentSearchQuery('');
+                  }
+                }}
               >
-                <Text style={[styles.dropdownText, !saleForm.studentId && styles.placeholderText]}>
+                <Ionicons name="person-outline" size={18} color="#6b7280" />
+                <Text style={[styles.inputText, !saleForm.studentId && styles.placeholderText]}>
                   {saleForm.studentId 
-                    ? `${students.find(s => s.id == saleForm.studentId)?.name} (${students.find(s => s.id == saleForm.studentId)?.team?.name || 'No Team'})`
-                    : 'Select a student'
+                    ? getSelectedStudent()?.name
+                    : 'Select student...'
                   }
                 </Text>
-                <Text style={styles.dropdownArrow}>{showStudentDropdown ? '▲' : '▼'}</Text>
+                <Ionicons 
+                  name={showStudentDropdown ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#6b7280" 
+                />
               </TouchableOpacity>
               
               {showStudentDropdown && (
-                <View style={styles.pickerContainer}>
-                  {students.map((student) => (
-                    <TouchableOpacity
-                      key={student.id}
-                      style={[
-                        styles.roleOption,
-                        saleForm.studentId === student.id && styles.roleOptionSelected
-                      ]}
-                      onPress={() => {
-                        handleSaleFormChange('studentId', student.id);
-                        setShowStudentDropdown(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.roleOptionText,
-                        saleForm.studentId === student.id && styles.roleOptionTextSelected
-                      ]}>
-                        {student.name} ({student.team?.name || 'No Team'})
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.dropdownContainer}>
+                  <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={16} color="#6b7280" />
+                    <TextInput
+                      style={styles.searchInput}
+                      value={studentSearchQuery}
+                      onChangeText={setStudentSearchQuery}
+                      placeholder="Search students or teams..."
+                      placeholderTextColor="#9ca3af"
+                      autoFocus={true}
+                    />
+                    {studentSearchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setStudentSearchQuery('')}>
+                        <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  <ScrollView 
+                    style={styles.studentsScrollContainer}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {getFilteredStudents().length > 0 ? (
+                      getFilteredStudents().map((student) => (
+                        <TouchableOpacity
+                          key={student.id}
+                          style={[
+                            styles.dropdownOption,
+                            saleForm.studentId === student.id && styles.dropdownOptionSelected
+                          ]}
+                          onPress={() => {
+                            handleSaleFormChange('studentId', student.id);
+                            setShowStudentDropdown(false);
+                            setStudentSearchQuery('');
+                          }}
+                        >
+                          <View style={styles.studentOptionAvatar}>
+                            <Text style={styles.studentOptionAvatarText}>
+                              {student.name?.charAt(0)?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.studentOptionInfo}>
+                            <Text style={[
+                              styles.dropdownOptionText,
+                              saleForm.studentId === student.id && styles.dropdownOptionTextSelected
+                            ]}>
+                              {student.name}
+                            </Text>
+                            <Text style={styles.studentTeamText}>
+                              <Ionicons name="people" size={12} color="#6b7280" /> {student.team?.name || 'No Team'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.noResultsContainer}>
+                        <Ionicons name="search" size={24} color="#9ca3af" />
+                        <Text style={styles.noResultsText}>No students found</Text>
+                      </View>
+                    )}
+                  </ScrollView>
                 </View>
               )}
             </View>
+            )}
 
-            {/* Product Selection - Like UserManagement */}
+            {/* Product Selection */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Product *</Text>
+              <Text style={styles.formLabel}>
+                <Ionicons name="cube" size={16} color="#374151" /> Product
+              </Text>
               <TouchableOpacity
-                style={[styles.dropdownButton, !saleForm.productId && styles.required]}
-                onPress={() => setShowProductDropdown(!showProductDropdown)}
+                style={[styles.inputContainer, !saleForm.productId && styles.inputRequired]}
+                onPress={() => {
+                  setShowProductDropdown(!showProductDropdown);
+                  if (!showProductDropdown) {
+                    setProductSearchQuery('');
+                  }
+                }}
               >
-                <Text style={[styles.dropdownText, !saleForm.productId && styles.placeholderText]}>
+                <Ionicons name="cube-outline" size={18} color="#6b7280" />
+                <Text style={[styles.inputText, !saleForm.productId && styles.placeholderText]}>
                   {saleForm.productId 
-                    ? `${products.find(p => p.id == saleForm.productId)?.name} - $${products.find(p => p.id == saleForm.productId)?.price} (${products.find(p => p.id == saleForm.productId)?.points} points)`
-                    : 'Select a product'
+                    ? getSelectedProduct()?.name
+                    : 'Select product...'
                   }
                 </Text>
-                <Text style={styles.dropdownArrow}>{showProductDropdown ? '▲' : '▼'}</Text>
+                <Ionicons 
+                  name={showProductDropdown ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#6b7280" 
+                />
               </TouchableOpacity>
               
               {showProductDropdown && (
-                <View style={styles.pickerContainer}>
-                  {products.map((product) => (
-                    <TouchableOpacity
-                      key={product.id}
-                      style={[
-                        styles.roleOption,
-                        saleForm.productId === product.id && styles.roleOptionSelected
-                      ]}
-                      onPress={() => {
-                        handleSaleFormChange('productId', product.id);
-                        setShowProductDropdown(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.roleOptionText,
-                        saleForm.productId === product.id && styles.roleOptionTextSelected
-                      ]}>
-                        {product.name} - ${product.price} ({product.points} pts)
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.dropdownContainer}>
+                  <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={16} color="#6b7280" />
+                    <TextInput
+                      style={styles.searchInput}
+                      value={productSearchQuery}
+                      onChangeText={setProductSearchQuery}
+                      placeholder="Search products..."
+                      placeholderTextColor="#9ca3af"
+                      autoFocus={true}
+                    />
+                    {productSearchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setProductSearchQuery('')}>
+                        <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  <ScrollView 
+                    style={styles.studentsScrollContainer}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {getFilteredProducts().length > 0 ? (
+                      getFilteredProducts().map((product) => (
+                        <TouchableOpacity
+                          key={product.id}
+                          style={[
+                            styles.dropdownOption,
+                            saleForm.productId === product.id && styles.dropdownOptionSelected
+                          ]}
+                          onPress={() => {
+                            handleSaleFormChange('productId', product.id);
+                            setShowProductDropdown(false);
+                            setProductSearchQuery('');
+                          }}
+                        >
+                          <View style={styles.productOptionIcon}>
+                            <Ionicons name="cube" size={16} color={Colors.primary} />
+                          </View>
+                          <View style={styles.productOptionInfo}>
+                            <Text style={[
+                              styles.dropdownOptionText,
+                              saleForm.productId === product.id && styles.dropdownOptionTextSelected
+                            ]}>
+                              {product.name}
+                            </Text>
+                            <Text style={styles.productTypeText}>
+                              <Ionicons name="pricetag" size={12} color="#6b7280" /> {product.type}
+                            </Text>
+                          </View>
+                          <View style={styles.productPriceContainer}>
+                            <Text style={styles.productPriceText}>${product.price}</Text>
+                            <Text style={styles.productPointsText}>
+                              <Ionicons name="star" size={10} color="#f59e0b" /> {product.points} pts
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.noResultsContainer}>
+                        <Ionicons name="search" size={24} color="#9ca3af" />
+                        <Text style={styles.noResultsText}>No products found</Text>
+                      </View>
+                    )}
+                  </ScrollView>
                 </View>
               )}
             </View>
 
-            {/* Size Selection - Like UserManagement */}
+            {/* Size Selection */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Size *</Text>
+              <Text style={styles.formLabel}>
+                <Ionicons name="resize" size={16} color="#374151" /> Size
+              </Text>
               <TouchableOpacity
                 style={[
-                  styles.dropdownButton, 
-                  !saleForm.productId && styles.disabled,
-                  !saleForm.size && saleForm.productId && styles.required
+                  styles.inputContainer, 
+                  !saleForm.productId && styles.inputDisabled,
+                  !saleForm.size && saleForm.productId && styles.inputRequired
                 ]}
                 onPress={() => saleForm.productId && setShowSizeDropdown(!showSizeDropdown)}
                 disabled={!saleForm.productId}
               >
+                <Ionicons name="resize-outline" size={18} color={!saleForm.productId ? "#9ca3af" : "#6b7280"} />
                 <Text style={[
-                  styles.dropdownText, 
+                  styles.inputText, 
                   !saleForm.productId && styles.disabledText,
                   !saleForm.size && styles.placeholderText
                 ]}>
                   {!saleForm.productId ? 'Select a product first' :
                    saleForm.size 
                     ? `${saleForm.size} (${getAvailableSizes().find(s => s.size === saleForm.size)?.quantity || 0} available)`
-                    : 'Select a size'
+                    : 'Select size...'
                   }
                 </Text>
-                <Text style={styles.dropdownArrow}>{showSizeDropdown ? '▲' : '▼'}</Text>
+                <Ionicons 
+                  name={showSizeDropdown ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color={!saleForm.productId ? "#9ca3af" : "#6b7280"} 
+                />
               </TouchableOpacity>
               
               {showSizeDropdown && saleForm.productId && (
-                <View style={styles.pickerContainer}>
-                  {getAvailableSizes().map((sizeItem, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.roleOption,
-                        saleForm.size === sizeItem.size && styles.roleOptionSelected
-                      ]}
-                      onPress={() => {
-                        handleSaleFormChange('size', sizeItem.size);
-                        setShowSizeDropdown(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.roleOptionText,
-                        saleForm.size === sizeItem.size && styles.roleOptionTextSelected
-                      ]}>
-                        {sizeItem.size} ({sizeItem.quantity} available)
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.dropdownContainer}>
+                  <ScrollView 
+                    style={styles.studentsScrollContainer}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {getAvailableSizes().map((sizeItem, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.dropdownOption,
+                          saleForm.size === sizeItem.size && styles.dropdownOptionSelected
+                        ]}
+                        onPress={() => {
+                          handleSaleFormChange('size', sizeItem.size);
+                          setShowSizeDropdown(false);
+                        }}
+                      >
+                        <View style={styles.sizeOptionIcon}>
+                          <Ionicons name="resize" size={16} color={Colors.primary} />
+                        </View>
+                        <View style={styles.sizeOptionInfo}>
+                          <Text style={[
+                            styles.dropdownOptionText,
+                            saleForm.size === sizeItem.size && styles.dropdownOptionTextSelected
+                          ]}>
+                            Size {sizeItem.size}
+                          </Text>
+                          <Text style={styles.sizeAvailableText}>
+                            <Ionicons name="cube" size={12} color="#6b7280" /> {sizeItem.quantity} available
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
 
             {/* Quantity */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Quantity *</Text>
-              <TextInput
-                style={[styles.textInput, !saleForm.size && styles.disabled]}
-                value={saleForm.quantity.toString()}
-                onChangeText={(value) => {
-                  const qty = parseInt(value) || 1;
-                  const maxAvailable = getAvailableSizes().find(inv => inv.size === saleForm.size)?.quantity || 1;
-                  const finalQty = Math.min(Math.max(qty, 1), maxAvailable);
-                  handleSaleFormChange('quantity', finalQty);
-                }}
-                keyboardType="numeric"
-                placeholder="1"
-                editable={!!saleForm.size}
-              />
+              <Text style={styles.formLabel}>
+                <Ionicons name="copy" size={16} color="#374151" /> Quantity
+              </Text>
+              <View style={[styles.inputContainer, !saleForm.size && styles.inputDisabled]}>
+                <Ionicons name="copy-outline" size={18} color={!saleForm.size ? "#9ca3af" : "#6b7280"} />
+                <TextInput
+                  style={[styles.quantityInput, !saleForm.size && styles.disabledText]}
+                  value={saleForm.quantity.toString()}
+                  onChangeText={(value) => {
+                    const qty = parseInt(value) || 1;
+                    const maxAvailable = getAvailableSizes().find(inv => inv.size === saleForm.size)?.quantity || 1;
+                    const finalQty = Math.min(Math.max(qty, 1), maxAvailable);
+                    handleSaleFormChange('quantity', finalQty);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="1"
+                  placeholderTextColor="#9ca3af"
+                  editable={!!saleForm.size}
+                />
+              </View>
               {saleForm.size && (
                 <Text style={styles.quantityHelper}>
-                  Max available: {getAvailableSizes().find(inv => inv.size === saleForm.size)?.quantity || 0}
+                  <Ionicons name="information-circle" size={12} color="#6b7280" /> Max available: {getAvailableSizes().find(inv => inv.size === saleForm.size)?.quantity || 0}
                 </Text>
               )}
             </View>
 
-            {/* Payment Method - Like UserManagement */}
+            {/* Payment Method */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Payment Method</Text>
+              <Text style={styles.formLabel}>
+                <Ionicons name="card" size={16} color="#374151" /> Payment Method
+              </Text>
               <TouchableOpacity
-                style={styles.dropdownButton}
+                style={styles.inputContainer}
                 onPress={() => setShowPaymentDropdown(!showPaymentDropdown)}
               >
-                <Text style={styles.dropdownText}>
+                <Ionicons name={saleForm.paymentMethod === 'CASH' ? "cash" : "card"} size={18} color="#6b7280" />
+                <Text style={styles.inputText}>
                   {saleForm.paymentMethod === 'CASH' ? 'Cash' : 'Venmo'}
                 </Text>
-                <Text style={styles.dropdownArrow}>{showPaymentDropdown ? '▲' : '▼'}</Text>
+                <Ionicons 
+                  name={showPaymentDropdown ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#6b7280" 
+                />
               </TouchableOpacity>
               
               {showPaymentDropdown && (
-                <View style={styles.pickerContainer}>
+                <View style={styles.dropdownContainer}>
                   {['CASH', 'VENMO'].map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={[
-                        styles.roleOption,
-                        saleForm.paymentMethod === method && styles.roleOptionSelected
+                        styles.dropdownOption,
+                        saleForm.paymentMethod === method && styles.dropdownOptionSelected
                       ]}
                       onPress={() => {
                         handleSaleFormChange('paymentMethod', method);
                         setShowPaymentDropdown(false);
                       }}
                     >
+                      <View style={styles.paymentOptionIcon}>
+                        <Ionicons name={method === 'CASH' ? "cash" : "card"} size={16} color={Colors.primary} />
+                      </View>
                       <Text style={[
-                        styles.roleOptionText,
-                        saleForm.paymentMethod === method && styles.roleOptionTextSelected
+                        styles.dropdownOptionText,
+                        saleForm.paymentMethod === method && styles.dropdownOptionTextSelected
                       ]}>
                         {method === 'CASH' ? 'Cash' : 'Venmo'}
                       </Text>
@@ -789,22 +1187,60 @@ const ProductSales = ({ navigation }) => {
                   ))}
                 </View>
               )}
+
+              {/* Venmo QR Code Display */}
+              {saleForm.paymentMethod === 'VENMO' && (
+                <View style={styles.venmoQRContainer}>
+                  <Text style={styles.venmoQRTitle}>
+                    <Ionicons name="qr-code" size={16} color="#374151" /> Venmo QR Code
+                  </Text>
+                  <View style={styles.qrCodeImageContainer}>
+                    <Image
+                      source={require('../../../assets/venmo-qr.png')}
+                      style={styles.qrCodeImageLarge}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.qrCodeHelper}>
+                      Show this QR code to the student for Venmo payment
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
-            {/* Order Summary - Like web version */}
+            {/* Order Summary */}
             {saleForm.productId && (
               <View style={styles.orderSummaryContainer}>
-                <Text style={styles.orderSummaryTitle}>Order Summary:</Text>
-                <Text style={styles.orderSummaryProduct}>
-                  {getSelectedProduct()?.name}{saleForm.size ? ` - ${saleForm.size}` : ''} × {saleForm.quantity}
-                </Text>
-                <Text style={styles.orderSummaryDetails}>
-                  Unit Price: ${getSelectedProduct()?.price} | Points: {getSelectedProduct()?.points} each
-                </Text>
-                <Text style={styles.orderSummaryTotal}>
-                  Total: ${((getSelectedProduct()?.price || 0) * saleForm.quantity).toFixed(2)} | 
-                  Total Points: {(getSelectedProduct()?.points || 0) * saleForm.quantity}
-                </Text>
+                <View style={styles.orderSummaryHeader}>
+                  <Ionicons name="receipt" size={18} color={Colors.primary} />
+                  <Text style={styles.orderSummaryTitle}>Order Summary</Text>
+                </View>
+                <View style={styles.orderSummaryContent}>
+                  <View style={styles.orderSummaryRow}>
+                    <View style={styles.orderSummaryItem}>
+                      <Ionicons name="cube" size={14} color="#6b7280" />
+                      <Text style={styles.orderSummaryProduct}>
+                        {getSelectedProduct()?.name}{saleForm.size ? ` - ${saleForm.size}` : ''} × {saleForm.quantity}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.orderSummaryRow}>
+                    <View style={styles.orderSummaryPricing}>
+                      <View style={styles.orderSummaryPriceItem}>
+                        <Ionicons name="cash" size={14} color="#22c55e" />
+                        <Text style={styles.orderSummaryDetails}>
+                          ${getSelectedProduct()?.price} × {saleForm.quantity} = ${((getSelectedProduct()?.price || 0) * saleForm.quantity).toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={styles.orderSummaryPriceItem}>
+                        <Ionicons name="star" size={14} color="#f59e0b" />
+                        <Text style={styles.orderSummaryDetails}>
+                          {getSelectedProduct()?.points} × {saleForm.quantity} = {(getSelectedProduct()?.points || 0) * saleForm.quantity} pts
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
               </View>
             )}
 
@@ -812,11 +1248,26 @@ const ProductSales = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.submitButton, 
-                (loading || !saleForm.productId || !saleForm.size || !saleForm.studentId || !saleForm.quantity || saleForm.quantity < 1) && styles.submitButtonDisabled
+                (loading || 
+                 !saleForm.productId || 
+                 !saleForm.size || 
+                 (saleForm.isExternalSale ? !saleForm.externalCustomerName.trim() : !saleForm.studentId) ||
+                 !saleForm.quantity || 
+                 saleForm.quantity < 1) && styles.submitButtonDisabled
               ]}
               onPress={handleSubmitSale}
-              disabled={loading || !saleForm.productId || !saleForm.size || !saleForm.studentId || !saleForm.quantity || saleForm.quantity < 1}
+              disabled={loading || 
+                       !saleForm.productId || 
+                       !saleForm.size || 
+                       (saleForm.isExternalSale ? !saleForm.externalCustomerName.trim() : !saleForm.studentId) ||
+                       !saleForm.quantity || 
+                       saleForm.quantity < 1}
             >
+              <Ionicons 
+                name={loading ? "hourglass" : "checkmark-circle"} 
+                size={18} 
+                color={Colors.primaryForeground} 
+              />
               <Text style={styles.submitButtonText}>
                 {loading ? 'Processing...' : 'Complete Sale'}
               </Text>
@@ -833,39 +1284,57 @@ const ProductSales = ({ navigation }) => {
       >
         <View style={styles.confirmationOverlay}>
           <View style={styles.confirmationModal}>
-            <Text style={styles.confirmationTitle}>✅ Sale Completed!</Text>
+            <View style={styles.confirmationHeader}>
+              <Ionicons name="checkmark-circle" size={48} color="#22c55e" />
+              <Text style={styles.confirmationTitle}>Sale Completed!</Text>
+            </View>
             {completedSale && (
               <View style={styles.confirmationContent}>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Product: </Text>
-                  {completedSale.productName} ({completedSale.size})
-                </Text>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Student: </Text>
-                  {completedSale.studentName}
-                </Text>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Quantity: </Text>
-                  {completedSale.quantity}
-                </Text>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Total: </Text>
-                  ${completedSale.totalPrice?.toFixed(2)}
-                </Text>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Points Awarded: </Text>
-                  {completedSale.totalPoints}
-                </Text>
-                <Text style={styles.confirmationText}>
-                  <Text style={styles.confirmationLabel}>Payment: </Text>
-                  {completedSale.paymentMethod}
-                </Text>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name="cube" size={16} color={Colors.mutedForeground} />
+                  <Text style={styles.confirmationLabel}>Product:</Text>
+                  <Text style={styles.confirmationValue}>
+                    {completedSale.productName} ({completedSale.size})
+                  </Text>
+                </View>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name="person" size={16} color={Colors.mutedForeground} />
+                  <Text style={styles.confirmationLabel}>
+                    {completedSale.isExternalSale ? 'Customer:' : 'Student:'}
+                  </Text>
+                  <Text style={styles.confirmationValue}>{completedSale.studentName}</Text>
+                </View>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name="copy" size={16} color={Colors.mutedForeground} />
+                  <Text style={styles.confirmationLabel}>Quantity:</Text>
+                  <Text style={styles.confirmationValue}>{completedSale.quantity}</Text>
+                </View>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name="cash" size={16} color="#22c55e" />
+                  <Text style={styles.confirmationLabel}>Total:</Text>
+                  <Text style={[styles.confirmationValue, { color: '#22c55e', fontWeight: 'bold' }]}>
+                    ${completedSale.totalPrice?.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name="star" size={16} color="#f59e0b" />
+                  <Text style={styles.confirmationLabel}>Points Awarded:</Text>
+                  <Text style={[styles.confirmationValue, { color: completedSale.totalPoints > 0 ? '#f59e0b' : '#6b7280', fontWeight: 'bold' }]}>
+                    {completedSale.totalPoints > 0 ? completedSale.totalPoints : 'No points (external sale)'}
+                  </Text>
+                </View>
+                <View style={styles.confirmationRow}>
+                  <Ionicons name={completedSale.paymentMethod === 'CASH' ? "cash" : "card"} size={16} color={Colors.mutedForeground} />
+                  <Text style={styles.confirmationLabel}>Payment:</Text>
+                  <Text style={styles.confirmationValue}>{completedSale.paymentMethod}</Text>
+                </View>
               </View>
             )}
             <TouchableOpacity
               style={styles.confirmationButton}
               onPress={() => setShowConfirmation(false)}
             >
+              <Ionicons name="checkmark" size={18} color={Colors.primaryForeground} />
               <Text style={styles.confirmationButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -882,7 +1351,7 @@ const ProductSales = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#ffffff',
   },
   scrollContainer: {
     flex: 1,
@@ -902,727 +1371,1017 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.lg,
     color: Colors.mutedForeground,
   },
+  
+  // Header Styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.card,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   backButton: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.xs,
+    padding: 8,
   },
-  backButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'center',
   },
   title: {
-    flex: 1,
-    fontSize: FontSizes.base,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  headerSpacer: {
+    width: 44, // Same width as back button to center the title
   },
   newSaleButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 60,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
   },
   newSaleButtonText: {
     color: Colors.primaryForeground,
-    fontSize: FontSizes.xs,
+    fontSize: 14,
     fontWeight: '600',
   },
+  
+  // Message Styles
   errorContainer: {
-    margin: Spacing.lg,
-    marginTop: 0,
-    padding: Spacing.md,
-    backgroundColor: Colors.destructive,
-    borderRadius: BorderRadius.md,
+    margin: 16,
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   errorText: {
-    color: Colors.destructiveForeground,
-    fontSize: FontSizes.sm,
+    color: '#dc2626',
+    fontSize: 14,
     textAlign: 'center',
   },
   successContainer: {
-    margin: Spacing.lg,
-    marginTop: 0,
-    padding: Spacing.md,
-    backgroundColor: '#22c55e',
-    borderRadius: BorderRadius.md,
+    margin: 16,
+    padding: 12,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
   },
   successText: {
-    color: '#ffffff',
-    fontSize: FontSizes.sm,
+    color: '#16a34a',
+    fontSize: 14,
     textAlign: 'center',
   },
+  
+  // Summary Styles
   summarySection: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   summaryRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
+    gap: 12,
   },
   summaryCard: {
-    backgroundColor: Colors.card,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
     flex: 1,
-    minHeight: 80,
-    ...Shadows.sm,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    alignItems: 'center',
+    minHeight: 100,
+  },
+  summaryIconContainer: {
+    marginBottom: 8,
   },
   summaryNumber: {
-    fontSize: FontSizes.lg,
+    fontSize: 20,
     fontWeight: 'bold',
     color: Colors.primary,
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
   },
   summaryLabel: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
+    fontSize: 12,
+    color: '#6b7280',
     textAlign: 'center',
   },
+  
+  // Tab Styles
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.muted,
-    padding: Spacing.xs,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 4,
   },
   tab: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
   },
   activeTab: {
-    backgroundColor: Colors.card,
-    ...Shadows.sm,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   tabText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.mutedForeground,
   },
   activeTabText: {
-    color: Colors.foreground,
+    color: Colors.primary,
+    fontWeight: '600',
   },
-  listContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
+  
+  // Product Card Styles
   productCard: {
-    backgroundColor: Colors.card,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    marginBottom: 12,
   },
   productInfo: {
     flex: 1,
+    gap: 6,
+  },
+  productTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   productName: {
-    fontSize: FontSizes.lg,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
+    color: '#1f2937',
+  },
+  productDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  productDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   productType: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: 2,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  productPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   productPrice: {
-    fontSize: FontSizes.base,
-    color: Colors.primary,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#22c55e',
+  },
+  productPoints: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f59e0b',
   },
   sellButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    minWidth: 80,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
   },
   sellButtonText: {
     color: Colors.primaryForeground,
-    fontSize: FontSizes.sm,
+    fontSize: 14,
     fontWeight: '600',
   },
   inventorySection: {
-    marginTop: Spacing.sm,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  inventoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
   inventoryTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.sm,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
   },
   inventoryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 8,
   },
   inventoryItem: {
-    backgroundColor: '#22c55e20',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
   },
   outOfStock: {
-    backgroundColor: '#ef444420',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
   },
   inventoryText: {
-    fontSize: FontSizes.xs,
+    fontSize: 12,
     color: '#16a34a',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   outOfStockText: {
     color: '#dc2626',
   },
+  
+  // Sale Card Styles
   saleCard: {
-    backgroundColor: Colors.card,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   saleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    marginBottom: 12,
   },
   saleInfo: {
     flex: 1,
+    gap: 6,
+  },
+  saleProductRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   saleProduct: {
-    fontSize: FontSizes.lg,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
+    color: '#1f2937',
+  },
+  saleStudentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   saleStudent: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: 2,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  saleTeam: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  saleDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  saleDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   saleDetails: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: 2,
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  saleDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   saleDate: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
+    fontSize: 12,
+    color: '#9ca3af',
   },
   saleAmount: {
     alignItems: 'flex-end',
+    gap: 4,
+  },
+  salePriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   salePrice: {
-    fontSize: FontSizes.lg,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#22c55e',
-    marginBottom: 2,
+  },
+  salePointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   salePoints: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
+    fontSize: 14,
+    color: '#f59e0b',
     fontWeight: '600',
   },
   deleteSaleButton: {
-    backgroundColor: Colors.destructive,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
     alignSelf: 'flex-start',
+    gap: 4,
   },
   deleteSaleText: {
-    color: Colors.destructiveForeground,
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: '500',
   },
+  
+  // Empty State
   emptyState: {
     alignItems: 'center',
-    padding: Spacing.xl,
+    padding: 32,
   },
   emptyText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '500',
+    marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
+    fontSize: 14,
+    color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 20,
   },
-
-  // Sale Modal Styles
+  
+  // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#ffffff',
   },
-
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderBottomColor: '#f1f5f9',
   },
-
-  modalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     flex: 1,
   },
-
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
   closeButton: {
-    padding: Spacing.sm,
-    backgroundColor: Colors.muted,
-    borderRadius: BorderRadius.full,
-    width: 32,
-    height: 32,
+    padding: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  closeButtonText: {
-    fontSize: FontSizes.lg,
-    color: Colors.mutedForeground,
-    fontWeight: 'bold',
-  },
-
   modalContent: {
     flex: 1,
-    padding: Spacing.lg,
   },
-
-  formGroup: {
-    marginBottom: Spacing.lg,
+  modalScrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
-
-  formLabel: {
-    fontSize: FontSizes.md,
+  modalErrorContainer: {
+    margin: 16,
+    marginBottom: 0,
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  modalErrorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  
+  // Product Preview Styles
+  productPreview: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  productPreviewTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.sm,
+    color: '#6b7280',
+    marginBottom: 8,
   },
-
-  dropdownButton: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+  productPreviewContent: {
+    gap: 6,
+  },
+  productPreviewName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  productPreviewDetails: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  productPreviewSizes: {
+    marginTop: 8,
+  },
+  productPreviewSizesTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  productPreviewSizesList: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 50,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-
-  dropdownText: {
-    fontSize: FontSizes.md,
-    color: Colors.foreground,
-    flex: 1,
-  },
-
-  placeholderText: {
-    color: Colors.mutedForeground,
-  },
-
-  dropdownArrow: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  textInput: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.md,
+  productPreviewSize: {
+    fontSize: 12,
+    color: '#16a34a',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSizes.md,
-    color: Colors.foreground,
-    height: 50,
+    borderColor: '#bbf7d0',
   },
-
-  quantityHelper: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-    marginTop: Spacing.xs,
+  productPreviewSizeOutOfStock: {
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
   },
-
-  summaryContainer: {
-    backgroundColor: Colors.muted,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginVertical: Spacing.md,
+  changeProductButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
   },
-
-  summaryTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    marginBottom: Spacing.sm,
-  },
-
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
-  },
-
-  summaryText: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-  },
-
-  summaryValue: {
-    fontSize: FontSizes.sm,
-    color: Colors.foreground,
+  changeProductButtonText: {
+    fontSize: 14,
+    color: Colors.primary,
     fontWeight: '500',
   },
-
-  summaryTextBold: {
-    fontSize: FontSizes.md,
-    color: Colors.foreground,
-    fontWeight: 'bold',
+  
+  // Form Styles (Modern like ManagePoints)
+  formGroup: {
+    marginBottom: 20,
   },
-
-  summaryValueBold: {
-    fontSize: FontSizes.md,
-    color: Colors.primary,
-    fontWeight: 'bold',
-  },
-
-  submitButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
+    gap: 6,
   },
-
-  submitButtonDisabled: {
-    backgroundColor: Colors.muted,
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f9fafb',
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
   },
-
-  submitButtonText: {
-    color: Colors.primaryForeground,
-    fontSize: FontSizes.md,
+  toggleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  toggleOptionActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  toggleOptionActiveText: {
+    color: Colors.primary,
     fontWeight: '600',
   },
-
-  // Confirmation Modal Styles
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1f2937',
+    paddingVertical: 2,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  inputRequired: {
+    borderColor: '#dc2626',
+    borderWidth: 1.5,
+  },
+  inputDisabled: {
+    backgroundColor: '#f9fafb',
+    opacity: 0.7,
+  },
+  inputText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  placeholderText: {
+    color: '#9ca3af',
+  },
+  disabledText: {
+    color: '#9ca3af',
+  },
+  quantityInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1f2937',
+    paddingVertical: 2,
+  },
+  quantityHelper: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  
+  // Dropdown Styles (Like ManagePoints)
+  dropdownContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    maxHeight: 300,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#374151',
+    paddingVertical: 4,
+  },
+  studentsScrollContainer: {
+    maxHeight: 240,
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
+    gap: 10,
+  },
+  dropdownOptionSelected: {
+    backgroundColor: '#f0f9ff',
+    borderBottomColor: '#dbeafe',
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  dropdownOptionTextSelected: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  
+  // Student Option Styles
+  studentOptionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentOptionAvatarText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  studentOptionInfo: {
+    flex: 1,
+  },
+  studentTeamText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  
+  // Product Option Styles
+  productOptionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productOptionInfo: {
+    flex: 1,
+  },
+  productTypeText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  productPriceContainer: {
+    alignItems: 'flex-end',
+  },
+  productPriceText: {
+    fontSize: 14,
+    color: '#22c55e',
+    fontWeight: '600',
+  },
+  productPointsText: {
+    fontSize: 12,
+    color: '#f59e0b',
+    fontWeight: '500',
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  
+  // Size Option Styles
+  sizeOptionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeOptionInfo: {
+    flex: 1,
+  },
+  sizeAvailableText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  
+  // Payment Option Styles
+  paymentOptionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Venmo QR Code Styles
+  venmoQRContainer: {
+    marginTop: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  venmoQRTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  qrCodeImageContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  qrCodeImageLarge: {
+    width: 240,
+    height: 240,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+  },
+  qrCodeHelper: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  
+  // Full Size QR Modal Styles
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrModalBackgroundTouchable: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  qrModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  qrModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 24,
+  },
+  qrModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  qrModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#6b7280',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrModalImageContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  qrModalImage: {
+    width: 280,
+    height: 280,
+  },
+  qrModalHelper: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  
+  // No Results
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  
+  // Order Summary
+  orderSummaryContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 16,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  orderSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  orderSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  orderSummaryContent: {
+    gap: 8,
+  },
+  orderSummaryRow: {
+    gap: 6,
+  },
+  orderSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  orderSummaryProduct: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  orderSummaryPricing: {
+    gap: 4,
+  },
+  orderSummaryPriceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  orderSummaryDetails: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  
+  // Submit Button
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 20,
+    marginBottom: 20,
+    gap: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  submitButtonText: {
+    color: Colors.primaryForeground,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Confirmation Modal
   confirmationOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    padding: 20,
   },
-
   confirmationModal: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
     width: '100%',
     maxWidth: 400,
   },
-
-  confirmationTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-
-  confirmationContent: {
-    marginBottom: Spacing.lg,
-  },
-
-  confirmationText: {
-    fontSize: FontSizes.sm,
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
-  },
-
-  confirmationLabel: {
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-
-  confirmationButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+  confirmationHeader: {
     alignItems: 'center',
+    marginBottom: 20,
   },
-
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginTop: 8,
+  },
+  confirmationContent: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  confirmationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confirmationLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+    width: 80,
+  },
+  confirmationValue: {
+    fontSize: 14,
+    color: '#1f2937',
+    flex: 1,
+  },
+  confirmationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
   confirmationButtonText: {
     color: Colors.primaryForeground,
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-  },
-
-  // Dropdown Modal Styles
-  dropdownModal: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  dropdownTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-  },
-
-  dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  dropdownItemText: {
-    fontSize: FontSizes.md,
-    color: Colors.foreground,
-    flex: 1,
-  },
-
-  dropdownItemPrice: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-
-  // New styles for enhanced form
-  required: {
-    borderColor: Colors.destructive,
-    borderWidth: 1.5,
-  },
-
-  disabled: {
-    backgroundColor: Colors.muted,
-    opacity: 0.6,
-  },
-
-  disabledText: {
-    color: Colors.mutedForeground,
-  },
-
-  orderSummaryContainer: {
-    backgroundColor: Colors.muted,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginVertical: Spacing.md,
-  },
-
-  orderSummaryTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
-  },
-
-  orderSummaryProduct: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.xs,
-  },
-
-  orderSummaryDetails: {
-    fontSize: FontSizes.sm,
-    fontWeight: '500',
-    color: Colors.foreground,
-    marginBottom: Spacing.xs,
-  },
-
-  orderSummaryTotal: {
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-
-  productDropdownContent: {
-    flex: 1,
-  },
-
-  productDropdownType: {
-    fontSize: FontSizes.xs,
-    color: Colors.mutedForeground,
-    marginTop: 2,
-  },
-
-  modalErrorContainer: {
-    backgroundColor: Colors.error,
-    margin: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-
-  modalErrorText: {
-    color: Colors.errorForeground,
-    fontSize: FontSizes.sm,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-
-  productPreview: {
-    backgroundColor: Colors.primary + '10',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-  },
-
-  productPreviewTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
-  },
-
-  productPreviewContent: {
-    gap: Spacing.xs,
-  },
-
-  productPreviewName: {
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.foreground,
-  },
-
-  productPreviewDetails: {
-    fontSize: FontSizes.sm,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.xs,
-  },
-
-  productPreviewSizes: {
-    marginTop: Spacing.xs,
-  },
-
-  productPreviewSizesTitle: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.xs,
-  },
-
-  productPreviewSizesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-
-  productPreviewSize: {
-    fontSize: FontSizes.xs,
-    color: Colors.success,
-    backgroundColor: Colors.success + '20',
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    fontWeight: '600',
-  },
-
-  productPreviewSizeOutOfStock: {
-    color: Colors.error,
-    backgroundColor: Colors.error + '20',
-  },
-
-  changeProductButton: {
-    marginTop: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-  },
-
-  changeProductButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-
-
-
-  // Picker Container Styles (copied from UserManagement)
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.background,
-    marginTop: 4,
-    maxHeight: 200,
-  },
-
-  roleOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-
-  roleOptionSelected: {
-    backgroundColor: Colors.primary,
-  },
-
-  roleOptionText: {
-    fontSize: FontSizes.base,
-    color: Colors.foreground,
-    fontWeight: '500',
-  },
-
-  roleOptionTextSelected: {
-    color: Colors.primaryForeground,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

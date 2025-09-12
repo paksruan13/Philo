@@ -10,6 +10,7 @@ import {
   Dimensions,
   Modal,
   FlatList,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ const CoachDashboard = ({ navigation }) => {
   const [teamStats, setTeamStats] = useState({});
   const [teamData, setTeamData] = useState(null);
   const [showAllStudents, setShowAllStudents] = useState(false);
+  const [modalOpacity] = useState(new Animated.Value(0));
 
   const fetchTeamData = async () => {
     try {
@@ -39,7 +41,6 @@ const CoachDashboard = ({ navigation }) => {
       };
 
       // First, get current user info with coached teams
-      console.log('🏆 Fetching user data to get coached teams...');
       const userRes = await fetchWithTimeout(API_ROUTES.auth.me, { headers }, 15000);
       
       if (!userRes.ok) {
@@ -51,38 +52,23 @@ const CoachDashboard = ({ navigation }) => {
       
       // Check if user has coached teams
       if (!userData.user.coachedTeams || userData.user.coachedTeams.length === 0) {
-        console.error('Coach is not assigned to any team');
         return;
       }
 
       // Get the first coached team
       const coachedTeam = userData.user.coachedTeams[0];
-      console.log('=== COACHED TEAM BASIC DATA ===');
-      console.log('Team ID:', coachedTeam.id);
-      console.log('Team name:', coachedTeam.name);
-      console.log('===============================');
       setTeamData(coachedTeam);
 
       // Now fetch leaderboard data (same as LeaderboardScreen) to get complete team stats
-      console.log('📊 Fetching leaderboard data to get complete team stats...');
       const leaderboardResponse = await fetchWithTimeout(API_ROUTES.LEADERBOARD.GET, { headers }, 15000);
       
       if (leaderboardResponse.ok) {
         const leaderboardData = await leaderboardResponse.json();
-        console.log('=== LEADERBOARD DATA RESPONSE ===');
-        console.log('Full leaderboard response:', JSON.stringify(leaderboardData, null, 2));
         
         // Find our coached team in the leaderboard data
         const ourTeamData = leaderboardData.find(team => team.id === coachedTeam.id);
         
         if (ourTeamData) {
-          console.log('=== OUR TEAM FROM LEADERBOARD ===');
-          console.log('Team name:', ourTeamData.name);
-          console.log('Total score/points:', ourTeamData.totalScore);
-          console.log('Member count:', ourTeamData.memberCount);
-          console.log('Stats object:', JSON.stringify(ourTeamData.stats, null, 2));
-          console.log('Total donations:', ourTeamData.stats?.totalDonations);
-          console.log('================================');
           
           // Set team stats from leaderboard data (this has the complete calculated stats)
           const leaderboardStats = {
@@ -91,10 +77,8 @@ const CoachDashboard = ({ navigation }) => {
             totalDonations: ourTeamData.stats?.totalDonations || 0,
           };
           
-          console.log('🎯 Final stats from leaderboard:', leaderboardStats);
           setTeamStats(leaderboardStats);
         } else {
-          console.error('Team not found in leaderboard data');
           // Fallback to basic team data
           setTeamStats({
             totalStudents: 0,
@@ -103,7 +87,6 @@ const CoachDashboard = ({ navigation }) => {
           });
         }
       } else {
-        console.error('Failed to fetch leaderboard data:', leaderboardResponse.status);
         // Fallback to basic team data
         setTeamStats({
           totalStudents: 0,
@@ -113,7 +96,6 @@ const CoachDashboard = ({ navigation }) => {
       }
 
       // Still fetch team members for the modal display
-      console.log('👥 Fetching team members for modal display...');
       const membersResponse = await fetchWithTimeout(
         API_ROUTES.teams.members(coachedTeam.id), 
         { headers }, 
@@ -122,17 +104,56 @@ const CoachDashboard = ({ navigation }) => {
       
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
-        console.log('Members data for modal:', membersData.length, 'members');
         
         // Filter to only show students (not coaches or admins)
         const studentMembers = membersData.filter(member => member.role === 'STUDENT');
-        setStudents(studentMembers || []);
+        
+        // Now fetch donation data for each student
+        const studentsWithDonations = await Promise.all(
+          studentMembers.map(async (student) => {
+            try {
+              // Fetch all donations and filter by user and team
+              const donationsResponse = await fetchWithTimeout(
+                API_ROUTES.donations.list,
+                { headers },
+                10000
+              );
+              
+              if (donationsResponse.ok) {
+                const allDonations = await donationsResponse.json();
+                
+                // Filter donations for this specific student and team
+                const studentDonations = allDonations.filter(donation => {
+                  return donation.userId === student.id && donation.teamId === coachedTeam.id;
+                });
+                
+                // Calculate total donations for this student
+                const totalDonations = studentDonations.reduce((sum, donation) => sum + donation.amount, 0);
+                
+                return {
+                  ...student,
+                  donations: totalDonations
+                };
+              } else {
+                return {
+                  ...student,
+                  donations: 0
+                };
+              }
+            } catch (error) {
+              return {
+                ...student,
+                donations: 0
+              };
+            }
+          })
+        );
+        
+        setStudents(studentsWithDonations || []);
       } else {
-        console.error('Failed to fetch team members for modal');
         setStudents([]);
       }
     } catch (error) {
-      console.error('Error fetching team data:', error);
       setTeamStats({
         totalStudents: 0,
         totalPoints: 0,
@@ -151,6 +172,45 @@ const CoachDashboard = ({ navigation }) => {
   const onRefresh = () => {
     setRefreshing(true);
     fetchTeamData();
+  };
+
+  const openStudentsModal = () => {
+    setShowAllStudents(true);
+    Animated.timing(modalOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeStudentsModal = () => {
+    Animated.timing(modalOpacity, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowAllStudents(false);
+    });
+  };
+
+  const handleActionPress = (action) => {
+    // Add a subtle scale animation to the pressed button
+    const scaleValue = new Animated.Value(1);
+    
+    Animated.sequence([
+      Animated.timing(scaleValue, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      action();
+    });
   };
 
   if (loading) {
@@ -210,7 +270,8 @@ const CoachDashboard = ({ navigation }) => {
           <View style={styles.actionGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => setShowAllStudents(true)}
+              onPress={() => handleActionPress(openStudentsModal)}
+              activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
                 <Ionicons name="people-outline" size={24} color="#6b21a8" />
@@ -222,6 +283,7 @@ const CoachDashboard = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('ManagePoints')}
+              activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
                 <Ionicons name="star-outline" size={24} color="#6b21a8" />
@@ -233,6 +295,7 @@ const CoachDashboard = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('Announcements')}
+              activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
                 <Ionicons name="megaphone-outline" size={24} color="#6b21a8" />
@@ -244,6 +307,7 @@ const CoachDashboard = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => navigation.navigate('ProductSales')}
+              activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
                 <Ionicons name="storefront-outline" size={24} color="#6b21a8" />
@@ -263,50 +327,66 @@ const CoachDashboard = ({ navigation }) => {
         visible={showAllStudents}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={closeStudentsModal}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderContent}>
-              <View style={styles.modalIconContainer}>
-                <Ionicons name="people" size={22} color="#6366f1" />
+        <Animated.View style={[styles.modalContainer, { opacity: modalOpacity }]}>
+          <SafeAreaView style={styles.modalSafeArea}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalIconContainer}>
+                  <Ionicons name="people" size={22} color="#6366f1" />
+                </View>
+                <View>
+                  <Text style={styles.modalTitle}>👥 Team Members</Text>
+                  <Text style={styles.modalSubtitle}>{teamData?.name || 'Team'} • {students.length} members</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.modalTitle}>👥 Team Members</Text>
-                <Text style={styles.modalSubtitle}>{teamData?.name || 'Team'} • {students.length} members</Text>
-              </View>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={closeStudentsModal}
+              >
+                <Ionicons name="close" size={18} color="#6b7280" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setShowAllStudents(false)}
-            >
-              <Ionicons name="close" size={18} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={students.sort((a, b) => a.name?.localeCompare(b.name))}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.modalList}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item: student, index }) => (
-              <View style={styles.modalStudentItem}>
-                <View style={styles.studentAvatar}>
-                  <Text style={styles.avatarText}>
-                    {student.name?.charAt(0)?.toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.modalStudentInfo}>
-                  <Text style={styles.studentName}>{student.name}</Text>
-                </View>
-                <View style={styles.modalStudentStats}>
-                  <View style={styles.donationBadge}>
-                    <Ionicons name="cash" size={14} color="#059669" />
-                    <Text style={styles.donationAmount}>${(student.donations || 0).toFixed(2)}</Text>
+            <FlatList
+              data={students.sort((a, b) => a.name?.localeCompare(b.name))}
+              keyExtractor={(item) => item.id.toString()}
+              contentContainerStyle={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item: student, index }) => (
+                <Animated.View 
+                  style={[
+                    styles.modalStudentItem,
+                    {
+                      opacity: modalOpacity,
+                      transform: [{
+                        translateY: modalOpacity.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [30, 0],
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <View style={styles.studentAvatar}>
+                    <Text style={styles.avatarText}>
+                      {student.name?.charAt(0)?.toUpperCase()}
+                    </Text>
                   </View>
-                </View>
-              </View>
-            )}
-          />
-        </SafeAreaView>
+                  <View style={styles.modalStudentInfo}>
+                    <Text style={styles.studentName}>{student.name}</Text>
+                  </View>
+                  <View style={styles.modalStudentStats}>
+                    <View style={styles.donationBadge}>
+                      <Ionicons name="cash" size={14} color="#059669" />
+                      <Text style={styles.donationAmount}>${(student.donations || 0).toFixed(2)}</Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              )}
+            />
+          </SafeAreaView>
+        </Animated.View>
       </Modal>
     </SafeAreaView>
   );
@@ -405,6 +485,7 @@ const styles = {
 
   section: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
     marginBottom: Spacing.xl,
   },
 
@@ -500,7 +581,7 @@ const styles = {
   },
 
   actionText: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'center',
@@ -646,6 +727,10 @@ const styles = {
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+
+  modalSafeArea: {
+    flex: 1,
   },
 
   modalHeader: {

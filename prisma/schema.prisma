@@ -77,15 +77,17 @@ model User {
 }
 
 model Donation {
-  id              String   @id @default(cuid())
+  id              String       @id @default(cuid())
   amount          Float
-  currency        String   @default("usd")
-  stripeSessionId String?  @unique
-  createdAt       DateTime @default(now())
-  user            User?    @relation(fields: [userId], references: [id])
+  currency        String       @default("usd")
+  // stripeSessionId String?      @unique  // Commented out - no online payments
+  productSaleId   String?      @unique // Link to ProductSale for external sales
+  createdAt       DateTime     @default(now())
+  user            User?        @relation(fields: [userId], references: [id])
   userId          String?
-  team            Team     @relation(fields: [teamId], references: [id])
-  teamId          String
+  team            Team?        @relation(fields: [teamId], references: [id])
+  teamId          String?
+  productSale     ProductSale? @relation(fields: [productSaleId], references: [id])
 }
 
 model Photo {
@@ -134,20 +136,26 @@ model ProductInventory {
 }
 
 model ProductSale {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   quantity  Int
   size      String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product    @relation(fields: [productId], references: [id])
   productId String
-  user      User     @relation("UserProductSales", fields: [userId], references: [id])
-  userId    String
-  team      Team     @relation("TeamProductSales", fields: [teamId], references: [id])
-  teamId    String
-  soldAt    DateTime @default(now())
+  user      User?      @relation("UserProductSales", fields: [userId], references: [id])
+  userId    String?    // Make optional for external sales
+  team      Team?      @relation("TeamProductSales", fields: [teamId], references: [id])
+  teamId    String?    // Already optional
+  soldAt    DateTime   @default(now())
   paymentMethod    String
   amountPaid  Float
   coachId   String
-  coach     User     @relation("CoachProductSales", fields: [coachId], references: [id])
+  coach     User       @relation("CoachProductSales", fields: [coachId], references: [id])
+  donation  Donation?  // Link to donation record for external sales
+  
+  // External customer fields
+  externalCustomerName  String?  // For non-system customers
+  externalCustomerEmail String?  // Optional email
+  isExternalSale       Boolean  @default(false) // Flag to identify external sales
 }
 
 // Keep legacy models for backward compatibility during migration

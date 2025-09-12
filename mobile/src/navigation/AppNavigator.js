@@ -17,6 +17,7 @@ import CoachDashboard from '../screens/dashboard/CoachDashboard';
 import StaffDashboard from '../screens/dashboard/StaffDashboard';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import GroupMeScreen from '../screens/groupme/GroupMeScreen';
+import StoreScreen from '../screens/store/StoreScreen';
 
 // Import admin management screens
 import UserManagement from '../screens/admin/UserManagement';
@@ -34,7 +35,6 @@ import Announcements from '../screens/coach/Announcements';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Stack Navigator for Admin Dashboard and Management Screens
 const AdminStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AdminDashboardMain" component={AdminDashboard} />
@@ -47,7 +47,6 @@ const AdminStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// Stack Navigator for Coach Dashboard and Management Screens
 const CoachStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="CoachDashboardMain" component={CoachDashboard} />
@@ -57,14 +56,20 @@ const CoachStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// Stack Navigator for Student Dashboard
+const StaffStackNavigator = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="StaffDashboardMain" component={StaffDashboard} />
+    <Stack.Screen name="ManagePoints" component={ManagePoints} />
+    <Stack.Screen name="ProductSales" component={ProductSales} />
+  </Stack.Navigator>
+);
+
 const StudentStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="StudentDashboardMain" component={StudentDashboard} />
   </Stack.Navigator>
 );
 
-// Tab Navigator for authenticated users
 const MainTabNavigator = () => {
   const { user } = useAuth();
 
@@ -85,7 +90,7 @@ const MainTabNavigator = () => {
         headerShown: false,
       }}
     >
-      {/* Leaderboard Tab - Far Left */}
+      {/* Leaderboard Tab */}
       <Tab.Screen
         name="Leaderboard"
         component={LeaderboardScreen}
@@ -100,42 +105,62 @@ const MainTabNavigator = () => {
         }}
       />
 
-      {/* Dashboard Tab - Second position */}
+      {/* Dashboard Tab */}
+      {user?.role && (user?.role !== 'STUDENT' || user?.teamId) && (
+        <Tab.Screen
+          name="Dashboard"
+          component={
+            user?.role === 'ADMIN' ? AdminStackNavigator : 
+            user?.role === 'COACH' ? CoachStackNavigator : 
+            user?.role === 'STAFF' ? StaffStackNavigator :
+            user?.role === 'STUDENT' ? StudentStackNavigator :
+            getDashboardComponent(user?.role)
+          }
+          options={{
+            tabBarIcon: ({ focused, color }) => (
+              <Ionicons 
+                name={focused ? "grid" : "grid-outline"} 
+                size={26} 
+                color={focused ? '#0891b2' : color} 
+              />
+            ),
+          }}
+        />
+      )}
+
+      {/* GroupMe Tab */}
+      {(user?.role === 'COACH' || (user?.role === 'STUDENT' && user?.teamId)) && (
+        <Tab.Screen
+          name="GroupMe"
+          component={GroupMeScreen}
+          options={{
+            tabBarIcon: ({ focused, color }) => (
+              <Ionicons 
+                name={focused ? "chatbubbles" : "chatbubbles-outline"} 
+                size={26} 
+                color={focused ? '#00D4FF' : color} 
+              />
+            ),
+          }}
+        />
+      )}
+
+      {/* Store Tab */}
       <Tab.Screen
-        name="Dashboard"
-        component={
-          user?.role === 'ADMIN' ? AdminStackNavigator : 
-          user?.role === 'COACH' ? CoachStackNavigator : 
-          user?.role === 'STUDENT' ? StudentStackNavigator :
-          getDashboardComponent(user?.role)
-        }
+        name="Store"
+        component={StoreScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Ionicons 
-              name={focused ? "grid" : "grid-outline"} 
+              name={focused ? "storefront" : "storefront-outline"} 
               size={26} 
-              color={focused ? '#0891b2' : color} 
+              color={focused ? '#10b981' : color} 
             />
           ),
         }}
       />
 
-      {/* GroupMe Tab - Third position */}
-      <Tab.Screen
-        name="GroupMe"
-        component={GroupMeScreen}
-        options={{
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons 
-              name={focused ? "chatbubbles" : "chatbubbles-outline"} 
-              size={26} 
-              color={focused ? '#00D4FF' : color} 
-            />
-          ),
-        }}
-      />
-
-      {/* Profile Tab - Far Right */}
+      {/* Profile Tab */}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -153,7 +178,6 @@ const MainTabNavigator = () => {
   );
 };
 
-// Helper function to get dashboard component based on role
 const getDashboardComponent = (role) => {
   switch (role) {
     case 'STUDENT':
@@ -165,19 +189,17 @@ const getDashboardComponent = (role) => {
     case 'STAFF':
       return StaffDashboard;
     default:
-      return StudentDashboard; // Default to student dashboard
+      return StudentDashboard;
   }
 };
 
-// Auth Stack Navigator
-  const AuthStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-    </Stack.Navigator>
-  );
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen name="Register" component={RegisterScreen} />
+  </Stack.Navigator>
+);
 
-// Main App Navigator
 const AppNavigator = () => {
   const { user, loading } = useAuth();
 

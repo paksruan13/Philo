@@ -15,6 +15,17 @@ const getAllUsers = async (req, res) => {
 const getAllTeams = async (req, res) => {
   try {
     const teams = await teamService.getTeamsWithDetails();
+    
+    // Debug logging
+    console.log('🔍 Admin getAllTeams - number of teams:', teams.length);
+    teams.forEach((team, index) => {
+      console.log(`🏀 Team ${index + 1} (${team.name}):`, {
+        members: team.members ? `${team.members.length} members` : 'NO MEMBERS',
+        stats: team.stats ? `stats: ${JSON.stringify(team.stats)}` : 'NO STATS',
+        donations: team.donations ? `${team.donations.length} donations` : 'NO DONATIONS'
+      });
+    });
+    
     res.json(teams);
   } catch (err) {
     console.error('Error fetching teams:', err);
