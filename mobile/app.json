@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sigepbounce.app",
-      "buildNumber": "2025.09.12.5",
+      "buildNumber": "2025.09.12.6",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload product images.",
         "NSCameraUsageDescription": "This app needs access to your camera to take product photos.",

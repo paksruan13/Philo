@@ -47,6 +47,11 @@ const StudentDashboard = ({ navigation }) => {
 
   const fetchTeamDashboard = async () => {
     try {
+      console.log('� StudentDashboard: Starting fetchTeamDashboard...');
+      console.log('🔍 StudentDashboard: API Route:', API_ROUTES.teams.myTeam);
+      console.log('🔍 StudentDashboard: Token present:', !!token);
+      console.log('🔍 StudentDashboard: Token length:', token?.length);
+      console.log('🔍 StudentDashboard: Token preview:', token?.substring(0, 50) + '...');
       
       const response = await fetchWithTimeout(API_ROUTES.teams.myTeam, {
         method: 'GET',
@@ -56,11 +61,24 @@ const StudentDashboard = ({ navigation }) => {
         }
       });
 
+      console.log('� StudentDashboard: Response status:', response.status);
+      console.log('� StudentDashboard: Response ok:', response.ok);
+
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('❌ StudentDashboard: Error response:', errorText);
         throw new Error('Failed to fetch team data');
       }
 
       const teamData = await response.json();
+      console.log('✅ StudentDashboard: Team data received:', {
+        hasTeam: !!teamData.team,
+        teamName: teamData.team?.name,
+        hasStats: !!teamData.stats,
+        hasDonations: !!teamData.donations,
+        hasRecentDonations: !!teamData.recentDonations,
+        fullData: teamData
+      });
 
       // Calculate total raised from team's donations
       if (teamData.stats && teamData.donations) {
@@ -68,6 +86,7 @@ const StudentDashboard = ({ navigation }) => {
           return total + (parseFloat(donation.amount) || 0);
         }, 0);
         
+        console.log('💰 StudentDashboard: Calculated total raised from donations:', totalRaised);
         teamData.stats.totalRaised = totalRaised;
       } else if (teamData.recentDonations) {
         // Fallback to recentDonations if donations array doesn't exist
@@ -75,21 +94,25 @@ const StudentDashboard = ({ navigation }) => {
           return total + (parseFloat(donation.amount) || 0);
         }, 0);
         
+        console.log('💰 StudentDashboard: Calculated total raised from recentDonations:', totalRaised);
         if (teamData.stats) {
           teamData.stats.totalRaised = totalRaised;
         }
       } else {
+        console.log('💰 StudentDashboard: Using existing totalRaised or defaulting to 0');
         if (teamData.stats) {
           teamData.stats.totalRaised = teamData.stats.totalRaised || 0;
         }
       }
 
+      console.log('✅ StudentDashboard: Setting team data successfully');
       setTeamData(teamData);
       setError('');
     } catch (error) {
-      console.error('❌ Error fetching team dashboard:', error);
+      console.error('❌ StudentDashboard: Error fetching team dashboard:', error);
       setError('Failed to load team data. Please try again.');
     } finally {
+      console.log('🏁 StudentDashboard: fetchTeamDashboard completed');
       setLoading(false);
     }
   };

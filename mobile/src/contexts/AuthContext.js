@@ -32,6 +32,9 @@ export const AuthProvider = ({ children }) => {
                 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('🔍 AuthContext: User data from API:', data.user);
+                    console.log('🔍 AuthContext: User team:', data.user?.team);
+                    console.log('🔍 AuthContext: User teamId:', data.user?.teamId);
                     setUser(data.user);
                     setToken(savedToken);
                     setIsAuthenticated(true);
@@ -66,6 +69,9 @@ export const AuthProvider = ({ children }) => {
             const data = await response.json();
             
             if (response.ok) {
+                console.log('🔍 AuthContext: Login response data:', data);
+                console.log('🔍 AuthContext: Login user data:', data.user);
+                console.log('🔍 AuthContext: Login user team:', data.user?.team);
                 setUser(data.user);
                 setToken(data.token);
                 await AsyncStorage.setItem('token', data.token);
