@@ -106,15 +106,14 @@ const MainTabNavigator = () => {
       />
 
       {/* Dashboard Tab */}
-      {user?.role && (user?.role !== 'STUDENT' || user?.teamId) && (
+      {user?.role && (user?.role === 'STUDENT' || user?.role === 'ADMIN' || user?.role === 'COACH' || user?.role === 'STAFF') && (
         <Tab.Screen
           name="Dashboard"
           component={
             user?.role === 'ADMIN' ? AdminStackNavigator : 
             user?.role === 'COACH' ? CoachStackNavigator : 
             user?.role === 'STAFF' ? StaffStackNavigator :
-            user?.role === 'STUDENT' ? StudentStackNavigator :
-            getDashboardComponent(user?.role)
+            StudentStackNavigator
           }
           options={{
             tabBarIcon: ({ focused, color }) => (
@@ -129,7 +128,7 @@ const MainTabNavigator = () => {
       )}
 
       {/* GroupMe Tab */}
-      {(user?.role === 'COACH' || (user?.role === 'STUDENT' && user?.teamId)) && (
+      {(user?.role === 'COACH' || user?.role === 'STUDENT') && (
         <Tab.Screen
           name="GroupMe"
           component={GroupMeScreen}
@@ -176,21 +175,6 @@ const MainTabNavigator = () => {
       />
     </Tab.Navigator>
   );
-};
-
-const getDashboardComponent = (role) => {
-  switch (role) {
-    case 'STUDENT':
-      return StudentDashboard;
-    case 'COACH':
-      return CoachDashboard;
-    case 'ADMIN':
-      return AdminDashboard;
-    case 'STAFF':
-      return StaffDashboard;
-    default:
-      return StudentDashboard;
-  }
 };
 
 const AuthStack = () => (

@@ -16,9 +16,8 @@ const getApiBaseUrl = () => {
       return `http://${HOST}:4243/api`;
     }
   } else {
-    // TODO: Update this with your actual production API URL when deployed
-    // For now, this is a placeholder - update before building for production
-    return 'https://api.projectphi.app/api';
+    // Production API URL - temporarily using HTTP until SSL is set up
+    return 'http://api.sigepbounce.com/api';
   }
 };
 
@@ -89,6 +88,7 @@ export const API_ROUTES = {
 
   // Team endpoints  
   teams: {
+    list: `${API_BASE_URL}/teams`,
     myTeam: `${API_BASE_URL}/teams/my-team`,
     leaderboard: `${API_BASE_URL}/teams/leaderboard`,
     activities: (teamId) => `${API_BASE_URL}/teams/${teamId || 'my-team'}/activities`,

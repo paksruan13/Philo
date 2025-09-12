@@ -16,8 +16,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES, fetchWithTimeout } from '../../services/api';
-
-const API_BASE_URL = 'http://localhost:4243/api'; // Add this for direct API calls
 import { Colors, Styles, Spacing, FontSizes } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -35,40 +33,52 @@ const CoachDashboard = ({ navigation }) => {
 
   const fetchTeamData = async () => {
     try {
+      console.log('🔄 CoachDashboard: Starting fetchTeamData...');
+      
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       };
+
+      console.log('🔑 CoachDashboard: Using token, length:', token?.length);
+      console.log('📡 CoachDashboard: Fetching user data from:', API_ROUTES.auth.me);
 
       // First, get current user info with coached teams
       const userRes = await fetchWithTimeout(API_ROUTES.auth.me, { headers }, 15000);
       
       if (!userRes.ok) {
         const errorText = await userRes.text();
+        console.error('❌ CoachDashboard: User data fetch failed:', userRes.status, errorText);
         throw new Error(`Failed to fetch user data: ${userRes.status} - ${errorText}`);
       }
       
       const userData = await userRes.json();
+      console.log('✅ CoachDashboard: User data received:', userData);
       
       // Check if user has coached teams
       if (!userData.user.coachedTeams || userData.user.coachedTeams.length === 0) {
+        console.log('⚠️ CoachDashboard: No coached teams found');
         return;
       }
 
       // Get the first coached team
       const coachedTeam = userData.user.coachedTeams[0];
+      console.log('🏆 CoachDashboard: Setting coached team:', coachedTeam);
       setTeamData(coachedTeam);
 
+      console.log('📡 CoachDashboard: Fetching leaderboard data from:', API_ROUTES.LEADERBOARD.GET);
       // Now fetch leaderboard data (same as LeaderboardScreen) to get complete team stats
       const leaderboardResponse = await fetchWithTimeout(API_ROUTES.LEADERBOARD.GET, { headers }, 15000);
       
       if (leaderboardResponse.ok) {
         const leaderboardData = await leaderboardResponse.json();
+        console.log('✅ CoachDashboard: Leaderboard data received:', leaderboardData.length, 'teams');
         
         // Find our coached team in the leaderboard data
         const ourTeamData = leaderboardData.find(team => team.id === coachedTeam.id);
         
         if (ourTeamData) {
+          console.log('✅ CoachDashboard: Found coached team in leaderboard:', ourTeamData);
           
           // Set team stats from leaderboard data (this has the complete calculated stats)
           const leaderboardStats = {
@@ -77,8 +87,10 @@ const CoachDashboard = ({ navigation }) => {
             totalDonations: ourTeamData.stats?.totalDonations || 0,
           };
           
+          console.log('📊 CoachDashboard: Setting team stats:', leaderboardStats);
           setTeamStats(leaderboardStats);
         } else {
+          console.log('⚠️ CoachDashboard: Coached team not found in leaderboard, using fallback');
           // Fallback to basic team data
           setTeamStats({
             totalStudents: 0,
@@ -96,6 +108,7 @@ const CoachDashboard = ({ navigation }) => {
       }
 
       // Still fetch team members for the modal display
+      console.log('📡 CoachDashboard: Fetching team members from:', API_ROUTES.teams.members(coachedTeam.id));
       const membersResponse = await fetchWithTimeout(
         API_ROUTES.teams.members(coachedTeam.id), 
         { headers }, 
@@ -104,11 +117,14 @@ const CoachDashboard = ({ navigation }) => {
       
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
+        console.log('✅ CoachDashboard: Team members data received:', membersData);
         
         // Filter to only show students (not coaches or admins)
         const studentMembers = membersData.filter(member => member.role === 'STUDENT');
+        console.log('👥 CoachDashboard: Student members filtered:', studentMembers.length, 'students');
         
         // Now fetch donation data for each student
+        console.log('📡 CoachDashboard: Fetching donations from:', API_ROUTES.donations.list);
         const studentsWithDonations = await Promise.all(
           studentMembers.map(async (student) => {
             try {
@@ -121,6 +137,7 @@ const CoachDashboard = ({ navigation }) => {
               
               if (donationsResponse.ok) {
                 const allDonations = await donationsResponse.json();
+                console.log(`💰 CoachDashboard: Donations for ${student.name}:`, allDonations.length, 'total donations');
                 
                 // Filter donations for this specific student and team
                 const studentDonations = allDonations.filter(donation => {
@@ -151,9 +168,11 @@ const CoachDashboard = ({ navigation }) => {
         
         setStudents(studentsWithDonations || []);
       } else {
+        console.log('❌ CoachDashboard: Team members fetch failed:', membersResponse.status);
         setStudents([]);
       }
     } catch (error) {
+      console.error('❌ CoachDashboard: fetchTeamData error:', error);
       setTeamStats({
         totalStudents: 0,
         totalPoints: 0,
