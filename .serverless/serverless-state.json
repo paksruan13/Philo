@@ -171,7 +171,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "projectphi-photos",
-                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747210317-2025-09-13T07:06:50.317Z/sigepbounce-api-lambda.zip"
+                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747716247-2025-09-13T07:15:16.247Z/sigepbounce-api-lambda.zip"
               },
               "Handler": "handler.handler",
               "Runtime": "nodejs18.x",
@@ -210,7 +210,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "projectphi-photos",
-                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747210317-2025-09-13T07:06:50.317Z/sigepbounce-api-lambda.zip"
+                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747716247-2025-09-13T07:15:16.247Z/sigepbounce-api-lambda.zip"
               },
               "Handler": "handler.updateLeaderboard",
               "Runtime": "nodejs18.x",
@@ -244,24 +244,24 @@
               "UpdateLeaderboardLogGroup"
             ]
           },
-          "ApiLambdaVersiongmrE9uzbOJ1rQNOqNiza0ge0EhCWT7k4wd17TZVlA": {
+          "ApiLambdaVersionq0JkQwqIRIZOceuOCh7vmhF4eOeUKBUecAUAhIPxw": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "KLRw+cmVZCZE6DQDcEwvpQdsWhzwSqaBKQukEueG3yo="
+              "CodeSha256": "I3l+R5fs+wWLMirUktNe9vhKfa9AJjzFq+6I89etrKE="
             }
           },
-          "UpdateLeaderboardLambdaVersiondZ4RI20VrDa2zzASa81vmMmCIxZiudq9dLEEKOKhz20": {
+          "UpdateLeaderboardLambdaVersionfWkBwg5UiJw5pEqtAcS0aRG646fpiaQ9Gcm2gu5rg": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "UpdateLeaderboardLambdaFunction"
               },
-              "CodeSha256": "KLRw+cmVZCZE6DQDcEwvpQdsWhzwSqaBKQukEueG3yo="
+              "CodeSha256": "I3l+R5fs+wWLMirUktNe9vhKfa9AJjzFq+6I89etrKE="
             }
           },
           "UpdateLeaderboardEventsRuleSchedule1": {
@@ -522,7 +522,7 @@
               "ApiLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1757747196687": {
+          "ApiGatewayDeployment1757747704660": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -705,7 +705,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "projectphi-photos",
-                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747210317-2025-09-13T07:06:50.317Z/custom-resources.zip"
+                "S3Key": "serverless/sigepbounce-api-lambda/dev/1757747716247-2025-09-13T07:15:16.247Z/custom-resources.zip"
               },
               "FunctionName": "sigepbounce-api-lambda-dev-custom-resource-apigw-cw-role",
               "Handler": "api-gateway-cloud-watch-role/handler.handler",
@@ -741,7 +741,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersiongmrE9uzbOJ1rQNOqNiza0ge0EhCWT7k4wd17TZVlA"
+              "Ref": "ApiLambdaVersionq0JkQwqIRIZOceuOCh7vmhF4eOeUKBUecAUAhIPxw"
             },
             "Export": {
               "Name": "sls-sigepbounce-api-lambda-dev-ApiLambdaFunctionQualifiedArn"
@@ -750,7 +750,7 @@
           "UpdateLeaderboardLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "UpdateLeaderboardLambdaVersiondZ4RI20VrDa2zzASa81vmMmCIxZiudq9dLEEKOKhz20"
+              "Ref": "UpdateLeaderboardLambdaVersionfWkBwg5UiJw5pEqtAcS0aRG646fpiaQ9Gcm2gu5rg"
             },
             "Export": {
               "Name": "sls-sigepbounce-api-lambda-dev-UpdateLeaderboardLambdaFunctionQualifiedArn"
@@ -855,7 +855,7 @@
         "timeout": 30,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersiongmrE9uzbOJ1rQNOqNiza0ge0EhCWT7k4wd17TZVlA"
+        "versionLogicalId": "ApiLambdaVersionq0JkQwqIRIZOceuOCh7vmhF4eOeUKBUecAUAhIPxw"
       },
       "updateLeaderboard": {
         "handler": "handler.updateLeaderboard",
@@ -878,7 +878,7 @@
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "UpdateLeaderboardLambdaVersiondZ4RI20VrDa2zzASa81vmMmCIxZiudq9dLEEKOKhz20"
+        "versionLogicalId": "UpdateLeaderboardLambdaVersionfWkBwg5UiJw5pEqtAcS0aRG646fpiaQ9Gcm2gu5rg"
       }
     },
     "configValidationMode": "warn",
@@ -923,7 +923,7 @@
         "artifactsS3KeyDirname": "serverless/sigepbounce-api-lambda/dev/code-artifacts",
         "deploymentBucket": "projectphi-photos",
         "artifact": "/Users/pacoruan/Desktop/Project-Phi/.serverless/sigepbounce-api-lambda.zip",
-        "artifactDirectoryName": "serverless/sigepbounce-api-lambda/dev/1757747210317-2025-09-13T07:06:50.317Z"
+        "artifactDirectoryName": "serverless/sigepbounce-api-lambda/dev/1757747716247-2025-09-13T07:15:16.247Z"
       }
     },
     "appId": null,
@@ -932,7 +932,7 @@
     "artifact": "/Users/pacoruan/Desktop/Project-Phi/.serverless/sigepbounce-api-lambda.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/sigepbounce-api-lambda/dev/1757747210317-2025-09-13T07:06:50.317Z",
+    "artifactDirectoryName": "serverless/sigepbounce-api-lambda/dev/1757747716247-2025-09-13T07:15:16.247Z",
     "artifact": "sigepbounce-api-lambda.zip"
   }
 }
