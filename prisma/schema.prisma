@@ -265,3 +265,12 @@ model ManualPointsAward {
   createdAt    DateTime @default(now())
 }
 
+model LeaderboardSnapshot {
+  id           String   @id @default(uuid())
+  period       String   // 'daily', 'weekly', 'monthly'
+  rankings     Json     // Cached leaderboard data
+  calculatedAt DateTime @default(now())
+  
+  @@index([period, calculatedAt])
+}
+
