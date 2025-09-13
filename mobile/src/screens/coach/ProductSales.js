@@ -313,8 +313,8 @@ const ProductSales = ({ navigation }) => {
       }, 15000);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to complete sale');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to complete sale');
       }
 
       const saleData = await response.json();

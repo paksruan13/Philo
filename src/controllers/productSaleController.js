@@ -72,12 +72,19 @@ const sellProduct = async (req, res) => {
 // Get sales by coach
 const getCoachSales = async (req, res) => {
   try {
+    console.log('🔍 DEBUG: getCoachSales called for coachId:', req.user.id);
     const coachId = req.user.id;
     const sales = await productSaleService.getCoachSales(coachId);
+    console.log('🔍 DEBUG: getCoachSales success, found', sales.length, 'sales');
     res.json(sales);
   } catch (error) {
-    console.error('Error fetching coach sales:', error);
-    res.status(500).json({ error: 'Failed to fetch sales' });
+    console.error('❌ ERROR: getCoachSales failed:', error.message);
+    console.error('❌ ERROR: Full error:', error);
+    console.error('❌ ERROR: Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch sales',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
