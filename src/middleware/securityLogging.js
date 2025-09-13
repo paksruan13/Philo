@@ -6,13 +6,33 @@ const path = require('path');
  */
 class SecurityLogger {
   constructor() {
-    this.logDir = path.join(process.cwd(), 'logs');
-    this.securityLogFile = path.join(this.logDir, 'security.log');
-    this.errorLogFile = path.join(this.logDir, 'errors.log');
+    // Check if running in Lambda environment
+    this.isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
     
-    // Ensure log directory exists
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
+    if (this.isLambda) {
+      // In Lambda, use CloudWatch logs (console.log)
+      this.logDir = null;
+      this.securityLogFile = null;
+      this.errorLogFile = null;
+    } else {
+      // In regular environment, use file system
+      this.logDir = path.join(process.cwd(), 'logs');
+      this.securityLogFile = path.join(this.logDir, 'security.log');
+      this.errorLogFile = path.join(this.logDir, 'errors.log');
+      
+      // Ensure log directory exists
+      try {
+        if (!fs.existsSync(this.logDir)) {
+          fs.mkdirSync(this.logDir, { recursive: true });
+        }
+      } catch (err) {
+        console.warn('Unable to create log directory:', err.message);
+        // Fallback to Lambda mode if file system fails
+        this.isLambda = true;
+        this.logDir = null;
+        this.securityLogFile = null;
+        this.errorLogFile = null;
+      }
     }
   }
 
@@ -37,7 +57,19 @@ class SecurityLogger {
 
     // Write to security log
     const logLine = JSON.stringify(logEntry) + '\n';
-    fs.appendFileSync(this.securityLogFile, logLine);
+    
+    if (this.isLambda) {
+      // In Lambda, use CloudWatch logs via console
+      console.log('🔒 SECURITY_EVENT:', logEntry);
+    } else {
+      // In regular environment, write to file
+      try {
+        fs.appendFileSync(this.securityLogFile, logLine);
+      } catch (err) {
+        console.warn('Unable to write security log to file:', err.message);
+        console.log('🔒 SECURITY_EVENT:', logEntry);
+      }
+    }
 
     // Console log for development
     if (process.env.NODE_ENV === 'development') {
@@ -113,7 +145,19 @@ const createErrorHandler = (securityLogger) => {
 
     // Log to file
     const errorLine = JSON.stringify(errorDetails) + '\n';
-    fs.appendFileSync(path.join(process.cwd(), 'logs', 'errors.log'), errorLine);
+    
+    if (this.isLambda) {
+      // In Lambda, use CloudWatch logs via console
+      console.error('🔒 ERROR_LOG:', errorDetails);
+    } else {
+      // In regular environment, write to file
+      try {
+        fs.appendFileSync(path.join(process.cwd(), 'logs', 'errors.log'), errorLine);
+      } catch (err) {
+        console.warn('Unable to write error log to file:', err.message);
+        console.error('🔒 ERROR_LOG:', errorDetails);
+      }
+    }
 
     // Security-sensitive error logging
     if (err.status === 401 || err.status === 403) {

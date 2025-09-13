@@ -33,6 +33,9 @@ const LeaderboardScreen = () => {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [nextUpdate, setNextUpdate] = useState(null);
+  const [isCached, setIsCached] = useState(false);
   const flashingItemsRef = React.useRef(new Set());
 
   // Load custom font
@@ -122,12 +125,34 @@ const LeaderboardScreen = () => {
       
       // Process leaderboard data
       if (leaderboardResponse.ok) {
-        const leaderboardData = await leaderboardResponse.json();
-        console.log('✅ LeaderboardScreen: Leaderboard data received:', leaderboardData.length, 'teams');
-        setLeaderboardData(Array.isArray(leaderboardData) ? leaderboardData : []);
+        const leaderboardResponseData = await leaderboardResponse.json();
+        console.log('✅ LeaderboardScreen: Leaderboard data received:', leaderboardResponseData);
+        
+        // Handle new API format with metadata
+        if (leaderboardResponseData.leaderboard) {
+          // New format with timestamps and metadata
+          setLeaderboardData(Array.isArray(leaderboardResponseData.leaderboard) ? leaderboardResponseData.leaderboard : []);
+          setLastUpdated(leaderboardResponseData.lastUpdated);
+          setNextUpdate(leaderboardResponseData.nextUpdate);
+          setIsCached(leaderboardResponseData.isCached);
+          console.log('📊 Leaderboard metadata:', {
+            lastUpdated: leaderboardResponseData.lastUpdated,
+            nextUpdate: leaderboardResponseData.nextUpdate,
+            isCached: leaderboardResponseData.isCached
+          });
+        } else {
+          // Fallback to old format
+          setLeaderboardData(Array.isArray(leaderboardResponseData) ? leaderboardResponseData : []);
+          setLastUpdated(new Date().toISOString());
+          setNextUpdate(null);
+          setIsCached(false);
+        }
       } else {
         console.error('❌ LeaderboardScreen: Leaderboard fetch failed:', leaderboardResponse.status);
         setLeaderboardData([]);
+        setLastUpdated(null);
+        setNextUpdate(null);
+        setIsCached(false);
       }
 
       // Process statistics data
@@ -271,9 +296,15 @@ const LeaderboardScreen = () => {
     fetchData();
   }, []);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchData();
+    try {
+      await fetchData();
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getRankIcon = (rank) => {
@@ -870,6 +901,43 @@ const LeaderboardScreen = () => {
             </TouchableOpacity>
           </View>
           
+          {/* Leaderboard Update Info */}
+          {lastUpdated && (
+            <View style={newStyles.updateInfoContainer}>
+              <View style={newStyles.updateInfoRow}>
+                <Ionicons name="time-outline" size={14} color="#6b7280" />
+                <Text style={newStyles.updateInfoText}>
+                  Last updated: {new Date(lastUpdated).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </Text>
+                {isCached && (
+                  <View style={newStyles.cachedBadge}>
+                    <Text style={newStyles.cachedText}>Cached</Text>
+                  </View>
+                )}
+              </View>
+              {nextUpdate && (
+                <View style={newStyles.updateInfoRow}>
+                  <Ionicons name="refresh-outline" size={14} color="#6b7280" />
+                  <Text style={newStyles.updateInfoText}>
+                    Next update: {new Date(nextUpdate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+          
           {safeTeams.length === 0 ? (
             <View style={newStyles.emptyLeaderboard}>
               <Ionicons name="trophy-outline" size={64} color="#d1d5db" />
@@ -1258,6 +1326,43 @@ const newStyles = {
     color: '#0891b2',
     fontWeight: '600',
     marginRight: 4,
+  },
+
+  // Update Info Styles
+  updateInfoContainer: {
+    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 231, 235, 0.6)',
+  },
+
+  updateInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  updateInfoText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 6,
+    flex: 1,
+  },
+
+  cachedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+
+  cachedText: {
+    fontSize: 10,
+    color: '#10b981',
+    fontWeight: '600',
   },
 
   // Events Styles

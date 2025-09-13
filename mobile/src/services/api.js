@@ -1,8 +1,10 @@
 // Mobile API Configuration - React Native Version
 // Adapted from web frontend API service
 
-// TESTING: Force production API
-const API_BASE_URL = 'https://api.sigepbounce.com/api';
+import { API_BASE_URL } from '../config/apiEndpoints';
+
+// Use centralized API endpoint configuration
+// Switch between EC2 and Lambda in apiEndpoints.js
 
 export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   const controller = new AbortController();
