@@ -6,12 +6,20 @@ node_modules/
 .serverless/
 docker-compose.yml
 
+# Generated files
 /src/generated/prisma
 
+# Test files
 test-socket.html
 
+# Config files
 config.toml
 
+# Docker
 Dockerfile
 
+# Pilot config
 phiPilot.json
+
+# Scripts folder (temporary utilities)
+scripts/
