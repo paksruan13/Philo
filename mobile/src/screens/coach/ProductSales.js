@@ -88,7 +88,6 @@ const ProductSales = ({ navigation }) => {
 
   const fetchData = async () => {
     try {
-      console.log('🏪 PRODUCT SALES - Starting fetchData');
       setError('');
       setSuccess('');
       
@@ -97,88 +96,67 @@ const ProductSales = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      console.log('🏪 PRODUCT SALES - Headers:', { tokenPresent: !!token });
-
       let studentsData = [];
       let productsData = [];
       let salesData = [];
       
       // Fetch all students (coach endpoint provides access to all students for sales)
       try {
-        console.log('🏪 PRODUCT SALES - Fetching students from:', API_ROUTES.coach.students);
         const studentsResponse = await fetchWithTimeout(API_ROUTES.coach.students, {
           headers
         }, 15000);
 
-        console.log('🏪 PRODUCT SALES - Students response status:', studentsResponse.status);
         if (!studentsResponse.ok) {
           const errorText = await studentsResponse.text();
-          console.log('🏪 PRODUCT SALES - Students error response:', errorText);
           throw new Error(`HTTP ${studentsResponse.status}: ${studentsResponse.statusText}`);
         }
         studentsData = await studentsResponse.json();
-        console.log('🏪 PRODUCT SALES - Students data received:', studentsData.length, 'students');
         studentsData = Array.isArray(studentsData) ? studentsData : [];
       } catch (studentsError) {
-        console.error('🏪 PRODUCT SALES - Students fetch error:', studentsError);
+        console.error('Error fetching students:', studentsError);
         setError(prev => prev ? `${prev}; Students: ${studentsError.message}` : `Students: ${studentsError.message}`);
       }
 
       // Fetch products with inventory
       try {
-        console.log('🏪 PRODUCT SALES - Fetching products from:', API_ROUTES.products.list);
         const productsResponse = await fetchWithTimeout(API_ROUTES.products.list, {
           headers
         }, 15000);
 
-        console.log('🏪 PRODUCT SALES - Products response status:', productsResponse.status);
         if (!productsResponse.ok) {
           const errorText = await productsResponse.text();
-          console.log('🏪 PRODUCT SALES - Products error response:', errorText);
           throw new Error(`HTTP ${productsResponse.status}: ${productsResponse.statusText}`);
         }
         productsData = await productsResponse.json();
-        console.log('🏪 PRODUCT SALES - Products data received:', productsData.length, 'products');
       } catch (productsError) {
-        console.error('🏪 PRODUCT SALES - Products fetch error:', productsError);
+        console.error('Error fetching products:', productsError);
         setError(prev => prev ? `${prev}; Products: ${productsError.message}` : `Products: ${productsError.message}`);
       }
 
       // Fetch coach's sales
       try {
-        console.log('🏪 PRODUCT SALES - Fetching sales from:', API_ROUTES.productSales.coachSales);
         const salesResponse = await fetchWithTimeout(API_ROUTES.productSales.coachSales, {
           headers
         }, 15000);
 
-        console.log('🏪 PRODUCT SALES - Sales response status:', salesResponse.status);
         if (!salesResponse.ok) {
           const errorText = await salesResponse.text();
-          console.log('🏪 PRODUCT SALES - Sales error response:', errorText);
           throw new Error(`HTTP ${salesResponse.status}: ${salesResponse.statusText}`);
         }
         salesData = await salesResponse.json();
-        console.log('🏪 PRODUCT SALES - Sales data received:', salesData.length, 'sales');
       } catch (salesError) {
-        console.error('🏪 PRODUCT SALES - Sales fetch error:', salesError);
+        console.error('Error fetching sales:', salesError);
         setError(prev => prev ? `${prev}; Sales: ${salesError.message}` : `Sales: ${salesError.message}`);
       }
 
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setProducts(Array.isArray(productsData) ? productsData : []);
       setSales(Array.isArray(salesData) ? salesData : []);
-
-      console.log('🏪 PRODUCT SALES - Final state set:', {
-        studentsCount: studentsData.length,
-        productsCount: productsData.length,
-        salesCount: salesData.length
-      });
       
     } catch (error) {
-      console.error('🏪 PRODUCT SALES - Unexpected error in fetchData:', error);
+      console.error('Unexpected error in fetchData:', error);
       setError(`Unexpected error: ${error.message}`);
     } finally {
-      console.log('🏪 PRODUCT SALES - fetchData completed');
       setLoading(false);
       setRefreshing(false);
     }
@@ -302,15 +280,10 @@ const ProductSales = ({ navigation }) => {
       setError('');
       setSuccess('');
 
-      console.log('🛍️ PRODUCT SALE - Starting handleSubmitSale');
-      console.log('Sale form data:', saleForm);
-
       const selectedProduct = getSelectedProduct();
       if (!selectedProduct) {
         throw new Error('Product not found');
       }
-
-      console.log('Selected product:', selectedProduct);
 
       const requestBody = {
         productId: saleForm.productId,
@@ -330,10 +303,6 @@ const ProductSales = ({ navigation }) => {
         requestBody.userId = saleForm.studentId;
       }
 
-      console.log('🛍️ PRODUCT SALE - Request body:', requestBody);
-      console.log('🛍️ PRODUCT SALE - API URL:', API_ROUTES.productSales.sell);
-      console.log('🛍️ PRODUCT SALE - Token present:', !!token);
-
       const response = await fetchWithTimeout(API_ROUTES.productSales.sell, {
         method: 'POST',
         headers: {
@@ -343,18 +312,12 @@ const ProductSales = ({ navigation }) => {
         body: JSON.stringify(requestBody)
       }, 15000);
 
-      console.log('🛍️ PRODUCT SALE - Response status:', response.status);
-      console.log('🛍️ PRODUCT SALE - Response ok:', response.ok);
-
       if (!response.ok) {
-        console.log('🛍️ PRODUCT SALE - API Error Response:', response.status, response.statusText);
         const errorData = await response.json();
-        console.log('🛍️ PRODUCT SALE - Error data:', errorData);
         throw new Error(errorData.message || 'Failed to complete sale');
       }
 
       const saleData = await response.json();
-      console.log('🛍️ PRODUCT SALE - Success response:', saleData);
 
       // Store sale details for confirmation
       const customerName = saleForm.isExternalSale 
