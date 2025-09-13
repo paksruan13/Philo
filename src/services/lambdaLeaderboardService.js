@@ -96,7 +96,7 @@ const getStatistics = async () => {
     // Get total product sales amount
     const totalProductSalesResult = await prisma.productSale.aggregate({
       _sum: {
-        totalAmount: true
+        amountPaid: true
       }
     });
 
@@ -122,8 +122,9 @@ const getStatistics = async () => {
 
     return {
       totalDonations: totalDonationsResult._sum.amount || 0,
-      totalProductSales: totalProductSalesResult._sum.totalAmount || 0,
+      totalProductSales: totalProductSalesResult._sum.amountPaid || 0,
       totalShirtSales: totalShirtSalesResult._sum.quantity || 0,
+      totalRaised: totalDonationsResult._sum.amount || 0, // Total raised from donations table
       totalTeams,
       totalMembers,
       totalPhotos
