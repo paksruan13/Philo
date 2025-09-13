@@ -1,27 +1,8 @@
 // Mobile API Configuration - React Native Version
 // Adapted from web frontend API service
 
-// For React Native, we need different URLs for different platforms
-const getApiBaseUrl = () => {
-  if (__DEV__) {
-    const { Platform } = require('react-native');
-    
-    const HOST = 'localhost';
-    
-    if (Platform.OS === 'ios') {
-      return `http://${HOST}:4243/api`;
-    } else if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:4243/api';
-    } else {
-      return `http://${HOST}:4243/api`;
-    }
-  } else {
-    // Production API URL - temporarily using HTTP until SSL is set up
-    return 'http://api.sigepbounce.com/api';
-  }
-};
-
-const API_BASE_URL = getApiBaseUrl();
+// TESTING: Force production API
+const API_BASE_URL = 'http://api.sigepbounce.com/api';
 
 export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   const controller = new AbortController();
