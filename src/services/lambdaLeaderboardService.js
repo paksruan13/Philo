@@ -120,6 +120,13 @@ const getStatistics = async () => {
       }
     });
 
+    // Get donation goal from app config
+    const donationGoalConfig = await prisma.appConfig.findUnique({
+      where: {
+        key: 'donationGoal'
+      }
+    });
+
     return {
       totalDonations: totalDonationsResult._sum.amount || 0,
       totalProductSales: totalProductSalesResult._sum.amountPaid || 0,
@@ -127,7 +134,8 @@ const getStatistics = async () => {
       totalRaised: totalDonationsResult._sum.amount || 0, // Total raised from donations table
       totalTeams,
       totalMembers,
-      totalPhotos
+      totalPhotos,
+      donationGoal: donationGoalConfig ? parseInt(donationGoalConfig.value) : 50000 // Default to 50000 if not set
     };
   } catch (error) {
     console.error('❌ Error fetching statistics:', error);
