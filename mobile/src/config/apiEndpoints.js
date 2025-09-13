@@ -2,10 +2,10 @@
 // Switch between endpoints easily
 
 const API_ENDPOINTS = {
-  // Current EC2 deployment
+  // Legacy EC2 deployment (deprecated)
   EC2: 'https://api.sigepbounce.com/api',
   
-  // Lambda API Gateway endpoints (updated with actual deployment URLs)
+  // Lambda API Gateway endpoints
   LAMBDA_DEV: 'https://by33cfrg2d.execute-api.us-east-2.amazonaws.com/dev/api',
   LAMBDA_STAGING: 'https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/staging/api', 
   LAMBDA_PROD: 'https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/api',
@@ -15,8 +15,8 @@ const API_ENDPOINTS = {
 };
 
 // Select which endpoint to use
-// Change this to switch between EC2 and Lambda
-const CURRENT_ENDPOINT = 'LAMBDA_DEV'; // Options: 'EC2', 'LAMBDA_DEV', 'LAMBDA_STAGING', 'LAMBDA_PROD', 'LAMBDA_CUSTOM'
+// PRODUCTION: Use LAMBDA_DEV (active serverless deployment)
+const CURRENT_ENDPOINT = 'LAMBDA_DEV';
 
 export const API_BASE_URL = API_ENDPOINTS[CURRENT_ENDPOINT];
 
