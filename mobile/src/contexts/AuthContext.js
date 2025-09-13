@@ -57,6 +57,8 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
+            console.log('🚀 AuthContext: Starting login with:', email);
+            console.log('🌐 AuthContext: API URL:', API_ROUTES.auth.login);
             
             const response = await fetchWithTimeout(API_ROUTES.auth.login, {
                 method: 'POST',
@@ -66,7 +68,12 @@ export const AuthProvider = ({ children }) => {
                 body: JSON.stringify({ email, password }),
             }, 15000); // 15 second timeout
             
+            console.log('📡 AuthContext: Response status:', response.status);
+            console.log('📡 AuthContext: Response status:', response.status);
+            console.log('📡 AuthContext: Response headers:', response.headers);
+            
             const data = await response.json();
+            console.log('📦 AuthContext: Response data:', data);
             
             if (response.ok) {
                 console.log('🔍 AuthContext: Login response data:', data);
@@ -83,6 +90,7 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: data.error || 'Invalid credentials' };
             }
         } catch (error) {
+            console.error('🚨 AuthContext: Login error:', error);
             console.error('API URL:', API_ROUTES.auth.login);
             
             // Provide more specific error messages
@@ -93,6 +101,8 @@ export const AuthProvider = ({ children }) => {
                 errorMessage = 'Network error. Please check your internet connection.';
             } else if (error.message.includes('Request timed out')) {
                 errorMessage = 'Request timed out. Please try again.';
+            } else if (error.message.includes('SSL')) {
+                errorMessage = 'Secure connection failed. Please try again.';
             }
             
             return { success: false, error: errorMessage };
