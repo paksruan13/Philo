@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 /**
  * Product Sale Service - Handles all product sale-related database operations

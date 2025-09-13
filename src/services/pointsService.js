@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const POINTS_CONFIG = {
     DONATION_MULTIPLIER: 1,

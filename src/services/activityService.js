@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const getAllActivities = async () => {
   const activities = await prisma.activity.findMany({
