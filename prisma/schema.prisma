@@ -80,7 +80,6 @@ model Donation {
   id              String       @id @default(cuid())
   amount          Float
   currency        String       @default("usd")
-  // stripeSessionId String?      @unique  // Commented out - no online payments
   productSaleId   String?      @unique // Link to ProductSale for external sales
   createdAt       DateTime     @default(now())
   user            User?        @relation(fields: [userId], references: [id])
