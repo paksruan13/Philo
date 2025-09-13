@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 const bcrypt = require('bcryptjs');
 
 const createUser = async (userData) => {

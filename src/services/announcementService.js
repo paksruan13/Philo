@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const create = async (req, res) => {
   const { teamId } = req.params;

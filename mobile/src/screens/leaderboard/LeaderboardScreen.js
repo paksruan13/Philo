@@ -913,92 +913,37 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Activity Details Modal Component with enhanced stability and fade animation
+  // Activity Details Modal Component with simple fade animation (matching leaderboard modal)
   const ActivityDetailsModal = React.memo(() => {
-    // More stable visibility check
+    // Simple visibility check
     const modalVisible = Boolean(showActivityDetails && selectedActivity);
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [shouldRender, setShouldRender] = useState(false);
-    const fadeAnimation = React.useRef(new Animated.Value(0)).current;
     
     console.log('🔍 Modal render check:', { 
       showActivityDetails, 
       selectedActivity: !!selectedActivity, 
-      modalVisible,
-      isAnimating,
-      shouldRender
+      modalVisible
     });
-
-    // Animate fade in/out when modal visibility changes
-    React.useEffect(() => {
-      if (modalVisible) {
-        // Modal is opening - show and fade in
-        setShouldRender(true);
-        setIsAnimating(true);
-        Animated.timing(fadeAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start(() => {
-          setIsAnimating(false);
-        });
-      } else if (shouldRender) {
-        // Modal is closing - fade out first, then hide
-        setIsAnimating(true);
-        Animated.timing(fadeAnimation, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => {
-          setIsAnimating(false);
-          setShouldRender(false); // Hide modal after fade out completes
-        });
-      }
-    }, [modalVisible, fadeAnimation, shouldRender]);
     
-    if (!shouldRender || !selectedActivity) return null;
+    if (!modalVisible || !selectedActivity) return null;
 
     const statusBadge = getStatusBadge(selectedActivity.status);
 
     return (
       <Modal
         key={`activity-modal-${selectedActivity.id}`}
-        animationType="none"
+        animationType="fade"
         transparent={true}
-        visible={shouldRender}
+        visible={modalVisible}
         onRequestClose={handleModalClose}
         statusBarTranslucent={true}
-        presentationStyle="overFullScreen"
       >
-        <Animated.View 
-          style={[
-            newStyles.activityModalOverlay,
-            {
-              opacity: fadeAnimation,
-            }
-          ]}
-        >
+        <View style={newStyles.activityModalOverlay}>
           <TouchableOpacity 
             style={newStyles.activityModalOverlayTouch}
             activeOpacity={1}
             onPress={handleModalClose}
           />
-          <Animated.View 
-            style={[
-              newStyles.activityModalContent,
-              {
-                opacity: fadeAnimation,
-                transform: [
-                  {
-                    scale: fadeAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  },
-                ],
-              }
-            ]}
-          >
+          <View style={newStyles.activityModalContent}>
             <View style={newStyles.activityModalHeader}>
               <View style={newStyles.activityModalTitleRow}>
                 <Ionicons name="flash" size={24} color="#FF6B6B" />
@@ -1065,8 +1010,8 @@ const LeaderboardScreen = () => {
                 )}
               </View>
             </ScrollView>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
       </Modal>
     );
   });

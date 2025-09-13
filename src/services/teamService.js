@@ -1,5 +1,6 @@
 const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
-const { prisma } = require('../config/database');
+const bcrypt = require('bcryptjs');
+const { prisma } = require('../config/lambdaDatabase');
 const photoService = require('./photoService');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 

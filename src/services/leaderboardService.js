@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const calculateLeaderboard = async () => {
   const teams = await prisma.team.findMany({

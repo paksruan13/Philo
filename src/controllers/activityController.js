@@ -1,6 +1,7 @@
 const { parse } = require('dotenv');
 const activityService = require('../services/activityService');
-const { prisma } = require('../config/database');
+const { emitLeaderboardUpdate } = require('../services/leaderboardService');
+const { prisma } = require('../config/lambdaDatabase');
 
 const getActivities = async (req, res) => {
   try {
