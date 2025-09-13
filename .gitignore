@@ -1,5 +1,8 @@
 node_modules/
 .env
+.env.backup
+.env.deploy
+.env.lambda
 docker-compose.yml
 
 /src/generated/prisma
