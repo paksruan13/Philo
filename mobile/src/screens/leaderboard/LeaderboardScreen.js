@@ -82,8 +82,6 @@ const LeaderboardScreen = () => {
   // Fetch only leaderboard data (for automatic updates)
   const fetchLeaderboardData = useCallback(async () => {
     try {
-      console.log('🔄 LeaderboardScreen: Auto-updating leaderboard data...');
-      
       const headers = {
         'Content-Type': 'application/json',
       };
@@ -97,7 +95,6 @@ const LeaderboardScreen = () => {
       
       if (leaderboardResponse.ok) {
         const leaderboardResponseData = await leaderboardResponse.json();
-        console.log('✅ LeaderboardScreen: Auto-updated leaderboard data received');
         
         // Handle new API format with metadata
         if (leaderboardResponseData.leaderboard) {
@@ -112,10 +109,10 @@ const LeaderboardScreen = () => {
           setIsCached(false);
         }
       } else {
-        console.error('❌ LeaderboardScreen: Auto leaderboard update failed:', leaderboardResponse.status);
+        console.error('LeaderboardScreen: Auto leaderboard update failed:', leaderboardResponse.status);
       }
     } catch (error) {
-      console.error('❌ LeaderboardScreen: Auto leaderboard update error:', error);
+      console.error('LeaderboardScreen: Auto leaderboard update error:', error);
     }
   }, [token]);
 
@@ -151,8 +148,6 @@ const LeaderboardScreen = () => {
     const nextUpdate = getNextLeaderboardUpdate();
     const timeUntilNextUpdate = nextUpdate.getTime() - pstNow.getTime();
 
-    console.log(`🕐 LeaderboardScreen: Next auto-update at 5 PM PST in ${Math.round(timeUntilNextUpdate / 1000 / 60)} minutes (${nextUpdate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })})`);
-
     // Set initial timeout to sync with 5 PM
     setTimeout(() => {
       fetchLeaderboardData();
@@ -169,24 +164,15 @@ const LeaderboardScreen = () => {
 
   const fetchData = async () => {
     try {
-      console.log('🔄 LeaderboardScreen: Starting fetchData (excluding leaderboard)...');
-      
       const headers = {
         'Content-Type': 'application/json',
       };
       
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        console.log('🔑 LeaderboardScreen: Token available, length:', token.length);
       } else {
-        console.log('❌ LeaderboardScreen: No token available');
+        console.log('LeaderboardScreen: No token available');
       }
-      
-      console.log('📡 LeaderboardScreen: Making API requests to:');
-      console.log('  - Statistics:', `${API_ROUTES.LEADERBOARD.GET}/statistics`);
-      console.log('  - Activities:', API_ROUTES.activities.list);
-      console.log('  - Teams:', API_ROUTES.teams.list);
-      console.log('  - My Team:', API_ROUTES.teams.myTeam);
       
       // Fetch all data except leaderboard (which updates automatically)
       const [statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([        
@@ -207,26 +193,18 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          console.error('❌ LeaderboardScreen: My Team API error:', err);
+          console.error('LeaderboardScreen: My Team API error:', err);
           return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
-
-      console.log('📥 LeaderboardScreen: API Response status codes:');
-      console.log('  - Statistics:', statsResponse.status);
-      console.log('  - Activities:', activitiesResponse.status);
-      console.log('  - Teams:', teamsResponse.status);
-      console.log('  - My Team:', teamResponse.status || 'No token');
 
       // Process API responses
 
       // Process user's team data
       if (teamResponse.ok) {
         const userTeamData = await teamResponse.json();
-        console.log('✅ LeaderboardScreen: My Team data received:', userTeamData);
         setTeamData(userTeamData);
       } else {
-        console.log('❌ LeaderboardScreen: My Team fetch failed:', teamResponse.status);
         setTeamData(null);
       }
 
@@ -234,21 +212,14 @@ const LeaderboardScreen = () => {
       let combinedStats = null;
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        console.log('✅ LeaderboardScreen: Statistics data received:', statsData);
         combinedStats = { ...statsData };
         
         // Calculate progress percentage with donation goal from statistics
         const donationGoal = combinedStats.donationGoal || 50000;
         const totalRaised = combinedStats.totalRaised || 0;
         combinedStats.progressPercentage = donationGoal > 0 ? (totalRaised / donationGoal) * 100 : 0;
-        
-        console.log('📊 LeaderboardScreen: Statistics with donation goal:', {
-          donationGoal,
-          totalRaised,
-          progressPercentage: combinedStats.progressPercentage
-        });
       } else {
-        console.error('❌ LeaderboardScreen: Statistics fetch failed:', statsResponse.status);
+        console.error('LeaderboardScreen: Statistics fetch failed:', statsResponse.status);
         // Fallback to default values
         combinedStats = {
           donationGoal: 50000,
@@ -414,9 +385,8 @@ const LeaderboardScreen = () => {
     try {
       // Only refresh non-leaderboard data (leaderboard updates automatically)
       await fetchData();
-      console.log('✅ LeaderboardScreen: Manual refresh completed (leaderboard excluded)');
     } catch (error) {
-      console.error('❌ Refresh failed:', error);
+      console.error('Refresh failed:', error);
     } finally {
       setRefreshing(false);
     }
@@ -681,7 +651,6 @@ const LeaderboardScreen = () => {
 
   // Fixed callback for activity selection 
   const handleActivitySelect = useCallback((item) => {
-    console.log('🎯 Activity selected:', item);
     // Clear any existing selection first
     setSelectedActivity(null);
     setShowActivityDetails(false);
@@ -690,13 +659,11 @@ const LeaderboardScreen = () => {
     setTimeout(() => {
       setSelectedActivity(item);
       setShowActivityDetails(true);
-      console.log('✅ Modal should now be visible');
     }, 50);
   }, []);
 
   // Stable callback for modal close to prevent re-renders  
   const handleModalClose = useCallback(() => {
-    console.log('🚪 Closing activity modal');
     setShowActivityDetails(false);
     setTimeout(() => {
       setSelectedActivity(null);
@@ -866,7 +833,6 @@ const LeaderboardScreen = () => {
           <TouchableOpacity 
             style={newStyles.staticJoinButton}
             onPress={() => {
-              console.log('🎯 View Activity button pressed for item:', item.title);
               handleActivitySelect(item);
             }}
           >
@@ -917,12 +883,6 @@ const LeaderboardScreen = () => {
   const ActivityDetailsModal = React.memo(() => {
     // Simple visibility check
     const modalVisible = Boolean(showActivityDetails && selectedActivity);
-    
-    console.log('🔍 Modal render check:', { 
-      showActivityDetails, 
-      selectedActivity: !!selectedActivity, 
-      modalVisible
-    });
     
     if (!modalVisible || !selectedActivity) return null;
 
