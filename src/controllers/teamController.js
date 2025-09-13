@@ -1,6 +1,6 @@
 const teamService = require('../services/teamService');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const getAllTeams = async (req, res) => {
   try {

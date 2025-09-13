@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const createDonation = async (donationData) => {
   return await prisma.donation.create({

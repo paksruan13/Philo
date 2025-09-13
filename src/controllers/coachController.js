@@ -1,7 +1,10 @@
 const { status } = require('express/lib/response');
 const coachService = require('../services/coachService');
 const pointsService = require('../services/pointsService');
-const { prisma } = require('../config/database');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { prisma } = require('../config/lambdaDatabase');
+const { createSecureTeamCode } = require('../utils/cryptoUtils');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');

@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const getCoachTeam = async (coachId) => {
   return await prisma.team.findFirst({

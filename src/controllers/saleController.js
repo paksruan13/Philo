@@ -1,6 +1,6 @@
 const saleService = require('../services/saleService');
 const { getShirtPointsConfig, updateShirtPointsConfig } = require('../services/pointsService');
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const createSale = async (req, res) => {
   const { shirtSize, quantity, userId, paymentMethod } = req.body;

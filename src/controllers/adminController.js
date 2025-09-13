@@ -230,7 +230,7 @@ const updateActivity = async (req, res) => {
 const resetTeamPoints = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 
     const result = await prisma.$transaction(async (tx) => {
@@ -273,7 +273,7 @@ const resetTeamPoints = async (req, res) => {
 
 const getConfig = async (req, res) => {
   try {
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     const configs = await prisma.appConfig.findMany();
     const configObj = {};
     configs.forEach(config => {
@@ -289,7 +289,7 @@ const getConfig = async (req, res) => {
 const updateConfig = async (req, res) => {
   try {
     const { key, value } = req.body;
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     
     if (!key || value === undefined) {
       return res.status(400).json({ error: 'Key and value are required' });

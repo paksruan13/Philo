@@ -1,5 +1,5 @@
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 const s3 = require('../config/s3');
 const { PutObjectCommand, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');

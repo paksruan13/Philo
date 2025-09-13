@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 const { updateTeamPoints } = require('./pointsService');
 
 const createSale = async (saleData) => {
