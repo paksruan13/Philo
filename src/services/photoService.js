@@ -135,18 +135,18 @@ const uploadProductImage = async (file) => {
     const command = new PutObjectCommand(uploadParams);
     await s3Client.send(command);
 
-    // Generate a signed URL that expires in 7 days (maximum allowed)
-    const getObjectParams = {
+    // Generate a signed URL for immediate display
+    const getObjectCommand = new GetObjectCommand({
       Bucket: bucketName,
-      Key: key,
-    };
-
-    const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
-      expiresIn: 604800, // 7 days in seconds (maximum allowed)
+      Key: key
     });
+    
+    const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 }); // 1 hour
 
+    // Return both the S3 key (for database storage) and signed URL (for display)
     return {
-      url: signedUrl,
+      url: signedUrl, // Signed URL for immediate display
+      s3Key: key,     // S3 key for database storage
       fileName: key,
       success: true
     };
