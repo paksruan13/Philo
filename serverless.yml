@@ -22,6 +22,16 @@ provider:
     lambda: true  # Enable X-Ray tracing
     apiGateway: true
   
+  # API Gateway configuration for binary media types
+  apiGateway:
+    binaryMediaTypes:
+      - 'multipart/form-data'
+      - 'image/jpeg'
+      - 'image/jpg'
+      - 'image/png'
+      - 'image/gif'
+      - 'image/webp'
+  
   # Environment variables
   environment:
     NODE_ENV: ${self:provider.stage}

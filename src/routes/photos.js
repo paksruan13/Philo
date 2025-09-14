@@ -8,7 +8,7 @@ const adminCoachAuth = requireRole(['COACH', 'ADMIN', 'STUDENT']);
 router.use(authenticationToken)
 
 router.post('/', upload.single('file'), adminCoachAuth, photoController.uploadPhoto);
-router.post('/product', upload.single('file'), adminCoachAuth, photoController.uploadProductImage);
+router.post('/product', adminCoachAuth, photoController.uploadProductImage);
 router.get('/team/:teamId', adminCoachAuth, photoController.getTeamPhotos);
 router.get('/:id/view', adminCoachAuth, photoController.getSignedUrl);
 

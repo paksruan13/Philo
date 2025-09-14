@@ -42,6 +42,7 @@ const StoreScreen = () => {
       
       if (response.ok) {
         const data = await response.json();
+        
         // Separate tickets from other products
         const productList = data.filter(product => product.type !== 'TICKET');
         const ticketList = data.filter(product => product.type === 'TICKET');
@@ -92,6 +93,8 @@ const StoreScreen = () => {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
               resizeMode="cover"
+              onLoad={() => console.log('Image loaded successfully:', item.name)}
+              onError={(error) => console.log('Image load error for', item.name, ':', error.nativeEvent.error)}
             />
           ) : (
             <View style={styles.placeholderImage}>
@@ -141,6 +144,8 @@ const StoreScreen = () => {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
               resizeMode="cover"
+              onLoad={() => console.log('Ticket image loaded successfully:', item.name)}
+              onError={(error) => console.log('Ticket image load error for', item.name, ':', error.nativeEvent.error)}
             />
           ) : (
             <View style={[styles.placeholderImage, { backgroundColor: '#fef3c7' }]}>
@@ -328,6 +333,8 @@ const StoreScreen = () => {
                             source={{ uri: selectedProduct.imageUrl }}
                             style={styles.modalImage}
                             resizeMode="cover"
+                            onLoad={() => console.log('Modal image loaded successfully:', selectedProduct.name)}
+                            onError={(error) => console.log('Modal image load error for', selectedProduct.name, ':', error.nativeEvent.error)}
                           />
                         </View>
                       ) : (
