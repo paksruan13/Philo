@@ -54,25 +54,29 @@ const LeaderboardScreen = () => {
     loadFonts();
   }, []);
 
-  // Get current time in PST
-  const getPSTTime = () => {
+  // Get current time in Pacific Time (handles PST/PDT automatically)
+  const getPacificTime = () => {
     const now = new Date();
-    // PST is UTC-8, PDT is UTC-7. For simplicity, using PST (UTC-8)
-    const pstOffset = -8 * 60; // minutes
+    // Get the UTC offset for Pacific Time
+    const pacificOffset = now.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      timeZoneName: 'short'
+    }).includes('PDT') ? -7 : -8; // PDT is UTC-7, PST is UTC-8
+    
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    return new Date(utc + (pstOffset * 60000));
+    return new Date(utc + (pacificOffset * 3600000));
   };
 
-  // Calculate next leaderboard update time (daily at 5 PM PST)
+  // Calculate next leaderboard update time (daily at 5 PM Pacific Time)
   const getNextLeaderboardUpdate = () => {
-    const pstNow = getPSTTime();
-    const nextUpdate = new Date(pstNow);
+    const pacificNow = getPacificTime();
+    const nextUpdate = new Date(pacificNow);
     
     // Set to 5 PM today
     nextUpdate.setHours(17, 0, 0, 0); // 5 PM, 0 minutes, 0 seconds, 0 milliseconds
     
     // If it's already past 5 PM today, move to 5 PM tomorrow
-    if (pstNow >= nextUpdate) {
+    if (pacificNow.getTime() >= nextUpdate.getTime()) {
       nextUpdate.setDate(nextUpdate.getDate() + 1);
     }
     
@@ -109,10 +113,10 @@ const LeaderboardScreen = () => {
           setIsCached(false);
         }
       } else {
-        console.error('LeaderboardScreen: Auto leaderboard update failed:', leaderboardResponse.status);
+        // Auto leaderboard update failed
       }
     } catch (error) {
-      console.error('LeaderboardScreen: Auto leaderboard update error:', error);
+      // Auto leaderboard update error
     }
   }, [token]);
 
@@ -143,10 +147,10 @@ const LeaderboardScreen = () => {
       clearInterval(leaderboardTimerRef.current);
     }
 
-    // Calculate time until next 5 PM PST
-    const pstNow = getPSTTime();
+    // Calculate time until next 5 PM Pacific Time
+    const pacificNow = getPacificTime();
     const nextUpdate = getNextLeaderboardUpdate();
-    const timeUntilNextUpdate = nextUpdate.getTime() - pstNow.getTime();
+    const timeUntilNextUpdate = nextUpdate.getTime() - pacificNow.getTime();
 
     // Set initial timeout to sync with 5 PM
     setTimeout(() => {
@@ -171,7 +175,7 @@ const LeaderboardScreen = () => {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       } else {
-        console.log('LeaderboardScreen: No token available');
+        // No token available
       }
       
       // Fetch all data except leaderboard (which updates automatically)
@@ -193,7 +197,7 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          console.error('LeaderboardScreen: My Team API error:', err);
+          // My Team API error
           return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
@@ -219,7 +223,7 @@ const LeaderboardScreen = () => {
         const totalRaised = combinedStats.totalRaised || 0;
         combinedStats.progressPercentage = donationGoal > 0 ? (totalRaised / donationGoal) * 100 : 0;
       } else {
-        console.error('LeaderboardScreen: Statistics fetch failed:', statsResponse.status);
+        // Statistics fetch failed
         // Fallback to default values
         combinedStats = {
           donationGoal: 50000,
@@ -320,7 +324,7 @@ const LeaderboardScreen = () => {
         
         setUpcomingEvents(filteredEvents);
       } else {
-        console.error('Activities fetch failed:', activitiesResponse.status);
+        // Activities fetch failed
         setActivities([]);
         setUpcomingEvents([]);
       }
@@ -339,12 +343,12 @@ const LeaderboardScreen = () => {
           setTotalTeams(0);
         }
       } else {
-        console.error('Teams fetch failed:', teamsResponse.status);
+        // Teams fetch failed
         setTotalTeams(0);
       }
 
     } catch (error) {
-      console.error('Data fetch error:', error);
+      // Data fetch error
       // Don't reset leaderboard data on error since it updates automatically
       setStatistics(null);
       setUpcomingEvents([]);
@@ -386,7 +390,7 @@ const LeaderboardScreen = () => {
       // Only refresh non-leaderboard data (leaderboard updates automatically)
       await fetchData();
     } catch (error) {
-      console.error('Refresh failed:', error);
+      // Refresh failed
     } finally {
       setRefreshing(false);
     }
@@ -613,9 +617,9 @@ const LeaderboardScreen = () => {
       
       // Calculate initial countdown
       const updateCountdown = () => {
-        const pstNow = getPSTTime();
+        const pacificNow = getPacificTime();
         const nextUpdate = getNextLeaderboardUpdate();
-        const timeUntilNextUpdate = nextUpdate.getTime() - pstNow.getTime();
+        const timeUntilNextUpdate = nextUpdate.getTime() - pacificNow.getTime();
         const secondsLeft = Math.max(0, Math.floor(timeUntilNextUpdate / 1000));
         return secondsLeft;
       };

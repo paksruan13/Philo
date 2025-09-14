@@ -86,19 +86,19 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     }
   };
 
-  const uploadImage = async (imageUri) => {
+  const uploadImage = async (asset) => {
     try {
       setUploading(true);
       setError('');
 
       const formData = new FormData();
       formData.append('file', {
-        uri: imageUri,
+        uri: asset.uri,
         type: 'image/jpeg',
         name: 'image.jpg',
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/photos/product`, {
+      const response = await fetch(API_ROUTES.photos.productUpload, {
         method: 'POST',
         body: formData,
         headers: {
