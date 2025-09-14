@@ -86,59 +86,47 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     }
   };
 
-  const uploadImage = async (imageAsset) => {
-    setUploading(true);
-    setError('');
-
+  const uploadImage = async (imageUri) => {
     try {
-      console.log('Starting upload with asset:', {
-        uri: imageAsset.uri,
-        type: imageAsset.mimeType,
-        name: imageAsset.fileName
-      });
-      
+      setUploading(true);
+      setError('');
+
       const formData = new FormData();
       formData.append('file', {
-        uri: imageAsset.uri,
-        type: imageAsset.mimeType || 'image/jpeg',
-        name: imageAsset.fileName || 'image.jpg',
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'image.jpg',
       });
 
-      console.log('Uploading to:', API_ROUTES.photos.productUpload);
-      console.log('Using token:', token ? 'Token present' : 'No token');
-
-      const response = await fetch(API_ROUTES.photos.productUpload, {
+      const response = await fetch(`${API_BASE_URL}/api/photos/product`, {
         method: 'POST',
+        body: formData,
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        body: formData,
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
       const responseText = await response.text();
-      console.log('Response text:', responseText);
 
       let result;
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('JSON parse error:', parseError);
         throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText}`);
       }
 
       if (response.ok) {
-        console.log('Upload successful, URL:', result.url);
-        onChange(result.url);
+        // Pass both the display URL and S3 key to the parent component
+        onChange({
+          displayUrl: result.url,   // For immediate preview
+          s3Key: result.s3Key,      // For database storage
+          fileName: result.fileName
+        });
       } else {
-        console.error('Upload failed:', result);
         setError(result.error || 'Failed to upload image');
         Alert.alert('Upload Error', result.error || 'Failed to upload image');
       }
     } catch (err) {
-      console.error('Upload error:', err);
       setError(`Error uploading image: ${err.message}`);
       Alert.alert('Upload Error', `Error uploading image: ${err.message}`);
     } finally {
@@ -163,12 +151,26 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     setError('');
   };
 
+  // Helper function to get the display URL from the value
+  const getDisplayUrl = () => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value.displayUrl) return value.displayUrl;
+    return null;
+  };
+
+  // Helper function to check if we have a value
+  const hasValue = () => {
+    const displayUrl = getDisplayUrl();
+    return displayUrl && displayUrl.length > 0;
+  };
+
   return (
     <View style={styles.container}>
-      {value ? (
+      {hasValue() ? (
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: value }} 
+            source={{ uri: getDisplayUrl() }} 
             style={styles.image}
           />
           <TouchableOpacity

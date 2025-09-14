@@ -164,6 +164,16 @@ const InventoryManagement = ({ navigation }) => {
 
   const handleCreateProduct = async () => {
     try {
+      // Extract the S3 key from the imageUrl field
+      const getImageKey = () => {
+        if (!productForm.imageUrl) return null;
+        if (typeof productForm.imageUrl === 'string') return productForm.imageUrl;
+        if (typeof productForm.imageUrl === 'object' && productForm.imageUrl.s3Key) {
+          return productForm.imageUrl.s3Key;
+        }
+        return null;
+      };
+
       const response = await fetch(API_ROUTES.products.create, {
         method: 'POST',
         headers: {
@@ -176,7 +186,7 @@ const InventoryManagement = ({ navigation }) => {
           price: parseFloat(productForm.price),
           points: parseInt(productForm.points),
           sizes: productForm.sizes,
-          imageUrl: productForm.imageUrl || null,
+          imageUrl: getImageKey(), // Store S3 key in database
           description: productForm.description || null
         })
       });

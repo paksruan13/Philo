@@ -1,12 +1,37 @@
 const { prisma } = require('../config/lambdaDatabase');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { s3Client } = require('../config/s3');
+const { GetObjectCommand } = require('@aws-sdk/client-s3');
 
 /**
  * Product Service - Handles all product-related database operations
  */
 
+// Helper function to generate signed URL for product image
+const getProductImageSignedUrl = async (imageKey) => {
+  if (!imageKey) return null;
+  
+  try {
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const getObjectParams = {
+      Bucket: bucketName,
+      Key: imageKey,
+    };
+
+    const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
+      expiresIn: 604800, // 7 days in seconds
+    });
+
+    return signedUrl;
+  } catch (error) {
+    console.error('Error generating signed URL for product image:', error);
+    return null;
+  }
+};
+
 // Get all active products with their inventory
 const getAllProducts = async () => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { isActive: true },
     include: {
       inventory: {
@@ -15,6 +40,19 @@ const getAllProducts = async () => {
     },
     orderBy: { type: 'asc' }
   });
+
+  // Generate signed URLs for product images
+  const productsWithSignedUrls = await Promise.all(
+    products.map(async (product) => {
+      const imageUrl = product.imageUrl ? await getProductImageSignedUrl(product.imageUrl) : null;
+      return {
+        ...product,
+        imageUrl
+      };
+    })
+  );
+
+  return productsWithSignedUrls;
 };
 
 // Get product by ID with inventory
