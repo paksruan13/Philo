@@ -5,7 +5,7 @@ provider:
   runtime: nodejs18.x
   region: us-east-2  # Change to your preferred region
   stage: ${opt:stage, 'dev'}
-  timeout: 30
+  timeout: 29  # Match API Gateway timeout
   memorySize: 1024  # Adjust based on needs
   
   # Use existing S3 bucket for deployments

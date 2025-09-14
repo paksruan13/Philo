@@ -1,18 +1,8 @@
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { prisma } = require('../config/lambdaDatabase');
-const s3 = require('../config/s3');
-const { PutObjectCommand, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { s3Client } = require('../config/s3');
+const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  endpoint: process.env.S3_ENDPOINT,
-  forcePathStyle: true,
-  credentials:{ 
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  }
-})
 
 const uploadPhoto = async (file, teamId) => {
   try {

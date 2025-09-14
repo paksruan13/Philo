@@ -43,10 +43,10 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       if (!hasPermission) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'Images',
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.3,
         base64: false,
       });
 
@@ -74,7 +74,7 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.3,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -91,6 +91,12 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     setError('');
 
     try {
+      console.log('Starting upload with asset:', {
+        uri: imageAsset.uri,
+        type: imageAsset.mimeType,
+        name: imageAsset.fileName
+      });
+      
       const formData = new FormData();
       formData.append('file', {
         uri: imageAsset.uri,
@@ -98,27 +104,36 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
         name: imageAsset.fileName || 'image.jpg',
       });
 
+      console.log('Uploading to:', API_ROUTES.photos.productUpload);
+      console.log('Using token:', token ? 'Token present' : 'No token');
+
       const response = await fetch(API_ROUTES.photos.productUpload, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       const responseText = await response.text();
+      console.log('Response text:', responseText);
 
       let result;
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        throw new Error(`Server returned invalid JSON. Status: ${response.status}`);
+        console.error('JSON parse error:', parseError);
+        throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText}`);
       }
 
       if (response.ok) {
+        console.log('Upload successful, URL:', result.url);
         onChange(result.url);
       } else {
+        console.error('Upload failed:', result);
         setError(result.error || 'Failed to upload image');
         Alert.alert('Upload Error', result.error || 'Failed to upload image');
       }
