@@ -6,6 +6,14 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "lambda:dev": "serverless offline --stage dev",
+    "lambda:deploy:dev": "serverless deploy --stage dev",
+    "lambda:deploy:staging": "serverless deploy --stage staging",
+    "lambda:deploy:prod": "serverless deploy --stage prod",
+    "lambda:remove:dev": "serverless remove --stage dev",
+    "lambda:remove:staging": "serverless remove --stage staging",
+    "lambda:logs": "serverless logs -f api --stage prod",
+    "lambda:info": "serverless info --stage prod",
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
     "db:reset": "npx prisma migrate reset",
@@ -17,7 +25,9 @@
     "@aws-sdk/client-s3": "^3.470.0",
     "@aws-sdk/s3-request-presigner": "^3.470.0",
     "@prisma/client": "^5.7.1",
+    "aws-lambda-multipart-parser": "^0.1.3",
     "bcryptjs": "^2.4.3",
+    "busboy": "^1.6.0",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -29,12 +39,16 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0",
     "pg": "^8.16.0",
+    "serverless-http": "^4.0.0",
     "socket.io": "^4.8.1",
     "stripe": "^18.2.0",
     "uuid": "^11.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "prisma": "^5.7.1"
+    "prisma": "^5.7.1",
+    "serverless": "^4.18.2",
+    "serverless-domain-manager": "^8.0.0",
+    "serverless-offline": "^14.4.0"
   }
 }

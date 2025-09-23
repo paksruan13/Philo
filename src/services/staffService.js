@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const staffService = {
-  // Get all teams with members
+  
   getAllTeams: async () => {
     return await prisma.team.findMany({
       include: {
@@ -18,7 +18,7 @@ const staffService = {
     });
   },
 
-  // Get all active students with teams
+  
   getAllActiveStudentsWithTeams: async () => {
     return await prisma.user.findMany({
       where: {
@@ -35,7 +35,7 @@ const staffService = {
     });
   },
 
-  // Get active products with inventory
+  
   getActiveProducts: async () => {
     return await prisma.product.findMany({
       where: { isActive: true },
@@ -46,7 +46,7 @@ const staffService = {
     });
   },
 
-  // Validate student for operations
+  
   validateStudent: async (userId, teamId) => {
     const student = await prisma.user.findUnique({
       where: { id: userId },
@@ -68,9 +68,9 @@ const staffService = {
     return student;
   },
 
-  // Award points to a student
+  
   awardPointsToStudent: async (userId, teamId, points, activityDescription, staffId) => {
-    // Validate input
+    
     if (!userId || !teamId || !points || !activityDescription) {
       throw new Error('All fields are required');
     }
@@ -79,10 +79,10 @@ const staffService = {
       throw new Error('Points must be greater than 0');
     }
 
-    // Validate the student
+    
     await staffService.validateStudent(userId, teamId);
 
-    // Create the manual points award and update team points in a transaction
+    
     return await prisma.$transaction(async (tx) => {
       const pointsAward = await tx.manualPointsAward.create({
         data: {
@@ -99,7 +99,7 @@ const staffService = {
         }
       });
 
-      // Update team total points
+      
       await tx.team.update({
         where: { id: teamId },
         data: {
@@ -113,7 +113,7 @@ const staffService = {
     });
   },
 
-  // Get manual points history for staff member
+  
   getStaffPointsHistory: async (staffId) => {
     return await prisma.manualPointsAward.findMany({
       where: {
@@ -127,7 +127,7 @@ const staffService = {
     });
   },
 
-  // Validate product and inventory for sale
+  
   validateProductSale: async (productId, size, quantity) => {
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -146,22 +146,22 @@ const staffService = {
     return { product, inventory };
   },
 
-  // Sell product to student
+  
   sellProductToStudent: async (productId, userId, teamId, size, quantity, paymentMethod, amountPaid, staffId) => {
-    // Validate input
+    
     if (!productId || !userId || !teamId || !size || !quantity || !paymentMethod) {
       throw new Error('All fields are required');
     }
 
-    // Validate the student
+    
     await staffService.validateStudent(userId, teamId);
 
-    // Validate product and inventory
+    
     const { product, inventory } = await staffService.validateProductSale(productId, size, quantity);
 
-    // Create the sale using a transaction
+    
     return await prisma.$transaction(async (tx) => {
-      // Create the sale record
+      
       const sale = await tx.productSale.create({
         data: {
           productId,
@@ -171,7 +171,7 @@ const staffService = {
           quantity: parseInt(quantity),
           paymentMethod,
           amountPaid: parseFloat(amountPaid || product.price * quantity),
-          coachId: staffId // Using coachId field for staff sales
+          coachId: staffId 
         },
         include: {
           product: { select: { name: true, points: true } },
@@ -180,7 +180,7 @@ const staffService = {
         }
       });
 
-      // Update inventory
+      
       await tx.productInventory.update({
         where: { id: inventory.id },
         data: {
@@ -188,7 +188,7 @@ const staffService = {
         }
       });
 
-      // Award points to the team
+      
       const pointsToAward = product.points * parseInt(quantity);
       await tx.team.update({
         where: { id: teamId },
@@ -201,11 +201,11 @@ const staffService = {
     });
   },
 
-  // Get sales made by staff member
+  
   getStaffSales: async (staffId) => {
     return await prisma.productSale.findMany({
       where: {
-        coachId: staffId // Staff sales are stored with coachId
+        coachId: staffId 
       },
       include: {
         product: { select: { name: true } },

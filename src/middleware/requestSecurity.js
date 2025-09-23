@@ -41,17 +41,27 @@ const createSecureBodyParsers = () => {
 // Request timeout middleware
 const requestTimeout = (timeoutMs = 30000) => {
   return (req, res, next) => {
-    req.setTimeout(timeoutMs, () => {
-      const err = new Error('Request timeout');
-      err.status = 408;
-      next(err);
-    });
+    // Skip timeout in Lambda environment as API Gateway handles this
+    if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return next();
+    }
     
-    res.setTimeout(timeoutMs, () => {
-      const err = new Error('Response timeout');
-      err.status = 408;
-      next(err);
-    });
+    // Only apply timeout in non-Lambda environments
+    if (req.setTimeout && typeof req.setTimeout === 'function') {
+      req.setTimeout(timeoutMs, () => {
+        const err = new Error('Request timeout');
+        err.status = 408;
+        next(err);
+      });
+    }
+    
+    if (res.setTimeout && typeof res.setTimeout === 'function') {
+      res.setTimeout(timeoutMs, () => {
+        const err = new Error('Response timeout');
+        err.status = 408;
+        next(err);
+      });
+    }
     
     next();
   };

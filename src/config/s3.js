@@ -1,6 +1,7 @@
 const { S3Client } = require('@aws-sdk/client-s3');
 
-const minioEndpoint = `http://${process.env.MINIO_ENDPOINT}`;
+const minioEndpoint = `http://${process.env.MINIO_HOST}:${process.env.MINIO_PORT}`;
+
 const s3 = new S3Client({
   endpoint: minioEndpoint,
   region: 'us-east-1',
@@ -11,12 +12,11 @@ const s3 = new S3Client({
   forcePathStyle: true,
 });
 
+
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  }
-})
+  region: process.env.AWS_REGION || 'us-east-2',
+  
+  
+});
 
 module.exports = { s3, s3Client };

@@ -96,13 +96,12 @@ const ProfileScreen = () => {
           'Email updated successfully!',
           [{ text: 'OK', onPress: () => setIsEditingEmail(false) }]
         );
-        // Update user context if possible
+        
       } else {
         const errorData = await response.json();
         Alert.alert('Error', errorData.error || 'Failed to update email');
       }
     } catch (error) {
-      console.error('Error updating email:', error);
       Alert.alert('Error', 'Failed to update email. Please try again.');
     } finally {
       setIsLoading(false);
@@ -111,7 +110,7 @@ const ProfileScreen = () => {
 
   const handlePasswordChange = async () => {
     try {
-      // Validation
+      
       if (!passwordForm.currentPassword) {
         Alert.alert('Error', 'Current password is required');
         return;
@@ -152,7 +151,6 @@ const ProfileScreen = () => {
         Alert.alert('Error', errorData.error || 'Failed to change password');
       }
     } catch (error) {
-      console.error('Error changing password:', error);
       Alert.alert('Error', 'Failed to change password. Please try again.');
     } finally {
       setIsLoading(false);
@@ -387,7 +385,7 @@ const styles = {
     paddingBottom: 20,
   },
 
-  // Header Styles
+  
   headerSection: {
     padding: 20,
     paddingTop: 10,
@@ -417,7 +415,7 @@ const styles = {
     textTransform: 'capitalize',
   },
 
-  // Section Styles
+  
   sectionContainer: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -436,7 +434,7 @@ const styles = {
     marginLeft: 8,
   },
 
-  // Profile Card Styles
+  
   profileCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 15,
@@ -487,7 +485,7 @@ const styles = {
     backgroundColor: '#edf2f7',
   },
 
-  // Email Editing Styles
+  
   editEmailContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -528,7 +526,7 @@ const styles = {
     backgroundColor: '#f56565',
   },
 
-  // Settings Card Styles
+  
   settingCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 15,
@@ -572,7 +570,7 @@ const styles = {
     color: '#718096',
   },
 
-  // Logout Styles
+  
   logoutSection: {
     marginHorizontal: 20,
     marginTop: 10,
@@ -603,7 +601,7 @@ const styles = {
     height: 20,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

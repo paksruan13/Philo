@@ -31,7 +31,6 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       }
       return true;
     } catch (error) {
-      console.error('Error requesting permissions:', error);
       Alert.alert('Error', 'Failed to request permissions');
       return false;
     }
@@ -43,10 +42,10 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       if (!hasPermission) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'Images',
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.3,
         base64: false,
       });
 
@@ -54,7 +53,6 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
         uploadImage(result.assets[0]);
       }
     } catch (error) {
-      console.error('Error in pickImage:', error);
       Alert.alert('Error', `Failed to open image picker: ${error.message}`);
     }
   };
@@ -74,37 +72,35 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.3,
       });
 
       if (!result.canceled && result.assets[0]) {
         uploadImage(result.assets[0]);
       }
     } catch (error) {
-      console.error('Error in takePhoto:', error);
       Alert.alert('Error', `Failed to open camera: ${error.message}`);
     }
   };
 
-  const uploadImage = async (imageAsset) => {
-    setUploading(true);
-    setError('');
-
+  const uploadImage = async (asset) => {
     try {
+      setUploading(true);
+      setError('');
+
       const formData = new FormData();
       formData.append('file', {
-        uri: imageAsset.uri,
-        type: imageAsset.mimeType || 'image/jpeg',
-        name: imageAsset.fileName || 'image.jpg',
+        uri: asset.uri,
+        type: 'image/jpeg',
+        name: 'image.jpg',
       });
 
       const response = await fetch(API_ROUTES.photos.productUpload, {
         method: 'POST',
+        body: formData,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
         },
-        body: formData,
       });
 
       const responseText = await response.text();
@@ -113,17 +109,21 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        throw new Error(`Server returned invalid JSON. Status: ${response.status}`);
+        throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText}`);
       }
 
       if (response.ok) {
-        onChange(result.url);
+        
+        onChange({
+          displayUrl: result.url,   
+          s3Key: result.s3Key,      
+          fileName: result.fileName
+        });
       } else {
         setError(result.error || 'Failed to upload image');
         Alert.alert('Upload Error', result.error || 'Failed to upload image');
       }
     } catch (err) {
-      console.error('Upload error:', err);
       setError(`Error uploading image: ${err.message}`);
       Alert.alert('Upload Error', `Error uploading image: ${err.message}`);
     } finally {
@@ -148,12 +148,26 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     setError('');
   };
 
+  
+  const getDisplayUrl = () => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value.displayUrl) return value.displayUrl;
+    return null;
+  };
+
+  
+  const hasValue = () => {
+    const displayUrl = getDisplayUrl();
+    return displayUrl && displayUrl.length > 0;
+  };
+
   return (
     <View style={styles.container}>
-      {value ? (
+      {hasValue() ? (
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: value }} 
+            source={{ uri: getDisplayUrl() }} 
             style={styles.image}
           />
           <TouchableOpacity

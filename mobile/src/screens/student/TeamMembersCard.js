@@ -44,19 +44,19 @@ const TeamMembersCard = ({ members }) => {
     );
   }
 
-  // Sort members by money raised
+  
   const sortedMembers = [...members].sort((a, b) => {
     const aContributions = a.contributions || {};
     const bContributions = b.contributions || {};
     
-    // Sort by donations only
+    
     const aDonations = aContributions.donations || 0;
     const bDonations = bContributions.donations || 0;
     
     return bDonations - aDonations;
   });
 
-  // Top 3 contributors to display in the card
+  
   const topContributors = sortedMembers.slice(0, 3);
 
   const renderMemberItem = (member, index) => {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     marginVertical: Spacing.xs,
-    // Modern shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   
-  // Modal Styles (Same as StoreScreen)
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

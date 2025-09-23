@@ -28,18 +28,14 @@ export const AuthProvider = ({ children }) => {
             if (savedToken) {
                 const response = await fetchWithTimeout(API_ROUTES.auth.me, {
                     headers: createAuthHeaders(savedToken)
-                }, 15000); // 15 second timeout for auth check
+                }, 15000);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('🔍 AuthContext: User data from API:', data.user);
-                    console.log('🔍 AuthContext: User team:', data.user?.team);
-                    console.log('🔍 AuthContext: User teamId:', data.user?.teamId);
                     setUser(data.user);
                     setToken(savedToken);
                     setIsAuthenticated(true);
                 } else {
-                    // Token is invalid, clear it
                     await AsyncStorage.removeItem('token');
                     setToken(null);
                     setUser(null);
@@ -57,21 +53,17 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            
             const response = await fetchWithTimeout(API_ROUTES.auth.login, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ email, password }),
-            }, 15000); // 15 second timeout
+            }, 15000);
             
             const data = await response.json();
             
             if (response.ok) {
-                console.log('🔍 AuthContext: Login response data:', data);
-                console.log('🔍 AuthContext: Login user data:', data.user);
-                console.log('🔍 AuthContext: Login user team:', data.user?.team);
                 setUser(data.user);
                 setToken(data.token);
                 await AsyncStorage.setItem('token', data.token);
@@ -83,9 +75,7 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: data.error || 'Invalid credentials' };
             }
         } catch (error) {
-            console.error('API URL:', API_ROUTES.auth.login);
             
-            // Provide more specific error messages
             let errorMessage = 'Login failed';
             if (error.message.includes('timeout')) {
                 errorMessage = 'Connection timeout. Please check your network and try again.';
@@ -93,6 +83,8 @@ export const AuthProvider = ({ children }) => {
                 errorMessage = 'Network error. Please check your internet connection.';
             } else if (error.message.includes('Request timed out')) {
                 errorMessage = 'Request timed out. Please try again.';
+            } else if (error.message.includes('SSL')) {
+                errorMessage = 'Secure connection failed. Please try again.';
             }
             
             return { success: false, error: errorMessage };
@@ -122,7 +114,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: data.message || 'Registration failed' };
       }
     } catch (error) {
-      console.error('Registration error:', error);
       return { success: false, error: 'Network error' };
     }
   };
@@ -131,7 +122,7 @@ export const AuthProvider = ({ children }) => {
     try {
 
       const requestBody = { name, email, password };
-      // Only include teamCode if it's provided and not empty
+      
       if (teamCode && teamCode.trim()) {
         requestBody.teamCode = teamCode.trim();
       }
@@ -155,11 +146,11 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       } else {
         
-        // Handle validation errors with detailed messages
+        
         let errorMessage = data.message || data.error || 'Registration failed';
         
         if (data.details && data.details.length > 0) {
-          // Extract the first validation error message
+          
           errorMessage = data.details[0].msg || errorMessage;
         }
         
@@ -177,7 +168,7 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(false);
             await AsyncStorage.removeItem('token');
         } catch (error) {
-            console.error('Logout Error:', error);
+            
         }
     };
 

@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -13,7 +13,7 @@ const registerUser = async (userData) => {
 
   const hashedPassword = await bcrypt.hash(userData.password, 12);
 
-  // Set default role to INDIVIDUAL if no team is provided
+  
   const userRole = userData.teamId ? (userData.role || 'STUDENT') : 'STUDENT';
 
   const user = await prisma.user.create({
@@ -21,7 +21,7 @@ const registerUser = async (userData) => {
       ...userData,
       password: hashedPassword,
       role: userRole,
-      teamId: userData.teamId || null // Allow users without teams
+      teamId: userData.teamId || null 
     },
     select: {
       id: true,
@@ -83,7 +83,7 @@ const registerWithTeam = async (userData) => {
   let team = null;
   let teamName = null;
 
-  // Only look up team if teamCode is provided
+  
   if (userData.teamCode && userData.teamCode.trim()) {
     team = await prisma.team.findUnique({
       where: { teamCode: userData.teamCode },
@@ -146,7 +146,7 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     throw new Error('User not found');
   }
 
-  // For users who must change password, skip current password validation
+  
   if (!user.mustChangePassword) {
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     if (!validPassword) {

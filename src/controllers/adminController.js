@@ -16,16 +16,6 @@ const getAllTeams = async (req, res) => {
   try {
     const teams = await teamService.getTeamsWithDetails();
     
-    // Debug logging
-    console.log('🔍 Admin getAllTeams - number of teams:', teams.length);
-    teams.forEach((team, index) => {
-      console.log(`🏀 Team ${index + 1} (${team.name}):`, {
-        members: team.members ? `${team.members.length} members` : 'NO MEMBERS',
-        stats: team.stats ? `stats: ${JSON.stringify(team.stats)}` : 'NO STATS',
-        donations: team.donations ? `${team.donations.length} donations` : 'NO DONATIONS'
-      });
-    });
-    
     res.json(teams);
   } catch (err) {
     console.error('Error fetching teams:', err);
@@ -36,7 +26,6 @@ const getAllTeams = async (req, res) => {
 const createTeam = async (req, res) => {
   try {
     const { name, coachId, groupMeLink } = req.body;
-    console.log('🔍 Creating team with data:', { name, coachId, groupMeLink });
     const team = await teamService.createTeamWithCode({ 
       name, 
       coachId: coachId || null,
@@ -57,7 +46,6 @@ const updateTeam = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, coachId, isActive, groupMeLink } = req.body;
-    console.log('🔍 Updating team with data:', { id, name, coachId, isActive, groupMeLink });
     
     const team = await teamService.updateTeam(id, {
       name,
@@ -230,11 +218,11 @@ const updateActivity = async (req, res) => {
 const resetTeamPoints = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 
     const result = await prisma.$transaction(async (tx) => {
-      // Check if team exists
+      
       const team = await tx.team.findUnique({
         where: { id: teamId }
       });
@@ -243,12 +231,12 @@ const resetTeamPoints = async (req, res) => {
         throw new Error('Team not found');
       }
 
-      // Delete all manual points awards for this team
+      
       await tx.manualPointsAward.deleteMany({
         where: { teamId: teamId }
       });
 
-      // Reset team points to 0
+      
       await tx.team.update({
         where: { id: teamId },
         data: { totalPoints: 0 }
@@ -273,7 +261,7 @@ const resetTeamPoints = async (req, res) => {
 
 const getConfig = async (req, res) => {
   try {
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     const configs = await prisma.appConfig.findMany();
     const configObj = {};
     configs.forEach(config => {
@@ -289,7 +277,7 @@ const getConfig = async (req, res) => {
 const updateConfig = async (req, res) => {
   try {
     const { key, value } = req.body;
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../config/lambdaDatabase');
     
     if (!key || value === undefined) {
       return res.status(400).json({ error: 'Key and value are required' });

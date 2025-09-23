@@ -48,7 +48,7 @@ const InventoryManagement = ({ navigation }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Animation functions
+  
   const showModal = () => {
     setShowProductForm(true);
     Animated.timing(modalAnimation, {
@@ -68,7 +68,7 @@ const InventoryManagement = ({ navigation }) => {
     });
   };
 
-  // Inventory Modal Animation functions
+  
   const openInventoryModal = () => {
     setShowInventoryModal(true);
     Animated.timing(inventoryModalAnimation, {
@@ -105,7 +105,6 @@ const InventoryManagement = ({ navigation }) => {
         setError('Failed to fetch products');
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -152,7 +151,6 @@ const InventoryManagement = ({ navigation }) => {
                 setTimeout(() => setError(''), 5000);
               }
             } catch (error) {
-              console.error('Error deleting product:', error);
               setError('Failed to delete product');
               setTimeout(() => setError(''), 5000);
             }
@@ -164,6 +162,16 @@ const InventoryManagement = ({ navigation }) => {
 
   const handleCreateProduct = async () => {
     try {
+      
+      const getImageKey = () => {
+        if (!productForm.imageUrl) return null;
+        if (typeof productForm.imageUrl === 'string') return productForm.imageUrl;
+        if (typeof productForm.imageUrl === 'object' && productForm.imageUrl.s3Key) {
+          return productForm.imageUrl.s3Key;
+        }
+        return null;
+      };
+
       const response = await fetch(API_ROUTES.products.create, {
         method: 'POST',
         headers: {
@@ -176,7 +184,7 @@ const InventoryManagement = ({ navigation }) => {
           price: parseFloat(productForm.price),
           points: parseInt(productForm.points),
           sizes: productForm.sizes,
-          imageUrl: productForm.imageUrl || null,
+          imageUrl: getImageKey(), 
           description: productForm.description || null
         })
       });
@@ -201,7 +209,6 @@ const InventoryManagement = ({ navigation }) => {
         setError(errorData.message || 'Failed to create product');
       }
     } catch (error) {
-      console.error('Error creating product:', error);
       setError('Failed to create product');
     }
   };
@@ -233,7 +240,7 @@ const InventoryManagement = ({ navigation }) => {
       if (response.ok) {
         setSuccess('Inventory updated successfully!');
         fetchProducts();
-        // Update selected product
+        
         if (selectedProduct && selectedProduct.id === productId) {
           const updatedProducts = await fetch(API_ROUTES.products.list, {
             headers: {
@@ -256,7 +263,6 @@ const InventoryManagement = ({ navigation }) => {
         setError(errorData.message || 'Failed to update inventory');
       }
     } catch (error) {
-      console.error('Error updating inventory:', error);
       setError('Failed to update inventory');
     }
   };
@@ -337,7 +343,7 @@ const InventoryManagement = ({ navigation }) => {
     );
   };
 
-  // Helper functions for product type styling
+  
   const getProductTypeIcon = (type) => {
     switch (type) {
       case 'HOODIE': return 'shirt';
@@ -1267,7 +1273,7 @@ const styles = {
     height: Spacing.xl,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1435,7 +1441,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Modern Modal Styles
+  
   modernModalContent: {
     backgroundColor: 'white',
     borderRadius: 20,
@@ -1781,7 +1787,7 @@ const styles = {
     paddingTop: 12,
   },
 
-  // Modern Header Styles
+  
   modernHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1838,7 +1844,7 @@ const styles = {
     elevation: 4,
   },
 
-  // Modern Stats Styles
+  
   modernStatsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
@@ -1885,7 +1891,7 @@ const styles = {
     textAlign: 'center',
   },
 
-  // Modern Section Styles
+  
   modernSection: {
     marginHorizontal: 20,
     marginBottom: 24,
@@ -1914,7 +1920,7 @@ const styles = {
     marginLeft: 28,
   },
 
-  // Modern Product Card Styles
+  
   modernProductCard: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -2083,7 +2089,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Modern Empty State
+  
   modernEmptyContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -2139,7 +2145,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Modern Inventory Grid
+  
   modernInventoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2252,7 +2258,7 @@ const styles = {
     gap: 0,
   },
 
-  // Modern Message Styles
+  
   modernSuccessContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2293,7 +2299,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Inventory Modal Styles
+  
   inventoryModalContent: {
     backgroundColor: 'white',
     borderRadius: 20,

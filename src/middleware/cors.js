@@ -4,7 +4,7 @@ const cors = require('cors');
 const getAllowedOrigins = () => {
   const baseOrigins = [];
   
-  // Development origins (allow if NODE_ENV is not production)
+    // Development origins (allow if NODE_ENV is not production)
   if (process.env.NODE_ENV !== 'production') {
     baseOrigins.push(
       'http://localhost:3000',
@@ -21,7 +21,7 @@ const getAllowedOrigins = () => {
     baseOrigins.push(process.env.FRONTEND_URL);
   }
   
-  // Add any additional allowed origins from environment
+  //additional allowed origins from environment
   if (process.env.ALLOWED_ORIGINS) {
     const additionalOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
     baseOrigins.push(...additionalOrigins);
@@ -34,7 +34,7 @@ const corsConfig = cors({
   origin: (origin, callback) => {
     const allowedOrigins = getAllowedOrigins();
     
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin 
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {

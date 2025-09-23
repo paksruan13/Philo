@@ -1,13 +1,40 @@
 node_modules/
-.env
+.env*
+.env.backup
+.env.deploy
+.env.lambda
+.env.production
+.serverless/
 docker-compose.yml
 
+# Generated files
 /src/generated/prisma
 
+# Test files
 test-socket.html
 
+# Config files
 config.toml
 
+# Docker
 Dockerfile
 
+# Pilot config
 phiPilot.json
+
+# Scripts folder (temporary utilities)
+scripts/
+
+# Frontend web app
+/frontend/
+
+# Mobile config files
+/mobile/src/config/apiEndpoints.js
+
+# Backend utilities (sensitive/dev-only)
+/src/utils/
+
+# Lambda handler (deployment-specific)
+handler.js
+
+

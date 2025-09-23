@@ -27,7 +27,7 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const { registerWithTeam } = useAuth();
 
-  // Load custom font
+  
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -35,70 +35,49 @@ const RegisterScreen = ({ navigation }) => {
           'BitcountGridDouble': require('../../../assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf'),
         });
         setFontLoaded(true);
-        console.log('BitcountGridDouble font loaded successfully in RegisterScreen!');
       } catch (error) {
-        console.error('Error loading BitcountGridDouble font:', error);
+        
       }
     }
     loadFonts();
   }, []);
 
   const handleRegister = async () => {
-    console.log('🔵 Starting registration process...');
-    console.log('📝 Form data:', { 
-      name: name.trim(), 
-      email: email.toLowerCase().trim(), 
-      teamCode: teamCode.trim() || '(none)',
-      passwordLength: password.length 
-    });
-
     if (!name || !email || !password) {
-      console.log('❌ Validation failed: Missing required fields');
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
     if (password.length < 5) {
-      console.log('❌ Validation failed: Password too short');
       Alert.alert('Error', 'Password must be at least 5 characters');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('🚀 Calling registerWithTeam...');
       const result = await registerWithTeam(
         name.trim(),
         email.toLowerCase().trim(),
         password,
-        teamCode.trim() // Can be empty string now
+        teamCode.trim() 
       );
       
-      console.log('📦 Registration result:', result);
-      
       if (result.success) {
-        console.log('✅ Registration successful!');
         Alert.alert('Success', 'Account created successfully!');
       } else {
-        console.log('❌ Registration failed:', result.error);
-        console.log('📋 Full error details:', JSON.stringify(result, null, 2));
         Alert.alert('Registration Failed', result.error || 'Registration failed. Please check your details and try again.');
       }
     } catch (error) {
-      console.log('💥 Registration exception:', error);
-      console.log('📋 Error stack:', error.stack);
-      console.log('📋 Error message:', error.message);
       Alert.alert('Error', `Registration failed: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setLoading(false);
-      console.log('🏁 Registration process completed');
     }
   };
 
   return (
     <View style={styles.container}>
       <LinearGradient 
-        colors={['#faf5ff', '#f3e8ff', '#e9d5ff']} // light purple gradient
+        colors={['#faf5ff', '#f3e8ff', '#e9d5ff']} 
         style={styles.backgroundGradient}
       >
         {/* Subtle Pattern Overlay */}
@@ -286,7 +265,7 @@ const RegisterScreen = ({ navigation }) => {
                     disabled={loading || !name || !email || !password}
                   >
                     <LinearGradient
-                      colors={loading ? ['#94a3b8', '#64748b'] : ['#8b5cf6', '#7c3aed']} // purple gradient
+                      colors={loading ? ['#94a3b8', '#64748b'] : ['#8b5cf6', '#7c3aed']} 
                       style={styles.registerButtonGradient}
                     >
                       {loading ? (
@@ -369,7 +348,7 @@ const styles = {
     padding: 24,
   },
 
-  // Header Section
+  
   header: {
     alignItems: 'center',
     marginTop: 20,
@@ -379,15 +358,15 @@ const styles = {
     fontSize: 48,
     fontWeight: '700',
     textAlign: 'center',
-    color: '#8b5cf6', // purple color
+    color: '#8b5cf6', 
     marginBottom: 8,
-    // Shadow properties
+    
     textShadowColor: 'rgba(139, 92, 246, 0.3)',
     textShadowOffset: { width: 2, height: 3 },
     textShadowRadius: 6,
   },
 
-  // Form Section
+  
   formContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -403,7 +382,7 @@ const styles = {
     shadowRadius: 12,
   },
 
-  // Input Styles
+  
   inputGroup: {
     marginBottom: 20,
   },
@@ -443,7 +422,7 @@ const styles = {
     padding: 8,
   },
 
-  // Button Styles
+  
   registerButton: {
     marginTop: 8,
     borderRadius: 12,
@@ -471,7 +450,7 @@ const styles = {
     letterSpacing: 0.5,
   },
 
-  // Footer Section
+  
   footer: {
     marginTop: 32,
     marginBottom: 16,

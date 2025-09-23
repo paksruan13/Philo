@@ -1,6 +1,6 @@
 const userService = require('../services/userService');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 
 const createUser = async (req, res) => {
   const { name, email, teamId } = req.body;

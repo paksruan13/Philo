@@ -80,7 +80,6 @@ model Donation {
   id              String       @id @default(cuid())
   amount          Float
   currency        String       @default("usd")
-  // stripeSessionId String?      @unique  // Commented out - no online payments
   productSaleId   String?      @unique // Link to ProductSale for external sales
   createdAt       DateTime     @default(now())
   user            User?        @relation(fields: [userId], references: [id])
@@ -264,5 +263,14 @@ model ManualPointsAward {
   awardedById String
   awardedBy   User      @relation("AwardedPoints", fields: [awardedById], references: [id])
   createdAt    DateTime @default(now())
+}
+
+model LeaderboardSnapshot {
+  id           String   @id @default(uuid())
+  period       String   // 'daily', 'weekly', 'monthly'
+  rankings     Json     // Cached leaderboard data
+  calculatedAt DateTime @default(now())
+  
+  @@index([period, calculatedAt])
 }
 

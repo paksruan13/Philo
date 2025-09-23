@@ -2,6 +2,7 @@ const photoService = require('../services/photoService');
 const { emitLeaderboardUpdate } = require('../services/leaderboardService');
 const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
 const s3 = require('../config/s3');
+const Busboy = require('busboy');
 
 const uploadPhoto = async (req, res) => {
 
@@ -24,17 +25,89 @@ const uploadPhoto = async (req, res) => {
 };
 
 const uploadProductImage = async (req, res) => {
-  // Check if user is admin or coach
+  
   if (!['ADMIN', 'COACH'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Only admins and coaches can upload product images' });
   }
 
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
   try {
-    const result = await photoService.uploadProductImage(req.file);
+    let file = null;
+    
+    
+    if (req.apiGateway && req.apiGateway.event) {
+      const event = req.apiGateway.event;
+      
+      
+      file = await new Promise((resolve, reject) => {
+        try {
+          let fileData = null;
+          
+          
+          const contentType = event.headers['content-type'] || event.headers['Content-Type'];
+          
+          if (!contentType || !contentType.includes('multipart/form-data')) {
+            resolve(null);
+            return;
+          }
+          
+          
+          let body = event.body;
+          if (event.isBase64Encoded) {
+            body = Buffer.from(event.body, 'base64');
+          } else {
+            body = Buffer.from(event.body, 'utf8');
+          }
+          
+          const busboy = Busboy({ 
+            headers: { 'content-type': contentType },
+            limits: { fileSize: 10 * 1024 * 1024 } 
+          });
+          
+          busboy.on('file', (fieldname, file, info) => {
+            const { filename, encoding, mimeType } = info;
+            
+            const chunks = [];
+            file.on('data', (chunk) => {
+              chunks.push(chunk);
+            });
+            
+            file.on('end', () => {
+              const buffer = Buffer.concat(chunks);
+              fileData = {
+                buffer: buffer,
+                originalname: filename,
+                mimetype: mimeType,
+                size: buffer.length
+              };
+            });
+          });
+          
+          busboy.on('error', (error) => {
+            reject(error);
+          });
+          
+          busboy.on('finish', () => {
+            resolve(fileData);
+          });
+          
+          
+          busboy.write(body);
+          busboy.end();
+          
+        } catch (error) {
+          reject(error);
+        }
+      });
+    } else if (req.file) {
+      
+      file = req.file;
+    }
+    
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const result = await photoService.uploadProductImage(file);
     res.status(201).json(result);
   } catch (err) {
     console.error('Error uploading product image:', err);

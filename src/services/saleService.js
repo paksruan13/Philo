@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma } = require('../config/lambdaDatabase');
 const { updateTeamPoints } = require('./pointsService');
 
 const createSale = async (saleData) => {
@@ -166,7 +166,7 @@ const processSale = async(shirtSize, quantity, userId, teamId, paymentMethod, co
       }
     });
     
-    // Update team points after successful sale
+    
     await updateTeamPoints(teamId);
     
     return sale;
@@ -174,7 +174,7 @@ const processSale = async(shirtSize, quantity, userId, teamId, paymentMethod, co
 };
 
 const createShirtSize = async (size, quantity = 0) => {
-  // Check if size already exists
+  
   const existingSize = await prisma.shirtInventory.findUnique({
     where: { size }
   });
@@ -192,7 +192,7 @@ const createShirtSize = async (size, quantity = 0) => {
 };
 
 const deleteShirtSize = async (size) => {
-  // Check if size exists
+  
   const existingSize = await prisma.shirtInventory.findUnique({
     where: { size }
   });
@@ -201,7 +201,7 @@ const deleteShirtSize = async (size) => {
     throw new Error(`Shirt size ${size} not found`);
   }
 
-  // Check if there are any sales for this size
+  
   const salesCount = await prisma.shirtSale.count({
     where: { shirtSize: size }
   });
@@ -217,7 +217,7 @@ const deleteShirtSize = async (size) => {
 
 const deleteSale = async (saleId, coachId) => {
   return await prisma.$transaction(async (tx) => {
-    // Find the sale
+    
     const sale = await tx.shirtSale.findUnique({
       where: { id: saleId },
       include: { team: true }
@@ -227,23 +227,23 @@ const deleteSale = async (saleId, coachId) => {
       throw new Error('Sale not found');
     }
 
-    // Check if coach has permission to delete this sale
+    
     if (sale.coachId !== coachId) {
       throw new Error('You are not authorized to delete this sale');
     }
 
-    // Restore inventory
+    
     await tx.shirtInventory.update({
       where: { size: sale.shirtSize },
       data: { quantity: { increment: sale.quantity } }
     });
 
-    // Delete the sale
+    
     await tx.shirtSale.delete({
       where: { id: saleId }
     });
 
-    // Update team points
+    
     await updateTeamPoints(sale.teamId);
 
     return { message: 'Sale deleted successfully' };
@@ -251,11 +251,11 @@ const deleteSale = async (saleId, coachId) => {
 };
 
 const getAllUsers = async () => {
-  // Get all users with teams (not restricted to coach's teams)
+  
   const users = await prisma.user.findMany({
     where: {
       teamId: {
-        not: null // Only users that are assigned to a team
+        not: null 
       }
     },
     select: {

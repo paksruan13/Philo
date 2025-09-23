@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,9 +33,13 @@ const LeaderboardScreen = () => {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [nextUpdate, setNextUpdate] = useState(null);
+  const [isCached, setIsCached] = useState(false);
   const flashingItemsRef = React.useRef(new Set());
+  const leaderboardTimerRef = React.useRef(null);
 
-  // Load custom font
+  
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -50,45 +54,125 @@ const LeaderboardScreen = () => {
     loadFonts();
   }, []);
 
+  const getPacificTime = () => {
+    const now = new Date();
+    const pacificOffset = now.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      timeZoneName: 'short'
+    }).includes('PDT') ? -7 : -8;
+    
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (pacificOffset * 3600000));
+  };
 
+  const getNextLeaderboardUpdate = () => {
+    const pacificNow = getPacificTime();
+    const nextUpdate = new Date(pacificNow);
+    
+    nextUpdate.setHours(17, 0, 0, 0);
+    
+    if (pacificNow.getTime() >= nextUpdate.getTime()) {
+      nextUpdate.setDate(nextUpdate.getDate() + 1);
+    }
+    
+    return nextUpdate;
+  };
 
-  const fetchData = async () => {
+  const fetchLeaderboardData = useCallback(async () => {
     try {
-      console.log('🔄 LeaderboardScreen: Starting fetchData...');
-      
       const headers = {
         'Content-Type': 'application/json',
       };
       
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        console.log('🔑 LeaderboardScreen: Token available, length:', token.length);
-      } else {
-        console.log('❌ LeaderboardScreen: No token available');
+      }
+
+      const leaderboardResponse = await fetch(`${API_ROUTES.LEADERBOARD.GET}`, { headers });
+      
+      if (leaderboardResponse.ok) {
+        const leaderboardResponseData = await leaderboardResponse.json();
+        
+        if (leaderboardResponseData.leaderboard) {
+          setLeaderboardData(Array.isArray(leaderboardResponseData.leaderboard) ? leaderboardResponseData.leaderboard : []);
+          setLastUpdated(leaderboardResponseData.lastUpdated);
+          setNextUpdate(leaderboardResponseData.nextUpdate);
+          setIsCached(leaderboardResponseData.isCached);
+        } else {
+          setLeaderboardData(Array.isArray(leaderboardResponseData) ? leaderboardResponseData : []);
+          setLastUpdated(new Date().toISOString());
+          setNextUpdate(null);
+          setIsCached(false);
+        }
+      }
+    } catch (error) {
+      
+    }
+  }, [token]);
+
+  const formatCountdown = (seconds) => {
+    if (seconds <= 0) return 'Updating...';
+    
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      return `${remainingSeconds}s`;
+    }
+  };
+
+  
+  const setupLeaderboardTimer = useCallback(() => {
+    
+    if (leaderboardTimerRef.current) {
+      clearInterval(leaderboardTimerRef.current);
+    }
+
+    const pacificNow = getPacificTime();
+    const nextUpdate = getNextLeaderboardUpdate();
+    const timeUntilNextUpdate = nextUpdate.getTime() - pacificNow.getTime();
+
+    setTimeout(() => {
+      fetchLeaderboardData();
+      
+      leaderboardTimerRef.current = setInterval(() => {
+        fetchLeaderboardData();
+      }, 24 * 60 * 60 * 1000);
+      
+    }, timeUntilNextUpdate);
+  }, [fetchLeaderboardData]);
+
+
+
+  const fetchData = async () => {
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
       
-      console.log('📡 LeaderboardScreen: Making API requests to:');
-      console.log('  - Leaderboard:', API_ROUTES.LEADERBOARD.GET);
-      console.log('  - Statistics:', `${API_ROUTES.LEADERBOARD.GET}/statistics`);
-      console.log('  - Activities:', API_ROUTES.activities.list);
-      console.log('  - Teams:', API_ROUTES.teams.list);
-      console.log('  - My Team:', API_ROUTES.teams.myTeam);
-      
-      // Fetch all data in parallel including user's team data
-      const [leaderboardResponse, statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([
-        // Fetch leaderboard data
-        fetch(`${API_ROUTES.LEADERBOARD.GET}`, { headers }),
+      const [statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([        
         
-        // Fetch statistics (for goal target and total raised)
         fetch(`${API_ROUTES.LEADERBOARD.GET}/statistics`, { headers }),
         
-        // Fetch activities for upcoming events count
+        
         fetch(`${API_ROUTES.activities.list}`, { headers }),
         
-        // Fetch total teams count - use public endpoint instead of admin
+        
         fetch(`${API_ROUTES.teams.list}`, { headers }),
         
-        // Fetch user's team data
+        
         token ? fetchWithTimeout(API_ROUTES.teams.myTeam, {
           method: 'GET',
           headers: {
@@ -96,73 +180,66 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          console.error('❌ LeaderboardScreen: My Team API error:', err);
+          
           return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
 
-      console.log('📥 LeaderboardScreen: API Response status codes:');
-      console.log('  - Leaderboard:', leaderboardResponse.status);
-      console.log('  - Statistics:', statsResponse.status);
-      console.log('  - Activities:', activitiesResponse.status);
-      console.log('  - Teams:', teamsResponse.status);
-      console.log('  - My Team:', teamResponse.status || 'No token');
+      
 
-      // Process API responses
-
-      // Process user's team data
+      
       if (teamResponse.ok) {
         const userTeamData = await teamResponse.json();
-        console.log('✅ LeaderboardScreen: My Team data received:', userTeamData);
         setTeamData(userTeamData);
       } else {
-        console.log('❌ LeaderboardScreen: My Team fetch failed:', teamResponse.status);
         setTeamData(null);
       }
-      
-      // Process leaderboard data
-      if (leaderboardResponse.ok) {
-        const leaderboardData = await leaderboardResponse.json();
-        console.log('✅ LeaderboardScreen: Leaderboard data received:', leaderboardData.length, 'teams');
-        setLeaderboardData(Array.isArray(leaderboardData) ? leaderboardData : []);
-      } else {
-        console.error('❌ LeaderboardScreen: Leaderboard fetch failed:', leaderboardResponse.status);
-        setLeaderboardData([]);
-      }
 
-      // Process statistics data
+      
+      let combinedStats = null;
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        console.log('✅ LeaderboardScreen: Statistics data received:', statsData);
-        setStatistics(statsData);
+        combinedStats = { ...statsData };
+        
+        
+        const donationGoal = combinedStats.donationGoal || 50000;
+        const totalRaised = combinedStats.totalRaised || 0;
+        combinedStats.progressPercentage = donationGoal > 0 ? (totalRaised / donationGoal) * 100 : 0;
       } else {
-        console.error('❌ LeaderboardScreen: Statistics fetch failed:', statsResponse.status);
-        setStatistics(null);
+        
+        
+        combinedStats = {
+          donationGoal: 50000,
+          totalRaised: 0,
+          progressPercentage: 0
+        };
       }
 
-      // Process activities data
+      setStatistics(combinedStats);
+
+      
       if (activitiesResponse.ok) {
         const activitiesData = await activitiesResponse.json();
         setActivities(Array.isArray(activitiesData) ? activitiesData : []);
         
-        // Convert activities to events format
+        
         const convertedEvents = activitiesData.map((activity, index) => {
-          // Use startDate if available, otherwise fallback to createdAt
+          
           const eventDate = activity.startDate ? new Date(activity.startDate) : 
                            activity.createdAt ? new Date(activity.createdAt) : null;
           
           const endDate = activity.endDate ? new Date(activity.endDate) : null;
           
-          // Get current time in PST
+          
           const now = new Date();
-          const pstOffset = -8; // PST is UTC-8
+          const pstOffset = -8; 
           const pstNow = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
           
-          // Convert event dates to PST for comparison
+          
           const eventDatePST = eventDate ? new Date(eventDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
           const endDatePST = endDate ? new Date(endDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
           
-          // Determine if activity is upcoming, ongoing, or past (using PST)
+          
           let status = 'upcoming';
           if (endDatePST && pstNow > endDatePST) {
             status = 'past';
@@ -170,7 +247,7 @@ const LeaderboardScreen = () => {
             status = 'ongoing';
           }
           
-          // Check if event is today (using PST)
+          
           const isToday = eventDatePST && 
             eventDatePST.toDateString() === pstNow.toDateString();
           
@@ -179,7 +256,7 @@ const LeaderboardScreen = () => {
               month: 'short', 
               day: 'numeric', 
               year: 'numeric',
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : 'TBD');
           
           return {
@@ -190,23 +267,23 @@ const LeaderboardScreen = () => {
               hour: 'numeric', 
               minute: '2-digit',
               hour12: true,
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : 'TBD',
             endDate: endDate ? endDate.toLocaleDateString('en-US', { 
               month: 'short', 
               day: 'numeric',
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : null,
             endTime: endDate ? endDate.toLocaleTimeString('en-US', { 
               hour: 'numeric', 
               minute: '2-digit',
               hour12: true,
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : null,
             location: activity.location || 'Online',
             attendees: activity.submissions?.length || 0,
             category: activity.categoryType || activity.type || 'General',
-            trending: (activity.submissions?.length || 0) > 5, // Mark as trending if more than 5 submissions
+            trending: (activity.submissions?.length || 0) > 5, 
             points: activity.points || 0,
             description: activity.description || '',
             status: status,
@@ -215,30 +292,30 @@ const LeaderboardScreen = () => {
           };
         });
         
-        // Filter to only show active/published activities and sort by start date
+        
         const filteredEvents = convertedEvents
           .filter(event => event.isActive)
           .sort((a, b) => {
-            // Sort by status (ongoing first, then upcoming, then past)
+            
             const statusOrder = { ongoing: 1, upcoming: 2, past: 3 };
             if (statusOrder[a.status] !== statusOrder[b.status]) {
               return statusOrder[a.status] - statusOrder[b.status];
             }
-            // Within same status, sort by date
+            
             return new Date(a.date) - new Date(b.date);
           });
         
         setUpcomingEvents(filteredEvents);
       } else {
-        console.error('Activities fetch failed:', activitiesResponse.status);
+        
         setActivities([]);
         setUpcomingEvents([]);
       }
 
-      // Process teams data
+      
       if (teamsResponse.ok) {
         const teamsData = await teamsResponse.json();
-        // Handle different response formats
+        
         if (Array.isArray(teamsData)) {
           setTotalTeams(teamsData.length);
         } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
@@ -249,13 +326,13 @@ const LeaderboardScreen = () => {
           setTotalTeams(0);
         }
       } else {
-        console.error('Teams fetch failed:', teamsResponse.status);
+        
         setTotalTeams(0);
       }
 
     } catch (error) {
-      console.error('Data fetch error:', error);
-      setLeaderboardData([]);
+      
+      
       setStatistics(null);
       setUpcomingEvents([]);
       setActivities([]);
@@ -268,12 +345,38 @@ const LeaderboardScreen = () => {
   };
 
   useEffect(() => {
+    
     fetchData();
+    
+    
+    fetchLeaderboardData();
+    setupLeaderboardTimer();
+    
+    
+    return () => {
+      if (leaderboardTimerRef.current) {
+        clearInterval(leaderboardTimerRef.current);
+      }
+    };
   }, []);
 
-  const onRefresh = () => {
+  
+  useEffect(() => {
+    if (token) {
+      setupLeaderboardTimer();
+    }
+  }, [token]);
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchData();
+    try {
+      
+      await fetchData();
+    } catch (error) {
+      
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getRankIcon = (rank) => {
@@ -289,24 +392,30 @@ const LeaderboardScreen = () => {
 
   const getRankColor = (rank) => {
     switch (rank) {
-      case 1: return '#FF6B6B'; // Vibrant coral red
-      case 2: return '#4ECDC4'; // Turquoise teal
-      case 3: return '#45B7D1'; // Sky blue
-      default: return '#6C5CE7'; // Purple
+      case 1: return '#FF6B6B'; 
+      case 2: return '#4ECDC4'; 
+      case 3: return '#45B7D1'; 
+      default: return '#6C5CE7'; 
     }
   };
 
   const getRankGradient = (rank) => {
     switch (rank) {
-      case 1: return ['#FF6B6B', '#FF8E53']; // Coral to orange gradient
-      case 2: return ['#4ECDC4', '#44A08D']; // Teal gradient  
-      case 3: return ['#45B7D1', '#96C93D']; // Blue to green gradient
-      default: return ['#6C5CE7', '#A29BFE']; // Purple gradient
+      case 1: return ['#FF6B6B', '#FF8E53']; 
+      case 2: return ['#4ECDC4', '#44A08D']; 
+      case 3: return ['#45B7D1', '#96C93D']; 
+      default: return ['#6C5CE7', '#A29BFE']; 
     }
   };
 
-  // Header Component
-  const AppHeader = () => (
+  
+  const teamName = useMemo(() => {
+    const name = teamData?.team?.name || user?.teamName || 'Team';
+    return name;
+  }, [teamData?.team?.name, user?.teamName]);
+
+  
+  const AppHeader = React.memo(() => (
     <View style={newStyles.headerContainer}>
       <View style={newStyles.headerContent}>
         <View style={newStyles.logoContainer}>
@@ -336,25 +445,15 @@ const LeaderboardScreen = () => {
             newStyles.teamCheerText,
             fontLoaded ? { fontFamily: 'BitcountGridDouble' } : {}
           ]}>
-            Go {(() => {
-              const teamName = teamData?.team?.name || user?.teamName || 'Team';
-              console.log('🏆 LeaderboardScreen: Team name for header:', {
-                teamDataTeamName: teamData?.team?.name,
-                userTeamName: user?.teamName,
-                finalTeamName: teamName,
-                teamData: teamData,
-                user: user
-              });
-              return teamName;
-            })()}!
+            Go {teamName}!
           </Text>
         </View>
       </View>
     </View>
-  );
+  ));
 
-  // Quick Stats Grid Component
-  const QuickStatsGrid = ({ statistics, activities, totalTeams }) => {
+  
+  const QuickStatsGrid = React.memo(({ statistics, activities, totalTeams }) => {
     const isLoading = !statistics || loading;
     const stats = statistics || { 
       donationGoal: 50000, 
@@ -362,10 +461,10 @@ const LeaderboardScreen = () => {
       progressPercentage: 0
     };
 
-    // Calculate upcoming events count from activities
+    
     const upcomingEventsCount = activities ? activities.length : 0;
 
-    const statsData = [
+    const statsData = useMemo(() => [
       {
         icon: 'flag',
         value: isLoading ? '$--' : `$${(stats.donationGoal || 0).toLocaleString()}`,
@@ -391,7 +490,7 @@ const LeaderboardScreen = () => {
         label: 'Total Raised',
         color: '#8b5cf6',
       },
-    ];
+    ], [isLoading, stats.donationGoal, stats.progressPercentage, stats.totalRaised, upcomingEventsCount, totalTeams]);
 
     return (
       <View style={newStyles.statsGrid}>
@@ -462,9 +561,9 @@ const LeaderboardScreen = () => {
         </View>
       </View>
     );
-  };
+  });
 
-  // Status Badge Helper Function
+  
   const getStatusBadge = (status) => {
     switch (status) {
       case 'ongoing':
@@ -488,20 +587,120 @@ const LeaderboardScreen = () => {
     }
   };
 
-  // Animated Status Badge Component
+  
+  const CountdownDisplay = React.memo(() => {
+    const [localCountdown, setLocalCountdown] = useState(0);
+    const localTimerRef = React.useRef(null);
+    
+    useEffect(() => {
+      
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current);
+      }
+      
+      
+      const updateCountdown = () => {
+        const pacificNow = getPacificTime();
+        const nextUpdate = getNextLeaderboardUpdate();
+        const timeUntilNextUpdate = nextUpdate.getTime() - pacificNow.getTime();
+        const secondsLeft = Math.max(0, Math.floor(timeUntilNextUpdate / 1000));
+        return secondsLeft;
+      };
+      
+      
+      setLocalCountdown(updateCountdown());
+      
+      
+      localTimerRef.current = setInterval(() => {
+        setLocalCountdown(updateCountdown());
+      }, 1000);
+      
+      
+      return () => {
+        if (localTimerRef.current) {
+          clearInterval(localTimerRef.current);
+        }
+      };
+    }, []); 
+    
+    return (
+      <Text style={[
+        newStyles.sectionSubtext, 
+        { 
+          color: '#f59e0b', 
+          fontWeight: '600' 
+        }
+      ]}>
+        Next update in: {formatCountdown(localCountdown)}
+      </Text>
+    );
+  });
+
+  
+  const handleActivitySelect = useCallback((item) => {
+    
+    setSelectedActivity(null);
+    setShowActivityDetails(false);
+    
+    
+    setTimeout(() => {
+      setSelectedActivity(item);
+      setShowActivityDetails(true);
+    }, 50);
+  }, []);
+
+  
+  const handleModalClose = useCallback(() => {
+    setShowActivityDetails(false);
+    setTimeout(() => {
+      setSelectedActivity(null);
+    }, 200);
+  }, []);
+
+  
+  const handleLeaderboardOpen = useCallback(() => {
+    setShowFullLeaderboard(true);
+  }, []);
+
+  const handleLeaderboardClose = useCallback(() => {
+    setShowFullLeaderboard(false);
+  }, []);
+  
+  
   const AnimatedStatusBadge = React.memo(({ item, statusBadge }) => {
     const flashAnimation = React.useRef(new Animated.Value(1)).current;
     const hasStartedFlashing = React.useRef(false);
     const animationRef = React.useRef(null);
+    const animationTimeout = React.useRef(null);
+    const itemIdRef = React.useRef(item.id);
+    const statusRef = React.useRef(item.status);
     
     React.useEffect(() => {
-      // Only start flashing for ongoing items that haven't started yet
+      
+      if (itemIdRef.current !== item.id || statusRef.current !== item.status) {
+        itemIdRef.current = item.id;
+        statusRef.current = item.status;
+        hasStartedFlashing.current = false;
+        
+        
+        if (animationTimeout.current) {
+          clearTimeout(animationTimeout.current);
+          animationTimeout.current = null;
+        }
+        if (animationRef.current) {
+          animationRef.current.stop();
+          animationRef.current = null;
+        }
+        flashAnimation.setValue(1);
+      }
+      
+      
       if (item.status === 'ongoing' && !hasStartedFlashing.current) {
         hasStartedFlashing.current = true;
         
-        // Use setTimeout to defer animation start to avoid insertion effect warnings
+        
         const timeoutId = setTimeout(() => {
-          // Start flashing animation
+          
           const flashSequence = Animated.sequence([
             Animated.timing(flashAnimation, {
               toValue: 0.3,
@@ -515,38 +714,53 @@ const LeaderboardScreen = () => {
             }),
           ]);
           
-          // Repeat flashing for 5 seconds (approximately 8 flashes)
-          const flashLoop = Animated.loop(flashSequence, { iterations: 8 });
+          
+          const flashLoop = Animated.loop(flashSequence);
           animationRef.current = flashLoop;
           
-          flashLoop.start(() => {
-            // Stop flashing after 5 seconds
-            flashAnimation.setValue(1);
-            animationRef.current = null;
-          });
+          
+          flashLoop.start();
+          
+          
+          animationTimeout.current = setTimeout(() => {
+            if (animationRef.current) {
+              animationRef.current.stop();
+              animationRef.current = null;
+            }
+            flashAnimation.setValue(1); 
+            hasStartedFlashing.current = false; 
+          }, 5000); 
+          
         }, 0);
         
         return () => {
           clearTimeout(timeoutId);
+          if (animationTimeout.current) {
+            clearTimeout(animationTimeout.current);
+          }
           if (animationRef.current) {
             animationRef.current.stop();
             flashAnimation.setValue(1);
           }
         };
       }
-    }, [item.status, item.id, flashAnimation]);
+    }, []); 
 
-    // Reset flashing state when item status changes from ongoing
+    
     React.useEffect(() => {
-      if (item.status !== 'ongoing') {
+      if (item.status !== 'ongoing' && hasStartedFlashing.current) {
         hasStartedFlashing.current = false;
+        if (animationTimeout.current) {
+          clearTimeout(animationTimeout.current);
+          animationTimeout.current = null;
+        }
         if (animationRef.current) {
           animationRef.current.stop();
           animationRef.current = null;
         }
         flashAnimation.setValue(1);
       }
-    }, [item.status, flashAnimation]);
+    }, [item.status]);
 
     return (
       <Animated.View 
@@ -568,14 +782,14 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Upcoming Events Section Component
-  const UpcomingEventsSection = ({ events }) => {
+  
+  const UpcomingEventsSection = React.memo(({ events }) => {
 
-    const renderEventCard = ({ item }) => {
+    const renderEventCard = useCallback(({ item }) => {
       const statusBadge = getStatusBadge(item.status);
       
       return (
-        <TouchableOpacity style={newStyles.eventCard} activeOpacity={0.9}>
+        <TouchableOpacity style={newStyles.eventCard} activeOpacity={0.9} key={item.id}>
           <View style={newStyles.eventHeader}>
             <Text style={newStyles.eventTitle}>{item.title}</Text>
             <AnimatedStatusBadge item={item} statusBadge={statusBadge} />
@@ -606,8 +820,7 @@ const LeaderboardScreen = () => {
           <TouchableOpacity 
             style={newStyles.staticJoinButton}
             onPress={() => {
-              setSelectedActivity(item);
-              setShowActivityDetails(true);
+              handleActivitySelect(item);
             }}
           >
             <LinearGradient
@@ -620,7 +833,7 @@ const LeaderboardScreen = () => {
           </TouchableOpacity>
         </TouchableOpacity>
       );
-    };
+    }, [handleActivitySelect]);
 
     return (
       <View style={newStyles.sectionContainer}>
@@ -651,36 +864,31 @@ const LeaderboardScreen = () => {
         )}
       </View>
     );
-  };
+  });
 
-  // Activity Details Modal Component
-  const ActivityDetailsModal = () => {
-    if (!selectedActivity) return null;
+  
+  const ActivityDetailsModal = React.memo(() => {
+    
+    const modalVisible = Boolean(showActivityDetails && selectedActivity);
+    
+    if (!modalVisible || !selectedActivity) return null;
 
     const statusBadge = getStatusBadge(selectedActivity.status);
 
-    const handleCloseModal = () => {
-      setShowActivityDetails(false);
-      // Clear selected activity after a brief delay to prevent flicker
-      setTimeout(() => {
-        setSelectedActivity(null);
-      }, 200);
-    };
-
     return (
       <Modal
-        key={selectedActivity?.id || 'activity-modal'}
+        key={`activity-modal-${selectedActivity.id}`}
         animationType="fade"
         transparent={true}
-        visible={showActivityDetails}
-        onRequestClose={handleCloseModal}
+        visible={modalVisible}
+        onRequestClose={handleModalClose}
         statusBarTranslucent={true}
       >
         <View style={newStyles.activityModalOverlay}>
           <TouchableOpacity 
             style={newStyles.activityModalOverlayTouch}
             activeOpacity={1}
-            onPress={handleCloseModal}
+            onPress={handleModalClose}
           />
           <View style={newStyles.activityModalContent}>
             <View style={newStyles.activityModalHeader}>
@@ -690,7 +898,7 @@ const LeaderboardScreen = () => {
               </View>
               <TouchableOpacity 
                 style={newStyles.activityCloseButton}
-                onPress={handleCloseModal}
+                onPress={handleModalClose}
               >
                 <Ionicons name="close" size={20} color="#6b7280" />
               </TouchableOpacity>
@@ -753,14 +961,14 @@ const LeaderboardScreen = () => {
         </View>
       </Modal>
     );
-  };
+  });
 
-  // Leaderboard Section Component - Podium Style
-  const LeaderboardSection = ({ teams }) => {
+  
+  const LeaderboardSection = React.memo(({ teams }) => {
     const safeTeams = teams || [];
     const topThreeTeams = safeTeams.slice(0, 3);
     
-    const renderPodiumTeam = (team, rank) => {
+    const renderPodiumTeam = useCallback((team, rank) => {
       const isUserTeam = team.name === teamData?.team?.name || 
                         team.name === user?.teamName || 
                         team.id === user?.teamId;
@@ -806,14 +1014,12 @@ const LeaderboardScreen = () => {
           </LinearGradient>
         </View>
       );
-    };
+    }, [teamData?.team?.name, user?.teamName, user?.teamId]);
 
-    const renderFullLeaderboardItem = ({ item, index }) => {
+    const renderFullLeaderboardItem = useCallback(({ item, index }) => {
       const rank = index + 1;
-      const isUserTeam = item.name === teamData?.team?.name || 
-                        item.name === user?.teamName || 
-                        item.id === user?.teamId;
-      
+      const isUserTeam = item.name === teamData?.team?.name || item.name === user?.teamName || item.id === user?.teamId;
+
       return (
         <View style={[
           newStyles.fullLeaderboardItem,
@@ -851,7 +1057,7 @@ const LeaderboardScreen = () => {
           </View>
         </View>
       );
-    };
+    }, [teamData?.team?.name, user?.teamName, user?.teamId]);
 
     return (
       <>
@@ -863,7 +1069,7 @@ const LeaderboardScreen = () => {
             </View>
             <TouchableOpacity 
               style={newStyles.viewAllButton}
-              onPress={() => setShowFullLeaderboard(true)}
+              onPress={handleLeaderboardOpen}
             >
               <Text style={newStyles.viewAllText}>View Full</Text>
               <Ionicons name="chevron-forward" size={16} color="#0891b2" />
@@ -910,6 +1116,26 @@ const LeaderboardScreen = () => {
               </View>
             </View>
           )}
+          
+          {/* Simple countdown display below podium */}
+          <View style={{ 
+            alignItems: 'center', 
+            paddingVertical: 8,
+            paddingHorizontal: 16
+          }}>
+            <View style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <Ionicons 
+                name="refresh-outline" 
+                size={16} 
+                color="#6b7280" 
+              />
+              <CountdownDisplay />
+            </View>
+          </View>
         </View>
 
         {/* Full Leaderboard Modal */}
@@ -918,14 +1144,14 @@ const LeaderboardScreen = () => {
           animationType="fade"
           transparent={true}
           visible={showFullLeaderboard}
-          onRequestClose={() => setShowFullLeaderboard(false)}
+          onRequestClose={handleLeaderboardClose}
           statusBarTranslucent={true}
         >
           <View style={newStyles.modalOverlay}>
             <TouchableOpacity 
               style={newStyles.modalOverlayTouch}
               activeOpacity={1}
-              onPress={() => setShowFullLeaderboard(false)}
+              onPress={handleLeaderboardClose}
             />
             <View style={newStyles.modalContent}>
               <View style={newStyles.modalHeader}>
@@ -935,7 +1161,7 @@ const LeaderboardScreen = () => {
                 </View>
                 <TouchableOpacity 
                   style={newStyles.closeButton}
-                  onPress={() => setShowFullLeaderboard(false)}
+                  onPress={handleLeaderboardClose}
                 >
                   <Ionicons name="close" size={20} color="#6b7280" />
                 </TouchableOpacity>
@@ -956,7 +1182,7 @@ const LeaderboardScreen = () => {
         </Modal>
       </>
     );
-  };
+  });
 
 
 
@@ -1025,9 +1251,9 @@ const LeaderboardScreen = () => {
   );
 };
 
-// New Design System Styles
+
 const newStyles = {
-  // Main Container
+  
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -1049,7 +1275,7 @@ const newStyles = {
     paddingBottom: 20,
   },
 
-  // Loading States
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1072,7 +1298,7 @@ const newStyles = {
     fontWeight: '600',
   },
 
-  // Header Styles
+  
   headerContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
@@ -1101,7 +1327,7 @@ const newStyles = {
     fontWeight: 'bold',
     backgroundColor: 'transparent',
     letterSpacing: -0.5,
-    // Shadow properties
+    
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
@@ -1120,7 +1346,7 @@ const newStyles = {
     fontWeight: '800',
     color: '#FF6B6B',
     letterSpacing: -0.3,
-    fontFamily: 'System', // iOS system font for consistency
+    fontFamily: 'System', 
     textTransform: 'uppercase',
   },
 
@@ -1150,7 +1376,7 @@ const newStyles = {
     alignItems: 'center',
   },
 
-  // Quick Stats Grid - 2x2 Layout
+  
   statsGrid: {
     paddingHorizontal: 16,
     paddingTop: 20,
@@ -1223,10 +1449,10 @@ const newStyles = {
     fontWeight: '600',
   },
 
-  // Section Styles
+  
   sectionContainer: {
     paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingTop: 12,
   },
 
   sectionHeader: {
@@ -1260,14 +1486,51 @@ const newStyles = {
     marginRight: 4,
   },
 
-  // Events Styles
+  
+  updateInfoContainer: {
+    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 231, 235, 0.6)',
+  },
+
+  updateInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  updateInfoText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 6,
+    flex: 1,
+  },
+
+  cachedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+
+  cachedText: {
+    fontSize: 10,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+
+  
   eventsList: {
     paddingLeft: 16,
   },
 
   eventCard: {
     width: 280,
-    height: 200, // Increased height for better spacing
+    height: 200, 
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
@@ -1279,7 +1542,7 @@ const newStyles = {
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    justifyContent: 'space-between', // Distribute content evenly
+    justifyContent: 'space-between', 
   },
 
   eventHeader: {
@@ -1312,15 +1575,15 @@ const newStyles = {
   },
 
   eventDetails: {
-    flex: 1, // Take up available space between header and button
+    flex: 1, 
     justifyContent: 'flex-start',
-    marginBottom: 16, // Balanced space between details and button
+    marginBottom: 16, 
   },
 
   eventDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8, // Increased spacing between detail rows
+    marginBottom: 8, 
   },
 
   eventDetailText: {
@@ -1354,7 +1617,7 @@ const newStyles = {
   staticJoinButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginTop: 'auto', // Push to bottom of card
+    marginTop: 'auto', 
   },
 
   staticJoinButtonGradient: {
@@ -1373,17 +1636,17 @@ const newStyles = {
     letterSpacing: -0.2,
   },
 
-  // Podium Leaderboard Styles - iOS Native Feel
+  
   podiumContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 24,
     padding: 24,
     marginHorizontal: 16,
     marginVertical: 8,
-    // iOS-style backdrop blur simulation
+    
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.6)',
-    // Subtle shadow for depth
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04,
@@ -1433,7 +1696,7 @@ const newStyles = {
     borderColor: 'rgba(0, 0, 0, 0.04)',
     width: '100%',
     alignItems: 'center',
-    // iOS card shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -1454,7 +1717,7 @@ const newStyles = {
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    // iOS icon shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -1465,7 +1728,7 @@ const newStyles = {
   teamNamePodium: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1D1D1F', // iOS system text color
+    color: '#1D1D1F', 
     textAlign: 'center',
     marginBottom: 6,
     letterSpacing: -0.2,
@@ -1474,7 +1737,7 @@ const newStyles = {
   teamPointsPodium: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6D6D70', // iOS secondary text
+    color: '#6D6D70', 
     textAlign: 'center',
     letterSpacing: -0.1,
   },
@@ -1485,7 +1748,7 @@ const newStyles = {
     borderTopRightRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    // iOS podium shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -1498,14 +1761,14 @@ const newStyles = {
     fontWeight: '700',
     color: 'white',
     fontFamily: 'Helvetica-LightOblique',
-    // iOS number shadow
+    
     textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     letterSpacing: -0.5,
   },
 
-  // Full Leaderboard Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1654,7 +1917,7 @@ const newStyles = {
     fontWeight: '500',
   },
 
-  // Empty States
+  
   emptyLeaderboard: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -1685,7 +1948,7 @@ const newStyles = {
     height: 20,
   },
 
-  // Activity Details Modal Styles
+  
   activityModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

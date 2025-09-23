@@ -1,22 +1,11 @@
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { prisma } = require('../config/database');
-const s3 = require('../config/s3');
-const { PutObjectCommand, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { prisma } = require('../config/lambdaDatabase');
+const { s3Client } = require('../config/s3');
+const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  endpoint: process.env.S3_ENDPOINT,
-  forcePathStyle: true,
-  credentials:{ 
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  }
-})
 
 const uploadPhoto = async (file, teamId) => {
   try {
-    console.log('  Access Key:', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '***');
 
     const bucketName = process.env.S3_BUCKET_NAME;
     const key = `photos/${uuidv4()}-${file.originalname}`;
@@ -31,7 +20,7 @@ const uploadPhoto = async (file, teamId) => {
     const command = new PutObjectCommand(uploadParams);
     await s3Client.send(command);
 
-    const photoUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const photoUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
     const photo = await prisma.photo.create({
       data:{ 
@@ -145,18 +134,18 @@ const uploadProductImage = async (file) => {
     const command = new PutObjectCommand(uploadParams);
     await s3Client.send(command);
 
-    // Generate a signed URL that expires in 7 days (maximum allowed)
-    const getObjectParams = {
+    
+    const getObjectCommand = new GetObjectCommand({
       Bucket: bucketName,
-      Key: key,
-    };
-
-    const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
-      expiresIn: 604800, // 7 days in seconds (maximum allowed)
+      Key: key
     });
+    
+    const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 }); 
 
+    
     return {
-      url: signedUrl,
+      url: signedUrl, 
+      s3Key: key,     
       fileName: key,
       success: true
     };

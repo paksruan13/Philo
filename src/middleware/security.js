@@ -8,13 +8,13 @@ const securityHeaders = helmet({
       defaultSrc: ["'self'"],
       styleSrc: [
         "'self'", 
-        "'unsafe-inline'", // Allow inline styles for Tailwind
+        "'unsafe-inline'",
         "https://fonts.googleapis.com",
         "https://cdn.jsdelivr.net"
       ],
       scriptSrc: [
         "'self'",
-        "'unsafe-eval'", // Required for development
+        "'unsafe-eval'", 
         "https://cdn.jsdelivr.net"
       ],
       fontSrc: [
@@ -31,7 +31,7 @@ const securityHeaders = helmet({
       ],
       connectSrc: [
         "'self'",
-        "wss://localhost:*", // WebSocket connections
+        "wss://localhost:*",
         "ws://localhost:*"
       ],
       frameSrc: ["'none'"],

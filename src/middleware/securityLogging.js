@@ -6,13 +6,32 @@ const path = require('path');
  */
 class SecurityLogger {
   constructor() {
-    this.logDir = path.join(process.cwd(), 'logs');
-    this.securityLogFile = path.join(this.logDir, 'security.log');
-    this.errorLogFile = path.join(this.logDir, 'errors.log');
     
-    // Ensure log directory exists
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
+    this.isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    if (this.isLambda) {
+      this.logDir = null;
+      this.securityLogFile = null;
+      this.errorLogFile = null;
+    } else {
+      
+      this.logDir = path.join(process.cwd(), 'logs');
+      this.securityLogFile = path.join(this.logDir, 'security.log');
+      this.errorLogFile = path.join(this.logDir, 'errors.log');
+      
+      
+      try {
+        if (!fs.existsSync(this.logDir)) {
+          fs.mkdirSync(this.logDir, { recursive: true });
+        }
+      } catch (err) {
+        console.warn('Unable to create log directory:', err.message);
+        
+        this.isLambda = true;
+        this.logDir = null;
+        this.securityLogFile = null;
+        this.errorLogFile = null;
+      }
     }
   }
 
@@ -25,7 +44,7 @@ class SecurityLogger {
       event,
       details: {
         ...details,
-        // Remove sensitive data
+        
         password: details.password ? '[REDACTED]' : undefined,
         token: details.token ? '[REDACTED]' : undefined,
         secret: details.secret ? '[REDACTED]' : undefined,
@@ -35,13 +54,22 @@ class SecurityLogger {
       userId: details.userId || null
     };
 
-    // Write to security log
+    
     const logLine = JSON.stringify(logEntry) + '\n';
-    fs.appendFileSync(this.securityLogFile, logLine);
+    
+    if (this.isLambda) {
+      
+    } else {
+      
+      try {
+        fs.appendFileSync(this.securityLogFile, logLine);
+      } catch (err) {
+        console.warn('Unable to write security log to file:', err.message);
+      }
+    }
 
-    // Console log for development
+    
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔒 Security Event: ${event}`, details);
     }
   }
 
@@ -99,7 +127,7 @@ class SecurityLogger {
  */
 const createErrorHandler = (securityLogger) => {
   return (err, req, res, next) => {
-    // Log error details
+    
     const errorDetails = {
       message: err.message,
       stack: err.stack,
@@ -111,11 +139,23 @@ const createErrorHandler = (securityLogger) => {
       timestamp: new Date().toISOString()
     };
 
-    // Log to file
+    
     const errorLine = JSON.stringify(errorDetails) + '\n';
-    fs.appendFileSync(path.join(process.cwd(), 'logs', 'errors.log'), errorLine);
+    
+    if (this.isLambda) {
+      
+      console.error('🔒 ERROR_LOG:', errorDetails);
+    } else {
+      
+      try {
+        fs.appendFileSync(path.join(process.cwd(), 'logs', 'errors.log'), errorLine);
+      } catch (err) {
+        console.warn('Unable to write error log to file:', err.message);
+        console.error('🔒 ERROR_LOG:', errorDetails);
+      }
+    }
 
-    // Security-sensitive error logging
+    
     if (err.status === 401 || err.status === 403) {
       securityLogger.logSecurityEvent('UNAUTHORIZED_ACCESS', {
         url: req.originalUrl,
@@ -125,9 +165,9 @@ const createErrorHandler = (securityLogger) => {
       });
     }
 
-    // Don't leak error details in production
+    
     if (process.env.NODE_ENV === 'production') {
-      // Generic error messages for security
+      
       const safeErrors = {
         400: 'Bad Request',
         401: 'Unauthorized',
@@ -144,7 +184,7 @@ const createErrorHandler = (securityLogger) => {
         requestId: req.id || 'unknown'
       });
     } else {
-      // Development - show detailed errors
+      
       res.status(err.status || 500).json({
         error: err.message,
         stack: err.stack,
@@ -171,7 +211,7 @@ const addSecurityLogging = (securityLogger) => {
     const originalSend = res.send;
     
     res.send = function(data) {
-      // Log suspicious status codes
+      
       if (res.statusCode >= 400) {
         let responseSize = 0;
         try {
@@ -185,7 +225,7 @@ const addSecurityLogging = (securityLogger) => {
             responseSize = Buffer.byteLength(String(data));
           }
         } catch (err) {
-          responseSize = 0; // Fallback if size calculation fails
+          responseSize = 0; 
         }
         
         securityLogger.logSecurityEvent('HTTP_ERROR', {
@@ -210,10 +250,10 @@ const addSecurityLogging = (securityLogger) => {
  */
 const createAttackDetector = (securityLogger) => {
   const suspiciousPatterns = [
-    /(\<script\>|\<\/script\>)/gi, // XSS attempts
-    /(union\s+select|drop\s+table|insert\s+into)/gi, // SQL injection
-    /(\.\.\/|\.\.\\)/g, // Directory traversal
-    /(eval\s*\(|javascript:)/gi, // Code injection
+    /(\<script\>|\<\/script\>)/gi, 
+    /(union\s+select|drop\s+table|insert\s+into)/gi, 
+    /(\.\.\/|\.\.\\)/g, 
+    /(eval\s*\(|javascript:)/gi, 
   ];
 
   return (req, res, next) => {
@@ -223,7 +263,7 @@ const createAttackDetector = (securityLogger) => {
           if (pattern.test(obj)) {
             securityLogger.logSuspiciousActivity('POTENTIAL_ATTACK', {
               pattern: pattern.toString(),
-              input: obj.substring(0, 100), // Log first 100 chars
+              input: obj.substring(0, 100), 
               location,
               ip: req.ip,
               userAgent: req.get('User-Agent'),
@@ -238,7 +278,7 @@ const createAttackDetector = (securityLogger) => {
       }
     };
 
-    // Check request parameters
+    
     checkForAttacks(req.query, 'query');
     checkForAttacks(req.body, 'body');
     checkForAttacks(req.params, 'params');

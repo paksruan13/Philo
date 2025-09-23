@@ -1,0 +1,144 @@
+service: sigepbounce-api-lambda
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-2  # Change to your preferred region
+  stage: ${opt:stage, 'dev'}
+  timeout: 29  # Match API Gateway timeout
+  memorySize: 1024  # Adjust based on needs
+  
+  # Use existing S3 bucket for deployments
+  deploymentBucket:
+    name: projectphi-photos
+    serverSideEncryption: AES256
+  
+  # CloudWatch and monitoring
+  logs:
+    restApi: true
+    level: INFO
+  
+  tracing:
+    lambda: true  # Enable X-Ray tracing
+    apiGateway: true
+  
+  # API Gateway configuration for binary media types
+  apiGateway:
+    binaryMediaTypes:
+      - 'multipart/form-data'
+      - 'image/jpeg'
+      - 'image/jpg'
+      - 'image/png'
+      - 'image/gif'
+      - 'image/webp'
+  
+  # Environment variables
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    DATABASE_URL: ${env:DATABASE_URL}
+    JWT_SECRET: ${env:JWT_SECRET}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
+    ENCRYPTION_KEY: ${env:ENCRYPTION_KEY}
+    HASH_SALT: ${env:HASH_SALT}
+    PASSWORD_PEPPER: ${env:PASSWORD_PEPPER}
+    REDIS_URL: ${env:REDIS_URL, ''}
+    ENABLE_QUERY_MONITORING: ${env:ENABLE_QUERY_MONITORING, 'false'}
+    
+  # IAM permissions
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+        - s3:PutObjectAcl
+      Resource: "arn:aws:s3:::${env:S3_BUCKET_NAME}/*"
+    - Effect: Allow
+      Action:
+        - rds:DescribeDBInstances
+        - rds:Connect
+      Resource: "*"
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - X-Request-ID
+            allowCredentials: true
+      - http:
+          path: /
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - X-Request-ID
+            allowCredentials: true
+  
+  # Scheduled leaderboard update - Daily at midnight UTC
+  updateLeaderboard:
+    handler: handler.updateLeaderboard
+    timeout: 60  # 1 minute timeout for leaderboard calculation
+    events:
+      - schedule: 
+          rate: cron(0 0 * * ? *)  # Daily at 00:00 UTC
+          description: "Daily leaderboard update at midnight"
+          input:
+            action: "updateLeaderboard"
+
+plugins:
+  - serverless-offline  # For local development
+  # - serverless-domain-manager  # For custom domain (disabled for initial deployment)
+
+custom:
+  # Custom domain configuration (optional - disabled for initial deployment)
+  # customDomain:
+  #   domainName: api.sigepbounce.com
+  #   basePath: ''
+  #   stage: ${self:provider.stage}
+  #   createRoute53Record: true
+  #   certificateName: '*.sigepbounce.com'  # Your SSL certificate
+    
+  # Serverless offline config for local testing
+  serverless-offline:
+    httpPort: 4243
+    lambdaPort: 4244
+
+package:
+  exclude:
+    - .git/**
+    - .env
+    - test/**
+    - logs/**
+    - docker-compose.yml
+    - Dockerfile
+    - frontend/**
+    - mobile/**
+    - frontend-react-native/**
+    - README.md
+    - '*.log'
+    - node_modules/.cache/**
+    - node_modules/.bin/**
+  include:
+    - src/**
+    - handler.js
+    - package.json
+    - prisma/**
+    - node_modules/**

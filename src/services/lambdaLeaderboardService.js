@@ -52,68 +52,79 @@ const leaderboard = teams.map((team, index) => {
       shirtSaleCount,
       totalShirtSales,
       approvedPhotosCount,
-      activityPoints,
-      photoCount: team._count.photos,
-      activitySubmissions: team._count.activitySubmissions,
-    },
-    createdAt: team.createdAt
+      activityPoints
+    }
   };
 });
 
-  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
-  
-  return leaderboard.map((team, index) => ({
-    ...team,
-    rank: index + 1,
-  }));
+leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+leaderboard.forEach((team, index) => {
+  team.rank = index + 1;
+});
+
+return leaderboard;
 };
 
-const emitLeaderboardUpdate = async (io) => {
+const emitLeaderboardUpdate = async (io = null) => {
   try {
     const leaderboard = await calculateLeaderboard();
-    io.to('leaderboard').emit('leaderboard-update', leaderboard);
+    return leaderboard;
   } catch (err) {
-    console.error('Error emitting leaderboard update:', err);
+    console.error(' Error calculating leaderboard update:', err);
+    throw err;
   }
 };
 
 const getStatistics = async () => {
   try {
-    
     const totalDonationsResult = await prisma.donation.aggregate({
       _sum: {
         amount: true
       }
     });
 
-    
+    const totalProductSalesResult = await prisma.productSale.aggregate({
+      _sum: {
+        amountPaid: true
+      }
+    });
+
+    const totalShirtSalesResult = await prisma.shirtSale.aggregate({
+      _sum: {
+        quantity: true
+      }
+    });
+
+    const totalTeams = await prisma.team.count();
+
+    const totalMembers = await prisma.user.count();
+
+    const totalPhotos = await prisma.photo.count({
+      where: {
+        approved: true
+      }
+    });
+
+    // Get donation goal from app config
     const donationGoalConfig = await prisma.appConfig.findUnique({
-      where: { key: 'donationGoal' }
+      where: {
+        key: 'donationGoal'
+      }
     });
-
-    
-    const teamCount = await prisma.team.count({
-      where: { isActive: true }
-    });
-
-    const totalRaised = totalDonationsResult._sum.amount || 0;
-    const donationGoal = donationGoalConfig ? parseFloat(donationGoalConfig.value) : 50000;
-    const progressPercentage = Math.min((totalRaised / donationGoal) * 100, 100);
 
     return {
-      teamCount,
-      totalRaised,
-      donationGoal,
-      progressPercentage
+      totalDonations: totalDonationsResult._sum.amount || 0,
+      totalProductSales: totalProductSalesResult._sum.amountPaid || 0,
+      totalShirtSales: totalShirtSalesResult._sum.quantity || 0,
+      totalRaised: totalDonationsResult._sum.amount || 0, 
+      totalTeams,
+      totalMembers,
+      totalPhotos,
+      donationGoal: donationGoalConfig ? parseInt(donationGoalConfig.value) : 50000
     };
   } catch (error) {
-    console.error('Error calculating statistics:', error);
-    return {
-      teamCount: 0,
-      totalRaised: 0,
-      donationGoal: 50000,
-      progressPercentage: 0
-    };
+    console.error(' Error fetching statistics:', error);
+    throw error;
   }
 };
 
