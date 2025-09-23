@@ -1,8 +1,9 @@
 node_modules/
-.env
+.env*
 .env.backup
 .env.deploy
 .env.lambda
+.env.production
 .serverless/
 docker-compose.yml
 
