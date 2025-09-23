@@ -39,7 +39,7 @@ const LeaderboardScreen = () => {
   const flashingItemsRef = React.useRef(new Set());
   const leaderboardTimerRef = React.useRef(null);
 
-  // Load custom font
+  
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -54,28 +54,23 @@ const LeaderboardScreen = () => {
     loadFonts();
   }, []);
 
-  // Get current time in Pacific Time (handles PST/PDT automatically)
   const getPacificTime = () => {
     const now = new Date();
-    // Get the UTC offset for Pacific Time
     const pacificOffset = now.toLocaleString('en-US', {
       timeZone: 'America/Los_Angeles',
       timeZoneName: 'short'
-    }).includes('PDT') ? -7 : -8; // PDT is UTC-7, PST is UTC-8
+    }).includes('PDT') ? -7 : -8;
     
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     return new Date(utc + (pacificOffset * 3600000));
   };
 
-  // Calculate next leaderboard update time (daily at 5 PM Pacific Time)
   const getNextLeaderboardUpdate = () => {
     const pacificNow = getPacificTime();
     const nextUpdate = new Date(pacificNow);
     
-    // Set to 5 PM today
-    nextUpdate.setHours(17, 0, 0, 0); // 5 PM, 0 minutes, 0 seconds, 0 milliseconds
+    nextUpdate.setHours(17, 0, 0, 0);
     
-    // If it's already past 5 PM today, move to 5 PM tomorrow
     if (pacificNow.getTime() >= nextUpdate.getTime()) {
       nextUpdate.setDate(nextUpdate.getDate() + 1);
     }
@@ -83,7 +78,6 @@ const LeaderboardScreen = () => {
     return nextUpdate;
   };
 
-  // Fetch only leaderboard data (for automatic updates)
   const fetchLeaderboardData = useCallback(async () => {
     try {
       const headers = {
@@ -94,13 +88,11 @@ const LeaderboardScreen = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Fetch only leaderboard data
       const leaderboardResponse = await fetch(`${API_ROUTES.LEADERBOARD.GET}`, { headers });
       
       if (leaderboardResponse.ok) {
         const leaderboardResponseData = await leaderboardResponse.json();
         
-        // Handle new API format with metadata
         if (leaderboardResponseData.leaderboard) {
           setLeaderboardData(Array.isArray(leaderboardResponseData.leaderboard) ? leaderboardResponseData.leaderboard : []);
           setLastUpdated(leaderboardResponseData.lastUpdated);
@@ -112,15 +104,12 @@ const LeaderboardScreen = () => {
           setNextUpdate(null);
           setIsCached(false);
         }
-      } else {
-        // Auto leaderboard update failed
       }
     } catch (error) {
-      // Auto leaderboard update error
+      
     }
   }, [token]);
 
-  // Format countdown time
   const formatCountdown = (seconds) => {
     if (seconds <= 0) return 'Updating...';
     
@@ -140,26 +129,23 @@ const LeaderboardScreen = () => {
     }
   };
 
-  // Setup automatic leaderboard refresh
+  
   const setupLeaderboardTimer = useCallback(() => {
-    // Clear existing timers
+    
     if (leaderboardTimerRef.current) {
       clearInterval(leaderboardTimerRef.current);
     }
 
-    // Calculate time until next 5 PM Pacific Time
     const pacificNow = getPacificTime();
     const nextUpdate = getNextLeaderboardUpdate();
     const timeUntilNextUpdate = nextUpdate.getTime() - pacificNow.getTime();
 
-    // Set initial timeout to sync with 5 PM
     setTimeout(() => {
       fetchLeaderboardData();
       
-      // Then set up regular interval every 24 hours
       leaderboardTimerRef.current = setInterval(() => {
         fetchLeaderboardData();
-      }, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+      }, 24 * 60 * 60 * 1000);
       
     }, timeUntilNextUpdate);
   }, [fetchLeaderboardData]);
@@ -174,22 +160,19 @@ const LeaderboardScreen = () => {
       
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-      } else {
-        // No token available
       }
       
-      // Fetch all data except leaderboard (which updates automatically)
       const [statsResponse, activitiesResponse, teamsResponse, teamResponse] = await Promise.all([        
-        // Fetch statistics (for goal target and total raised)
+        
         fetch(`${API_ROUTES.LEADERBOARD.GET}/statistics`, { headers }),
         
-        // Fetch activities for upcoming events count
+        
         fetch(`${API_ROUTES.activities.list}`, { headers }),
         
-        // Fetch total teams count - use public endpoint instead of admin
+        
         fetch(`${API_ROUTES.teams.list}`, { headers }),
         
-        // Fetch user's team data
+        
         token ? fetchWithTimeout(API_ROUTES.teams.myTeam, {
           method: 'GET',
           headers: {
@@ -197,14 +180,14 @@ const LeaderboardScreen = () => {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          // My Team API error
+          
           return { ok: false, error: err };
         }) : Promise.resolve({ ok: false })
       ]);
 
-      // Process API responses
+      
 
-      // Process user's team data
+      
       if (teamResponse.ok) {
         const userTeamData = await teamResponse.json();
         setTeamData(userTeamData);
@@ -212,19 +195,19 @@ const LeaderboardScreen = () => {
         setTeamData(null);
       }
 
-      // Process statistics data (now includes donation goal)
+      
       let combinedStats = null;
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         combinedStats = { ...statsData };
         
-        // Calculate progress percentage with donation goal from statistics
+        
         const donationGoal = combinedStats.donationGoal || 50000;
         const totalRaised = combinedStats.totalRaised || 0;
         combinedStats.progressPercentage = donationGoal > 0 ? (totalRaised / donationGoal) * 100 : 0;
       } else {
-        // Statistics fetch failed
-        // Fallback to default values
+        
+        
         combinedStats = {
           donationGoal: 50000,
           totalRaised: 0,
@@ -234,29 +217,29 @@ const LeaderboardScreen = () => {
 
       setStatistics(combinedStats);
 
-      // Process activities data
+      
       if (activitiesResponse.ok) {
         const activitiesData = await activitiesResponse.json();
         setActivities(Array.isArray(activitiesData) ? activitiesData : []);
         
-        // Convert activities to events format
+        
         const convertedEvents = activitiesData.map((activity, index) => {
-          // Use startDate if available, otherwise fallback to createdAt
+          
           const eventDate = activity.startDate ? new Date(activity.startDate) : 
                            activity.createdAt ? new Date(activity.createdAt) : null;
           
           const endDate = activity.endDate ? new Date(activity.endDate) : null;
           
-          // Get current time in PST
+          
           const now = new Date();
-          const pstOffset = -8; // PST is UTC-8
+          const pstOffset = -8; 
           const pstNow = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
           
-          // Convert event dates to PST for comparison
+          
           const eventDatePST = eventDate ? new Date(eventDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
           const endDatePST = endDate ? new Date(endDate.getTime() + (pstOffset * 60 * 60 * 1000)) : null;
           
-          // Determine if activity is upcoming, ongoing, or past (using PST)
+          
           let status = 'upcoming';
           if (endDatePST && pstNow > endDatePST) {
             status = 'past';
@@ -264,7 +247,7 @@ const LeaderboardScreen = () => {
             status = 'ongoing';
           }
           
-          // Check if event is today (using PST)
+          
           const isToday = eventDatePST && 
             eventDatePST.toDateString() === pstNow.toDateString();
           
@@ -273,7 +256,7 @@ const LeaderboardScreen = () => {
               month: 'short', 
               day: 'numeric', 
               year: 'numeric',
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : 'TBD');
           
           return {
@@ -284,23 +267,23 @@ const LeaderboardScreen = () => {
               hour: 'numeric', 
               minute: '2-digit',
               hour12: true,
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : 'TBD',
             endDate: endDate ? endDate.toLocaleDateString('en-US', { 
               month: 'short', 
               day: 'numeric',
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : null,
             endTime: endDate ? endDate.toLocaleTimeString('en-US', { 
               hour: 'numeric', 
               minute: '2-digit',
               hour12: true,
-              timeZone: 'America/Los_Angeles' // Force PST timezone
+              timeZone: 'America/Los_Angeles' 
             }) : null,
             location: activity.location || 'Online',
             attendees: activity.submissions?.length || 0,
             category: activity.categoryType || activity.type || 'General',
-            trending: (activity.submissions?.length || 0) > 5, // Mark as trending if more than 5 submissions
+            trending: (activity.submissions?.length || 0) > 5, 
             points: activity.points || 0,
             description: activity.description || '',
             status: status,
@@ -309,30 +292,30 @@ const LeaderboardScreen = () => {
           };
         });
         
-        // Filter to only show active/published activities and sort by start date
+        
         const filteredEvents = convertedEvents
           .filter(event => event.isActive)
           .sort((a, b) => {
-            // Sort by status (ongoing first, then upcoming, then past)
+            
             const statusOrder = { ongoing: 1, upcoming: 2, past: 3 };
             if (statusOrder[a.status] !== statusOrder[b.status]) {
               return statusOrder[a.status] - statusOrder[b.status];
             }
-            // Within same status, sort by date
+            
             return new Date(a.date) - new Date(b.date);
           });
         
         setUpcomingEvents(filteredEvents);
       } else {
-        // Activities fetch failed
+        
         setActivities([]);
         setUpcomingEvents([]);
       }
 
-      // Process teams data
+      
       if (teamsResponse.ok) {
         const teamsData = await teamsResponse.json();
-        // Handle different response formats
+        
         if (Array.isArray(teamsData)) {
           setTotalTeams(teamsData.length);
         } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
@@ -343,13 +326,13 @@ const LeaderboardScreen = () => {
           setTotalTeams(0);
         }
       } else {
-        // Teams fetch failed
+        
         setTotalTeams(0);
       }
 
     } catch (error) {
-      // Data fetch error
-      // Don't reset leaderboard data on error since it updates automatically
+      
+      
       setStatistics(null);
       setUpcomingEvents([]);
       setActivities([]);
@@ -362,14 +345,14 @@ const LeaderboardScreen = () => {
   };
 
   useEffect(() => {
-    // Initial data fetch
+    
     fetchData();
     
-    // Initial leaderboard fetch and setup timer
+    
     fetchLeaderboardData();
     setupLeaderboardTimer();
     
-    // Cleanup timers on unmount
+    
     return () => {
       if (leaderboardTimerRef.current) {
         clearInterval(leaderboardTimerRef.current);
@@ -377,7 +360,7 @@ const LeaderboardScreen = () => {
     };
   }, []);
 
-  // Restart timer when token changes
+  
   useEffect(() => {
     if (token) {
       setupLeaderboardTimer();
@@ -387,10 +370,10 @@ const LeaderboardScreen = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Only refresh non-leaderboard data (leaderboard updates automatically)
+      
       await fetchData();
     } catch (error) {
-      // Refresh failed
+      
     } finally {
       setRefreshing(false);
     }
@@ -409,29 +392,29 @@ const LeaderboardScreen = () => {
 
   const getRankColor = (rank) => {
     switch (rank) {
-      case 1: return '#FF6B6B'; // Vibrant coral red
-      case 2: return '#4ECDC4'; // Turquoise teal
-      case 3: return '#45B7D1'; // Sky blue
-      default: return '#6C5CE7'; // Purple
+      case 1: return '#FF6B6B'; 
+      case 2: return '#4ECDC4'; 
+      case 3: return '#45B7D1'; 
+      default: return '#6C5CE7'; 
     }
   };
 
   const getRankGradient = (rank) => {
     switch (rank) {
-      case 1: return ['#FF6B6B', '#FF8E53']; // Coral to orange gradient
-      case 2: return ['#4ECDC4', '#44A08D']; // Teal gradient  
-      case 3: return ['#45B7D1', '#96C93D']; // Blue to green gradient
-      default: return ['#6C5CE7', '#A29BFE']; // Purple gradient
+      case 1: return ['#FF6B6B', '#FF8E53']; 
+      case 2: return ['#4ECDC4', '#44A08D']; 
+      case 3: return ['#45B7D1', '#96C93D']; 
+      default: return ['#6C5CE7', '#A29BFE']; 
     }
   };
 
-  // Memoized team name to prevent re-calculations
+  
   const teamName = useMemo(() => {
     const name = teamData?.team?.name || user?.teamName || 'Team';
     return name;
   }, [teamData?.team?.name, user?.teamName]);
 
-  // Header Component - properly memoized
+  
   const AppHeader = React.memo(() => (
     <View style={newStyles.headerContainer}>
       <View style={newStyles.headerContent}>
@@ -469,7 +452,7 @@ const LeaderboardScreen = () => {
     </View>
   ));
 
-  // Quick Stats Grid Component - properly memoized
+  
   const QuickStatsGrid = React.memo(({ statistics, activities, totalTeams }) => {
     const isLoading = !statistics || loading;
     const stats = statistics || { 
@@ -478,7 +461,7 @@ const LeaderboardScreen = () => {
       progressPercentage: 0
     };
 
-    // Calculate upcoming events count from activities
+    
     const upcomingEventsCount = activities ? activities.length : 0;
 
     const statsData = useMemo(() => [
@@ -580,7 +563,7 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Status Badge Helper Function
+  
   const getStatusBadge = (status) => {
     switch (status) {
       case 'ongoing':
@@ -604,18 +587,18 @@ const LeaderboardScreen = () => {
     }
   };
 
-  // Completely isolated countdown component with its own timer
+  
   const CountdownDisplay = React.memo(() => {
     const [localCountdown, setLocalCountdown] = useState(0);
     const localTimerRef = React.useRef(null);
     
     useEffect(() => {
-      // Clear any existing timer
+      
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
       }
       
-      // Calculate initial countdown
+      
       const updateCountdown = () => {
         const pacificNow = getPacificTime();
         const nextUpdate = getNextLeaderboardUpdate();
@@ -624,21 +607,21 @@ const LeaderboardScreen = () => {
         return secondsLeft;
       };
       
-      // Set initial value
+      
       setLocalCountdown(updateCountdown());
       
-      // Update every second
+      
       localTimerRef.current = setInterval(() => {
         setLocalCountdown(updateCountdown());
       }, 1000);
       
-      // Cleanup on unmount
+      
       return () => {
         if (localTimerRef.current) {
           clearInterval(localTimerRef.current);
         }
       };
-    }, []); // Empty dependency array - completely isolated
+    }, []); 
     
     return (
       <Text style={[
@@ -653,20 +636,20 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Fixed callback for activity selection 
+  
   const handleActivitySelect = useCallback((item) => {
-    // Clear any existing selection first
+    
     setSelectedActivity(null);
     setShowActivityDetails(false);
     
-    // Set new selection after a brief delay to ensure clean state
+    
     setTimeout(() => {
       setSelectedActivity(item);
       setShowActivityDetails(true);
     }, 50);
   }, []);
 
-  // Stable callback for modal close to prevent re-renders  
+  
   const handleModalClose = useCallback(() => {
     setShowActivityDetails(false);
     setTimeout(() => {
@@ -674,7 +657,7 @@ const LeaderboardScreen = () => {
     }, 200);
   }, []);
 
-  // Stable callbacks for leaderboard modal to prevent re-renders
+  
   const handleLeaderboardOpen = useCallback(() => {
     setShowFullLeaderboard(true);
   }, []);
@@ -683,7 +666,7 @@ const LeaderboardScreen = () => {
     setShowFullLeaderboard(false);
   }, []);
   
-  // Animated Status Badge Component with complete isolation
+  
   const AnimatedStatusBadge = React.memo(({ item, statusBadge }) => {
     const flashAnimation = React.useRef(new Animated.Value(1)).current;
     const hasStartedFlashing = React.useRef(false);
@@ -693,13 +676,13 @@ const LeaderboardScreen = () => {
     const statusRef = React.useRef(item.status);
     
     React.useEffect(() => {
-      // Reset if this is a different item or status changed
+      
       if (itemIdRef.current !== item.id || statusRef.current !== item.status) {
         itemIdRef.current = item.id;
         statusRef.current = item.status;
         hasStartedFlashing.current = false;
         
-        // Clean up existing animation
+        
         if (animationTimeout.current) {
           clearTimeout(animationTimeout.current);
           animationTimeout.current = null;
@@ -711,13 +694,13 @@ const LeaderboardScreen = () => {
         flashAnimation.setValue(1);
       }
       
-      // Only start flashing for ongoing items that haven't started yet
+      
       if (item.status === 'ongoing' && !hasStartedFlashing.current) {
         hasStartedFlashing.current = true;
         
-        // Use setTimeout to defer animation start to avoid insertion effect warnings
+        
         const timeoutId = setTimeout(() => {
-          // Start flashing animation
+          
           const flashSequence = Animated.sequence([
             Animated.timing(flashAnimation, {
               toValue: 0.3,
@@ -731,22 +714,22 @@ const LeaderboardScreen = () => {
             }),
           ]);
           
-          // Create infinite loop
+          
           const flashLoop = Animated.loop(flashSequence);
           animationRef.current = flashLoop;
           
-          // Start the animation
+          
           flashLoop.start();
           
-          // Stop animation after exactly 5 seconds
+          
           animationTimeout.current = setTimeout(() => {
             if (animationRef.current) {
               animationRef.current.stop();
               animationRef.current = null;
             }
-            flashAnimation.setValue(1); // Ensure it ends at full opacity
-            hasStartedFlashing.current = false; // Allow restart if needed
-          }, 5000); // 5 seconds
+            flashAnimation.setValue(1); 
+            hasStartedFlashing.current = false; 
+          }, 5000); 
           
         }, 0);
         
@@ -761,9 +744,9 @@ const LeaderboardScreen = () => {
           }
         };
       }
-    }, []); // Remove all dependencies to prevent re-execution
+    }, []); 
 
-    // Reset flashing state when item status changes from ongoing
+    
     React.useEffect(() => {
       if (item.status !== 'ongoing' && hasStartedFlashing.current) {
         hasStartedFlashing.current = false;
@@ -799,7 +782,7 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Upcoming Events Section Component with stable rendering
+  
   const UpcomingEventsSection = React.memo(({ events }) => {
 
     const renderEventCard = useCallback(({ item }) => {
@@ -883,9 +866,9 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Activity Details Modal Component with simple fade animation (matching leaderboard modal)
+  
   const ActivityDetailsModal = React.memo(() => {
-    // Simple visibility check
+    
     const modalVisible = Boolean(showActivityDetails && selectedActivity);
     
     if (!modalVisible || !selectedActivity) return null;
@@ -980,7 +963,7 @@ const LeaderboardScreen = () => {
     );
   });
 
-  // Leaderboard Section Component - Podium Style with memoization
+  
   const LeaderboardSection = React.memo(({ teams }) => {
     const safeTeams = teams || [];
     const topThreeTeams = safeTeams.slice(0, 3);
@@ -1035,10 +1018,8 @@ const LeaderboardScreen = () => {
 
     const renderFullLeaderboardItem = useCallback(({ item, index }) => {
       const rank = index + 1;
-      const isUserTeam = item.name === teamData?.team?.name || 
-                        item.name === user?.teamName || 
-                        item.id === user?.teamId;
-      
+      const isUserTeam = item.name === teamData?.team?.name || item.name === user?.teamName || item.id === user?.teamId;
+
       return (
         <View style={[
           newStyles.fullLeaderboardItem,
@@ -1270,9 +1251,9 @@ const LeaderboardScreen = () => {
   );
 };
 
-// New Design System Styles
+
 const newStyles = {
-  // Main Container
+  
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -1294,7 +1275,7 @@ const newStyles = {
     paddingBottom: 20,
   },
 
-  // Loading States
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1317,7 +1298,7 @@ const newStyles = {
     fontWeight: '600',
   },
 
-  // Header Styles
+  
   headerContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
@@ -1346,7 +1327,7 @@ const newStyles = {
     fontWeight: 'bold',
     backgroundColor: 'transparent',
     letterSpacing: -0.5,
-    // Shadow properties
+    
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
@@ -1365,7 +1346,7 @@ const newStyles = {
     fontWeight: '800',
     color: '#FF6B6B',
     letterSpacing: -0.3,
-    fontFamily: 'System', // iOS system font for consistency
+    fontFamily: 'System', 
     textTransform: 'uppercase',
   },
 
@@ -1395,7 +1376,7 @@ const newStyles = {
     alignItems: 'center',
   },
 
-  // Quick Stats Grid - 2x2 Layout
+  
   statsGrid: {
     paddingHorizontal: 16,
     paddingTop: 20,
@@ -1468,7 +1449,7 @@ const newStyles = {
     fontWeight: '600',
   },
 
-  // Section Styles
+  
   sectionContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -1505,7 +1486,7 @@ const newStyles = {
     marginRight: 4,
   },
 
-  // Update Info Styles
+  
   updateInfoContainer: {
     backgroundColor: 'rgba(249, 250, 251, 0.8)',
     borderRadius: 8,
@@ -1542,14 +1523,14 @@ const newStyles = {
     fontWeight: '600',
   },
 
-  // Events Styles
+  
   eventsList: {
     paddingLeft: 16,
   },
 
   eventCard: {
     width: 280,
-    height: 200, // Increased height for better spacing
+    height: 200, 
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
@@ -1561,7 +1542,7 @@ const newStyles = {
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    justifyContent: 'space-between', // Distribute content evenly
+    justifyContent: 'space-between', 
   },
 
   eventHeader: {
@@ -1594,15 +1575,15 @@ const newStyles = {
   },
 
   eventDetails: {
-    flex: 1, // Take up available space between header and button
+    flex: 1, 
     justifyContent: 'flex-start',
-    marginBottom: 16, // Balanced space between details and button
+    marginBottom: 16, 
   },
 
   eventDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8, // Increased spacing between detail rows
+    marginBottom: 8, 
   },
 
   eventDetailText: {
@@ -1636,7 +1617,7 @@ const newStyles = {
   staticJoinButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginTop: 'auto', // Push to bottom of card
+    marginTop: 'auto', 
   },
 
   staticJoinButtonGradient: {
@@ -1655,17 +1636,17 @@ const newStyles = {
     letterSpacing: -0.2,
   },
 
-  // Podium Leaderboard Styles - iOS Native Feel
+  
   podiumContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 24,
     padding: 24,
     marginHorizontal: 16,
     marginVertical: 8,
-    // iOS-style backdrop blur simulation
+    
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.6)',
-    // Subtle shadow for depth
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04,
@@ -1715,7 +1696,7 @@ const newStyles = {
     borderColor: 'rgba(0, 0, 0, 0.04)',
     width: '100%',
     alignItems: 'center',
-    // iOS card shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -1736,7 +1717,7 @@ const newStyles = {
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    // iOS icon shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -1747,7 +1728,7 @@ const newStyles = {
   teamNamePodium: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1D1D1F', // iOS system text color
+    color: '#1D1D1F', 
     textAlign: 'center',
     marginBottom: 6,
     letterSpacing: -0.2,
@@ -1756,7 +1737,7 @@ const newStyles = {
   teamPointsPodium: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6D6D70', // iOS secondary text
+    color: '#6D6D70', 
     textAlign: 'center',
     letterSpacing: -0.1,
   },
@@ -1767,7 +1748,7 @@ const newStyles = {
     borderTopRightRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    // iOS podium shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -1780,14 +1761,14 @@ const newStyles = {
     fontWeight: '700',
     color: 'white',
     fontFamily: 'Helvetica-LightOblique',
-    // iOS number shadow
+    
     textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     letterSpacing: -0.5,
   },
 
-  // Full Leaderboard Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1936,7 +1917,7 @@ const newStyles = {
     fontWeight: '500',
   },
 
-  // Empty States
+  
   emptyLeaderboard: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -1967,7 +1948,7 @@ const newStyles = {
     height: 20,
   },
 
-  // Activity Details Modal Styles
+  
   activityModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

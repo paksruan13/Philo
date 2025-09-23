@@ -16,7 +16,7 @@ const sellProduct = async (req, res) => {
     } = req.body;
     const coachId = req.user.id;
 
-    // Validate required fields based on sale type
+    
     if (!productId || !size || !quantity || !paymentMethod || !amountPaid) {
       return res.status(400).json({ error: 'Product, size, quantity, payment method, and amount are required' });
     }
@@ -52,7 +52,7 @@ const sellProduct = async (req, res) => {
           userId
         });
 
-    // Emit leaderboard update
+    
     await emitLeaderboardUpdate(req.app.get('io'));
 
     res.status(201).json({
@@ -69,18 +69,16 @@ const sellProduct = async (req, res) => {
   }
 };
 
-// Get sales by coach
+
 const getCoachSales = async (req, res) => {
   try {
-    console.log('🔍 DEBUG: getCoachSales called for coachId:', req.user.id);
     const coachId = req.user.id;
     const sales = await productSaleService.getCoachSales(coachId);
-    console.log('🔍 DEBUG: getCoachSales success, found', sales.length, 'sales');
     res.json(sales);
   } catch (error) {
-    console.error('❌ ERROR: getCoachSales failed:', error.message);
-    console.error('❌ ERROR: Full error:', error);
-    console.error('❌ ERROR: Stack trace:', error.stack);
+    console.error('ERROR: getCoachSales failed:', error.message);
+    console.error('ERROR: Full error:', error);
+    console.error('ERROR: Stack trace:', error.stack);
     res.status(500).json({ 
       error: 'Failed to fetch sales',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -88,7 +86,7 @@ const getCoachSales = async (req, res) => {
   }
 };
 
-// Delete a sale (with inventory restoration and points removal)
+
 const deleteSale = async (req, res) => {
   try {
     const { saleId } = req.params;
@@ -96,7 +94,7 @@ const deleteSale = async (req, res) => {
 
     const result = await productSaleService.deleteSale(saleId, coachId);
 
-    // Emit leaderboard update
+    
     await emitLeaderboardUpdate(req.app.get('io'));
 
     res.json({
@@ -113,7 +111,7 @@ const deleteSale = async (req, res) => {
   }
 };
 
-// Purchase ticket (public endpoint)
+
 const purchaseTicket = async (req, res) => {
   try {
     const { ticketId, email, name } = req.body;
@@ -128,7 +126,7 @@ const purchaseTicket = async (req, res) => {
       name
     });
 
-    // Emit leaderboard update
+    
     await emitLeaderboardUpdate(req.app.get('io'));
 
     res.status(201).json({

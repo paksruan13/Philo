@@ -29,14 +29,14 @@ const ManagePoints = ({ navigation }) => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Points form state
+  
   const [pointsForm, setPointsForm] = useState({
     userId: '',
     activityDescription: '',
     points: '',
   });
 
-  // Fetch all students
+  
   const fetchStudents = async () => {
     try {
       const headers = {
@@ -53,12 +53,11 @@ const ManagePoints = ({ navigation }) => {
         setError('Failed to load students');
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
       setError('Network error loading students');
     }
   };
 
-  // Fetch points history
+  
   const fetchPointsHistory = async () => {
     try {
       const headers = {
@@ -75,12 +74,11 @@ const ManagePoints = ({ navigation }) => {
         setError('Failed to load points history');
       }
     } catch (error) {
-      console.error('Error fetching points history:', error);
       setError('Network error loading points history');
     }
   };
 
-  // Load data
+  
   const loadData = async () => {
     setLoading(true);
     await Promise.all([fetchStudents(), fetchPointsHistory()]);
@@ -97,12 +95,12 @@ const ManagePoints = ({ navigation }) => {
     loadData();
   };
 
-  // Handle form changes
+  
   const handleFormChange = (field, value) => {
     setPointsForm(prev => ({ ...prev, [field]: value }));
   };
 
-  // Clear messages after delay
+  
   const clearMessages = () => {
     setTimeout(() => {
       setSuccess('');
@@ -110,7 +108,7 @@ const ManagePoints = ({ navigation }) => {
     }, 3000);
   };
 
-  // Award points
+  
   const handleAwardPoints = async () => {
     if (!pointsForm.userId || !pointsForm.activityDescription || !pointsForm.points) {
       setError('Please fill in all required fields');
@@ -152,7 +150,7 @@ const ManagePoints = ({ navigation }) => {
         setPointsForm({ userId: '', activityDescription: '', points: '' });
         setShowPointsForm(false);
         setShowStudentDropdown(false);
-        await fetchPointsHistory(); // Refresh history
+        await fetchPointsHistory(); 
         clearMessages();
       } else {
         const errorData = await response.json();
@@ -160,13 +158,12 @@ const ManagePoints = ({ navigation }) => {
         clearMessages();
       }
     } catch (error) {
-      console.error('Error awarding points:', error);
       setError('Network error awarding points');
       clearMessages();
     }
   };
 
-  // Delete points award
+  
   const handleDeletePoints = async (pointsAwardId) => {
     Alert.alert(
       'Delete Points Award',
@@ -194,7 +191,7 @@ const ManagePoints = ({ navigation }) => {
 
               if (response.ok) {
                 setSuccess('Points award deleted successfully!');
-                await fetchPointsHistory(); // Refresh history
+                await fetchPointsHistory(); 
                 clearMessages();
               } else {
                 const errorData = await response.json();
@@ -202,7 +199,6 @@ const ManagePoints = ({ navigation }) => {
                 clearMessages();
               }
             } catch (error) {
-              console.error('Error deleting points award:', error);
               setError('Network error deleting points award');
               clearMessages();
             }
@@ -212,12 +208,12 @@ const ManagePoints = ({ navigation }) => {
     );
   };
 
-  // Get selected student
+  
   const getSelectedStudent = () => {
     return students.find(s => s.id === pointsForm.userId);
   };
 
-  // Filter students based on search query
+  
   const getFilteredStudents = () => {
     if (!searchQuery.trim()) return students;
     
@@ -707,7 +703,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Header
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -781,7 +777,7 @@ const styles = {
     elevation: 6,
   },
 
-  // Messages
+  
   messageContainer: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
@@ -827,7 +823,7 @@ const styles = {
     flex: 1,
   },
 
-  // History Section
+  
   historySection: {
     backgroundColor: '#ffffff',
     margin: Spacing.lg,
@@ -1006,7 +1002,7 @@ const styles = {
     height: 50,
   },
 
-  // See All Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1151,7 +1147,7 @@ const styles = {
     textAlign: 'center',
   },
 
-  // Form Elements
+  
   formGroup: {
     marginBottom: Spacing.lg,
   },
@@ -1356,7 +1352,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Modal Styles
+  
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -1425,7 +1421,7 @@ const styles = {
     paddingTop: Spacing.lg,
   },
 
-  // Preview Section Styles
+  
   previewSection: {
     marginBottom: Spacing.lg,
   },

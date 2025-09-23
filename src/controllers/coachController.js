@@ -32,8 +32,8 @@ const awardManualPoints = async (req, res) => {
       }
       const teamId = user.team.id;
       
-      // Allow any coach or admin to award points to any student
-      // No need to check if they are the coach of that specific team
+      
+      
       
       const manualPointsAward = await tx.manualPointsAward.create({
         data: {
@@ -77,7 +77,7 @@ const getManualPointsHistory = async (req, res) => {
   try {
     const user = req.user;
     
-    // Coaches and admins can see all manual points history
+    
     const pointsHistory = await prisma.manualPointsAward.findMany({
       include: {
         user: {
@@ -106,7 +106,7 @@ const deleteManualPoints = async (req, res) => {
     const { id } = req.params;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Find the manual points award
+      
       const pointsAward = await tx.manualPointsAward.findUnique({
         where: { id },
         include: { team: true }
@@ -116,17 +116,17 @@ const deleteManualPoints = async (req, res) => {
         throw new Error('Points award not found');
       }
 
-      // Check if the coach has permission to delete this award
+      
       if (pointsAward.awardedById !== coachId) {
         throw new Error('You can only delete points awards you created');
       }
 
-      // Delete the points award
+      
       await tx.manualPointsAward.delete({
         where: { id }
       });
 
-      // Update team points (subtract the points)
+      
       await tx.team.update({
         where: { id: pointsAward.teamId },
         data: {
@@ -215,7 +215,7 @@ const approveSubmission = async (req, res) => {
     const { id } = req.params;
     const { pointsAwarded, reviewNotes } = req.body;
     
-    // Get the submission with activity and user details
+    
     const submission = await prisma.activitySubmission.findUnique({
       where: { id },
       include: {
@@ -230,13 +230,13 @@ const approveSubmission = async (req, res) => {
       return res.status(404).json({ error: 'Submission not found' });
     }
     
-    // 1. Handle photo approval if this is a photo submission
+    
     if (submission.activity.allowPhotoUpload && 
         submission.submissionData?.photo) {
       
-      // Get the photo URL from submission data
+      
       const photoUrl = submission.submissionData.photo;
-      // Try to find the photo in the database
+      
       const photoRecord = await prisma.photo.findFirst({
         where: {
           url: photoUrl,
@@ -244,7 +244,7 @@ const approveSubmission = async (req, res) => {
         }
       });
       
-      // Update the photo if found
+      
       if (photoRecord) {
         await prisma.photo.update({
           where: { id: photoRecord.id },
@@ -257,7 +257,7 @@ const approveSubmission = async (req, res) => {
       }
     }
     
-    // 2. Update submission status
+    
     const updatedSubmission = await prisma.activitySubmission.update({
       where: { id },
       data: {
@@ -275,7 +275,7 @@ const approveSubmission = async (req, res) => {
       }
     });
     
-    // 3. Award points to the team
+    
     if (updatedSubmission.user?.teamId) {
       const points = pointsAwarded || updatedSubmission.activity.points;
       const reason = `Activity: ${updatedSubmission.activity.title}`;
@@ -353,7 +353,7 @@ const getApprovedSubmissions = async (req, res) => {
           teamId: { in: teamIds }
         },
         status: 'APPROVED',
-        reviewedById: coachId // Only submissions approved by this coach
+        reviewedById: coachId 
       },
       include: {
         activity: true,
@@ -370,7 +370,7 @@ const getApprovedSubmissions = async (req, res) => {
       orderBy: { reviewedAt: 'desc' }
     });
 
-    // Process submissions to add presigned URLs for photos
+    
     const processedSubmissions = await Promise.all(submissions.map(async submission => {
       if (submission.submissionData?.photo) {
         try {
@@ -411,7 +411,7 @@ const unapproveSubmission = async (req, res) => {
     const { reviewNotes } = req.body;
     const coachId = req.user.id;
 
-    // Get the submission with activity and user details
+    
     const submission = await prisma.activitySubmission.findUnique({
       where: { id },
       include: {
@@ -426,7 +426,7 @@ const unapproveSubmission = async (req, res) => {
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    // Check if this coach approved this submission
+    
     if (submission.reviewedById !== coachId) {
       return res.status(403).json({ error: 'You can only unapprove submissions you approved' });
     }
@@ -435,7 +435,7 @@ const unapproveSubmission = async (req, res) => {
       return res.status(400).json({ error: 'Submission is not approved' });
     }
 
-    // Remove the points that were awarded for this submission
+    
     if (submission.user?.teamId && submission.pointsAwarded) {
       const points = submission.pointsAwarded;
       const reason = `Unapproved: ${submission.activity.title}`;
@@ -447,7 +447,7 @@ const unapproveSubmission = async (req, res) => {
       );
     }
 
-    // Update submission status back to pending
+    
     const updatedSubmission = await prisma.activitySubmission.update({
       where: { id },
       data: {
@@ -480,7 +480,7 @@ const deleteSubmission = async (req, res) => {
     const { id } = req.params;
     const coachId = req.user.id;
 
-    // Get the submission with activity and user details
+    
     const submission = await prisma.activitySubmission.findUnique({
       where: { id },
       include: {
@@ -495,12 +495,12 @@ const deleteSubmission = async (req, res) => {
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    // Check if this coach has permission to delete this submission
+    
     if (submission.reviewedById !== coachId && submission.user.team?.coachId !== coachId) {
       return res.status(403).json({ error: 'You can only delete submissions from your team or that you reviewed' });
     }
 
-    // If the submission was approved, remove the points
+    
     if (submission.status === 'APPROVED' && submission.user?.teamId && submission.pointsAwarded) {
       const points = submission.pointsAwarded;
       const reason = `Deleted submission: ${submission.activity.title}`;
@@ -512,7 +512,7 @@ const deleteSubmission = async (req, res) => {
       );
     }
 
-    // Delete the submission
+    
     await prisma.activitySubmission.delete({
       where: { id }
     });

@@ -18,7 +18,6 @@ const GroupMeScreen = () => {
 
   const fetchTeamData = async () => {
     try {
-      console.log('🔄 GroupMeScreen: Starting fetchTeamData...');
       setLoading(true);
       setError('');
       
@@ -27,43 +26,25 @@ const GroupMeScreen = () => {
         'Content-Type': 'application/json',
       };
 
-      console.log('🔍 GroupMeScreen: Fetching team data directly...');
-      console.log('🔑 GroupMeScreen: Token exists:', !!token, 'length:', token?.length);
-      console.log('📍 GroupMeScreen: API Route:', API_ROUTES.teams.myTeam);
       
-      // Use the my-team endpoint to get team data including groupMeLink
       const teamRes = await fetchWithTimeout(API_ROUTES.teams.myTeam, { headers }, 15000);
-      
-      console.log('📥 GroupMeScreen: API Response status:', teamRes.status);
       
       if (!teamRes.ok) {
         const errorText = await teamRes.text();
-        console.error('❌ GroupMeScreen: Team fetch failed:', teamRes.status, errorText);
         throw new Error(`Failed to fetch team data: ${teamRes.status} - ${errorText}`);
       }
       
       const teamData = await teamRes.json();
-      console.log('✅ GroupMeScreen: Team data received:', {
-        hasTeam: !!teamData.team,
-        teamName: teamData.team?.name,
-        hasGroupMeLink: !!teamData.team?.groupMeLink,
-        groupMeLink: teamData.team?.groupMeLink,
-        fullTeamData: teamData
-      });
       
       if (!teamData.team) {
-        console.log('❌ GroupMeScreen: No team found in response');
         throw new Error('You are not assigned to any team. Please contact an administrator.');
       }
       
-      console.log('✅ GroupMeScreen: Setting team data successfully');
       setTeamData(teamData);
       setError('');
     } catch (err) {
-      console.error('💥 GroupMeScreen Error:', err);
       setError(err.message || 'Failed to load team information');
     } finally {
-      console.log('🏁 GroupMeScreen: fetchTeamData completed');
       setLoading(false);
     }
   };

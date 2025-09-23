@@ -79,19 +79,19 @@ const emitLeaderboardUpdate = async (io) => {
 
 const getStatistics = async () => {
   try {
-    // Get total donations (now includes both regular donations and external sales)
+    
     const totalDonationsResult = await prisma.donation.aggregate({
       _sum: {
         amount: true
       }
     });
 
-    // Get donation goal from config
+    
     const donationGoalConfig = await prisma.appConfig.findUnique({
       where: { key: 'donationGoal' }
     });
 
-    // Get team count
+    
     const teamCount = await prisma.team.count({
       where: { isActive: true }
     });

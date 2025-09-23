@@ -22,12 +22,12 @@ const StaffDashboard = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Add any data fetching here if needed
+    
     setTimeout(() => setRefreshing(false), 1000);
   };
 
   const handleActionPress = (action) => {
-    // Add a subtle scale animation to the pressed button
+    
     action();
   };
 

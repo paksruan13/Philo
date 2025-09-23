@@ -3,11 +3,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { s3Client } = require('../config/s3');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 
-/**
- * Product Service - Handles all product-related database operations
- */
 
-// Helper function to generate signed URL for product image
 const getProductImageSignedUrl = async (imageKey) => {
   if (!imageKey) return null;
   
@@ -19,7 +15,7 @@ const getProductImageSignedUrl = async (imageKey) => {
     };
 
     const signedUrl = await getSignedUrl(s3Client, new GetObjectCommand(getObjectParams), {
-      expiresIn: 604800, // 7 days in seconds
+      expiresIn: 604800, 
     });
 
     return signedUrl;
@@ -29,7 +25,7 @@ const getProductImageSignedUrl = async (imageKey) => {
   }
 };
 
-// Get all active products with their inventory
+
 const getAllProducts = async () => {
   const products = await prisma.product.findMany({
     where: { isActive: true },
@@ -41,7 +37,7 @@ const getAllProducts = async () => {
     orderBy: { type: 'asc' }
   });
 
-  // Generate signed URLs for product images
+  
   const productsWithSignedUrls = await Promise.all(
     products.map(async (product) => {
       const imageUrl = product.imageUrl ? await getProductImageSignedUrl(product.imageUrl) : null;
@@ -55,7 +51,7 @@ const getAllProducts = async () => {
   return productsWithSignedUrls;
 };
 
-// Get product by ID with inventory
+
 const getProductById = async (productId) => {
   return await prisma.product.findUnique({
     where: { id: productId },
@@ -65,7 +61,7 @@ const getProductById = async (productId) => {
   });
 };
 
-// Get product with inventory check for specific size
+
 const getProductWithInventory = async (productId, size) => {
   const product = await prisma.product.findUnique({
     where: { id: productId }
@@ -87,7 +83,7 @@ const getProductWithInventory = async (productId, size) => {
   return { product, inventory };
 };
 
-// Update product inventory
+
 const updateProductInventory = async (productId, size, quantity) => {
   return await prisma.productInventory.upsert({
     where: {
@@ -110,7 +106,7 @@ const updateProductInventory = async (productId, size, quantity) => {
   });
 };
 
-// Decrement product inventory
+
 const decrementProductInventory = async (productId, size, quantity, tx = prisma) => {
   return await tx.productInventory.update({
     where: {
@@ -125,7 +121,7 @@ const decrementProductInventory = async (productId, size, quantity, tx = prisma)
   });
 };
 
-// Increment product inventory (for refunds/cancellations)
+
 const incrementProductInventory = async (productId, size, quantity, tx = prisma) => {
   return await tx.productInventory.upsert({
     where: {
@@ -145,10 +141,10 @@ const incrementProductInventory = async (productId, size, quantity, tx = prisma)
   });
 };
 
-// Create new product with inventory
+
 const createProduct = async (productData, sizes) => {
   return await prisma.$transaction(async (tx) => {
-    // Create the product
+    
     const product = await tx.product.create({
       data: {
         name: productData.name,
@@ -161,7 +157,7 @@ const createProduct = async (productData, sizes) => {
       }
     });
 
-    // Create inventory records for each size
+    
     if (sizes && typeof sizes === 'object') {
       const inventoryData = Object.entries(sizes)
         .filter(([size, quantity]) => quantity > 0)
@@ -178,7 +174,7 @@ const createProduct = async (productData, sizes) => {
       }
     }
 
-    // Return product with inventory
+    
     return await tx.product.findUnique({
       where: { id: product.id },
       include: {
@@ -188,7 +184,7 @@ const createProduct = async (productData, sizes) => {
   });
 };
 
-// Update product details
+
 const updateProduct = async (productId, updateData) => {
   const data = {};
   
@@ -204,9 +200,9 @@ const updateProduct = async (productId, updateData) => {
   });
 };
 
-// Delete product with safety checks
+
 const deleteProduct = async (productId) => {
-  // Check if product exists and has sales history
+  
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: {
@@ -223,7 +219,7 @@ const deleteProduct = async (productId) => {
     throw new Error('Cannot delete product with sales history. Please deactivate instead.');
   }
 
-  // Delete product inventory first, then product
+  
   await prisma.$transaction(async (tx) => {
     await tx.productInventory.deleteMany({
       where: { productId }

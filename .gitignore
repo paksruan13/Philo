@@ -23,3 +23,17 @@ phiPilot.json
 
 # Scripts folder (temporary utilities)
 scripts/
+
+# Frontend web app
+/frontend/
+
+# Mobile config files
+/mobile/src/config/apiEndpoints.js
+
+# Backend utilities (sensitive/dev-only)
+/src/utils/
+
+# Lambda handler (deployment-specific)
+handler.js
+
+

@@ -1,6 +1,6 @@
 const { body, param, query, validationResult } = require('express-validator');
 
-// Validation error handler
+
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -12,7 +12,7 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Common validation rules
+
 const commonValidations = {
   email: body('email')
     .isEmail()
@@ -74,9 +74,9 @@ const commonValidations = {
     .withMessage('Invalid payment method')
 };
 
-// Validation rule sets for different endpoints
+
 const validationRules = {
-  // Authentication validations
+  
   register: [
     commonValidations.name,
     commonValidations.email,
@@ -104,7 +104,7 @@ const validationRules = {
       .withMessage('Password must be provided')
   ],
   
-  // Product/Sale validations
+  
   sellProduct: [
     commonValidations.id,
     commonValidations.size,
@@ -113,13 +113,13 @@ const validationRules = {
     commonValidations.amount
   ],
   
-  // Donation validations
+  
   createDonation: [
     commonValidations.amount,
     commonValidations.teamId
   ],
   
-  // Admin validations
+  
   updateUser: [
     commonValidations.id,
     commonValidations.role,
@@ -137,9 +137,9 @@ const validationRules = {
   ]
 };
 
-// Sanitization middleware
+
 const sanitizeInput = (req, res, next) => {
-  // Remove any script tags and dangerous HTML
+  
   const sanitizeString = (str) => {
     if (typeof str !== 'string') return str;
     return str
@@ -148,7 +148,7 @@ const sanitizeInput = (req, res, next) => {
       .replace(/on\w+\s*=/gi, '');
   };
   
-  // Recursively sanitize object properties
+  
   const sanitizeObject = (obj) => {
     if (typeof obj !== 'object' || obj === null) return obj;
     

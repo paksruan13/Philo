@@ -35,7 +35,7 @@ const AdminDashboard = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      // Fetch real data from existing endpoints
+      
       const [usersResponse, teamsResponse, donationsResponse] = await Promise.all([
         fetch(API_ROUTES.admin.users, { headers }),
         fetch(API_ROUTES.admin.teams, { headers }),
@@ -48,7 +48,7 @@ const AdminDashboard = ({ navigation }) => {
         donationsResponse.json(),
       ]);
 
-      // Calculate total raised from donations
+      
       const totalRaised = donationsData.reduce((sum, donation) => sum + (donation.amount || 0), 0);
 
       setSystemStats({
@@ -58,7 +58,6 @@ const AdminDashboard = ({ navigation }) => {
       });
       
     } catch (error) {
-      console.error('Error fetching system data:', error);
       setSystemStats({
         totalUsers: 0,
         totalTeams: 0,

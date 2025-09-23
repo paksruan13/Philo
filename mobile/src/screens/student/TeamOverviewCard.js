@@ -8,7 +8,7 @@ import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/
 const TeamOverviewCard = ({ team, stats }) => {
   const [fontLoaded, setFontLoaded] = useState(false);
 
-  // Load custom font
+  
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -16,9 +16,8 @@ const TeamOverviewCard = ({ team, stats }) => {
           'BitcountGridDouble': require('../../../assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf'),
         });
         setFontLoaded(true);
-        console.log('BitcountGridDouble font loaded successfully in TeamOverviewCard!');
       } catch (error) {
-        console.error('Error loading BitcountGridDouble font:', error);
+        
       }
     }
     loadFonts();
@@ -54,7 +53,7 @@ const TeamOverviewCard = ({ team, stats }) => {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#ffffff', '#ffffff', '#ffffff']} // white to white
+        colors={['#ffffff', '#ffffff', '#ffffff']} 
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradientBackground}
@@ -179,7 +178,7 @@ const styles = {
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
-    marginBottom: 4, // Add space for shadow
+    marginBottom: 4, 
   },
   
   gradientBackground: {
@@ -187,7 +186,7 @@ const styles = {
     minHeight: 180,
   },
 
-  // Empty State
+  
   emptyCard: {
     backgroundColor: 'white',
     borderRadius: 20,
@@ -206,7 +205,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Header Section
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,7 +259,7 @@ const styles = {
     alignItems: 'center',
   },
 
-  // Stats Grid
+  
   statsGrid: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,7 +297,7 @@ const styles = {
     letterSpacing: 0.5,
   },
 
-  // Secondary Stats
+  
   secondaryStats: {
     flex: 1,
   },
@@ -352,7 +351,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Progress Section
+  
   progressSection: {
     backgroundColor: 'rgba(0,0,0,0.1)',
     padding: 16,

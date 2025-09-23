@@ -1,7 +1,7 @@
 const staffService = require('../services/staffService');
 
 const staffController = {
-  // Get staff dashboard data
+  
   getDashboard: async (req, res) => {
     try {
       const [teams, students, products] = await Promise.all([
@@ -26,7 +26,7 @@ const staffController = {
     }
   },
 
-  // Award points to a student
+  
   awardPoints: async (req, res) => {
     try {
       const { userId, teamId, points, activityDescription } = req.body;
@@ -51,7 +51,7 @@ const staffController = {
     }
   },
 
-  // Get manual points history
+  
   getManualPointsHistory: async (req, res) => {
     try {
       const staffId = req.user.id;
@@ -63,7 +63,7 @@ const staffController = {
     }
   },
 
-  // Sell product to student
+  
   sellProduct: async (req, res) => {
     try {
       const { productId, userId, teamId, size, quantity, paymentMethod, amountPaid } = req.body;
@@ -91,7 +91,7 @@ const staffController = {
     }
   },
 
-  // Get sales made by staff
+  
   getSales: async (req, res) => {
     try {
       const staffId = req.user.id;

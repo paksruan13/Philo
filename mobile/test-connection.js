@@ -5,17 +5,14 @@ const API_ENDPOINTS = {
 
 async function testLambdaConnection() {
   try {
-    console.log('Testing Lambda connection...');
     const response = await fetch(`${API_ENDPOINTS.LAMBDA_DEV.replace('/api', '')}/health`);
     const data = await response.json();
-    console.log('Lambda health check:', data);
     
     if (data.status === 'healthy') {
-      console.log('✅ Lambda API is working!');
-      console.log('✅ Database status:', data.database);
+      // Lambda API is working and database is connected
     }
   } catch (error) {
-    console.error('❌ Lambda connection failed:', error);
+    // Lambda connection failed
   }
 }
 
