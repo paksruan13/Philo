@@ -25,13 +25,13 @@ const Announcements = ({ navigation }) => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  // Announcement form state
+  
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
     content: '',
   });
 
-  // Fetch team data to get team ID (same as web version)
+  
   const fetchTeamData = async () => {
     try {
       const headers = {
@@ -39,7 +39,7 @@ const Announcements = ({ navigation }) => {
         'Content-Type': 'application/json',
       };
 
-      // Get current user info with coached teams
+      
       const userRes = await fetchWithTimeout(API_ROUTES.AUTH.ME, { headers }, 15000);
       
       if (!userRes.ok) {
@@ -49,16 +49,16 @@ const Announcements = ({ navigation }) => {
       
       const userData = await userRes.json();
       
-      // Check if user has coached teams
+      
       if (!userData.user.coachedTeams || userData.user.coachedTeams.length === 0) {
         setError('You are not assigned as a coach to any team. Please contact an administrator.');
         return null;
       }
 
-      // Get the first coached team
+      
       const coachedTeam = userData.user.coachedTeams[0];
       
-      // Fetch detailed team data from leaderboard
+      
       const leaderboardRes = await fetchWithTimeout(API_ROUTES.LEADERBOARD.LIST, {}, 15000);
       
       if (!leaderboardRes.ok) {
@@ -77,13 +77,12 @@ const Announcements = ({ navigation }) => {
       return currentTeam;
       
     } catch (error) {
-      console.error('Error fetching team data:', error);
       setError(`Network error loading team data: ${error.message}`);
       return null;
     }
   };
 
-  // Fetch announcements
+  
   const fetchAnnouncements = async (teamId) => {
     if (!teamId) return;
 
@@ -105,12 +104,11 @@ const Announcements = ({ navigation }) => {
         setError('Failed to load announcements');
       }
     } catch (error) {
-      console.error('Error fetching announcements:', error);
       setError('Network error loading announcements');
     }
   };
 
-  // Load data
+  
   const loadData = async () => {
     setLoading(true);
     const team = await fetchTeamData();
@@ -130,12 +128,12 @@ const Announcements = ({ navigation }) => {
     loadData();
   };
 
-  // Handle form changes
+  
   const handleFormChange = (field, value) => {
     setNewAnnouncement(prev => ({ ...prev, [field]: value }));
   };
 
-  // Clear messages after delay
+  
   const clearMessages = () => {
     setTimeout(() => {
       setSuccess('');
@@ -143,7 +141,7 @@ const Announcements = ({ navigation }) => {
     }, 3000);
   };
 
-  // Create announcement
+  
   const handleCreateAnnouncement = async () => {
     if (!newAnnouncement.title.trim() || !newAnnouncement.content.trim()) {
       setError('Please fill in both title and content');
@@ -186,13 +184,12 @@ const Announcements = ({ navigation }) => {
         clearMessages();
       }
     } catch (error) {
-      console.error('Error creating announcement:', error);
       setError('Network error creating announcement');
       clearMessages();
     }
   };
 
-  // Delete announcement
+  
   const handleDeleteAnnouncement = async (announcementId) => {
     if (!teamData || !teamData.id) {
       setError('Team data not available');
@@ -215,7 +212,7 @@ const Announcements = ({ navigation }) => {
                 'Content-Type': 'application/json',
               };
 
-              // Optimistically remove from UI
+              
               setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
               
               const response = await fetchWithTimeout(
@@ -231,15 +228,14 @@ const Announcements = ({ navigation }) => {
                 setSuccess('Announcement deleted successfully!');
                 clearMessages();
               } else {
-                // Restore announcement on error
+                
                 await fetchAnnouncements(teamData.id);
                 const errorData = await response.json();
                 setError(errorData.error || 'Failed to delete announcement');
                 clearMessages();
               }
             } catch (error) {
-              console.error('Error deleting announcement:', error);
-              // Restore announcements on error
+              
               await fetchAnnouncements(teamData.id);
               setError('Network error deleting announcement');
               clearMessages();
@@ -534,7 +530,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Header
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -599,7 +595,7 @@ const styles = {
     marginLeft: Spacing.md,
   },
 
-  // Messages
+  
   errorContainer: {
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
@@ -627,7 +623,7 @@ const styles = {
     textAlign: 'center',
   },
 
-  // Team Info Card
+  
   teamCard: {
     backgroundColor: '#ffffff',
     marginHorizontal: Spacing.lg,
@@ -682,7 +678,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Announcements Section
+  
   announcementsSection: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
@@ -796,7 +792,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Empty State
+  
   emptyState: {
     alignItems: 'center',
     paddingVertical: Spacing.xl * 2,
@@ -849,7 +845,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Modal Styles
+  
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -910,7 +906,7 @@ const styles = {
     padding: Spacing.lg,
   },
 
-  // Form Elements
+  
   formGroup: {
     marginBottom: Spacing.lg,
   },
@@ -964,7 +960,7 @@ const styles = {
     fontWeight: '500',
   },
   
-  // Preview Section
+  
   previewSection: {
     marginBottom: Spacing.lg,
   },

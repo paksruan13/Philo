@@ -6,7 +6,6 @@ const { v4: uuidv4 } = require('uuid');
 
 const uploadPhoto = async (file, teamId) => {
   try {
-    console.log('  Access Key:', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '***');
 
     const bucketName = process.env.S3_BUCKET_NAME;
     const key = `photos/${uuidv4()}-${file.originalname}`;
@@ -21,7 +20,7 @@ const uploadPhoto = async (file, teamId) => {
     const command = new PutObjectCommand(uploadParams);
     await s3Client.send(command);
 
-    const photoUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const photoUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
     const photo = await prisma.photo.create({
       data:{ 
@@ -135,18 +134,18 @@ const uploadProductImage = async (file) => {
     const command = new PutObjectCommand(uploadParams);
     await s3Client.send(command);
 
-    // Generate a signed URL for immediate display
+    
     const getObjectCommand = new GetObjectCommand({
       Bucket: bucketName,
       Key: key
     });
     
-    const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 }); // 1 hour
+    const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 }); 
 
-    // Return both the S3 key (for database storage) and signed URL (for display)
+    
     return {
-      url: signedUrl, // Signed URL for immediate display
-      s3Key: key,     // S3 key for database storage
+      url: signedUrl, 
+      s3Key: key,     
       fileName: key,
       success: true
     };

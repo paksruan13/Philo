@@ -31,7 +31,7 @@ const ProductSales = ({ navigation }) => {
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [activeTab, setActiveTab] = useState('products');
   
-  // Sale form state
+  
   const [saleForm, setSaleForm] = useState({
     productId: '',
     size: '',
@@ -46,20 +46,20 @@ const ProductSales = ({ navigation }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   
-  // Modern dropdown states with search
+  
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   
-  // Search states
+  
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   
-  // Animation
+  
   const modalAnimation = new Animated.Value(0);
 
-  // Filter functions for searchable dropdowns
+  
   const getFilteredProducts = () => {
     if (!productSearchQuery.trim()) return products;
     
@@ -100,7 +100,7 @@ const ProductSales = ({ navigation }) => {
       let productsData = [];
       let salesData = [];
       
-      // Fetch all students (coach endpoint provides access to all students for sales)
+      
       try {
         const studentsResponse = await fetchWithTimeout(API_ROUTES.coach.students, {
           headers
@@ -113,11 +113,10 @@ const ProductSales = ({ navigation }) => {
         studentsData = await studentsResponse.json();
         studentsData = Array.isArray(studentsData) ? studentsData : [];
       } catch (studentsError) {
-        console.error('Error fetching students:', studentsError);
         setError(prev => prev ? `${prev}; Students: ${studentsError.message}` : `Students: ${studentsError.message}`);
       }
 
-      // Fetch products with inventory
+      
       try {
         const productsResponse = await fetchWithTimeout(API_ROUTES.products.list, {
           headers
@@ -129,11 +128,10 @@ const ProductSales = ({ navigation }) => {
         }
         productsData = await productsResponse.json();
       } catch (productsError) {
-        console.error('Error fetching products:', productsError);
         setError(prev => prev ? `${prev}; Products: ${productsError.message}` : `Products: ${productsError.message}`);
       }
 
-      // Fetch coach's sales
+      
       try {
         const salesResponse = await fetchWithTimeout(API_ROUTES.productSales.coachSales, {
           headers
@@ -145,7 +143,6 @@ const ProductSales = ({ navigation }) => {
         }
         salesData = await salesResponse.json();
       } catch (salesError) {
-        console.error('Error fetching sales:', salesError);
         setError(prev => prev ? `${prev}; Sales: ${salesError.message}` : `Sales: ${salesError.message}`);
       }
 
@@ -154,7 +151,6 @@ const ProductSales = ({ navigation }) => {
       setSales(Array.isArray(salesData) ? salesData : []);
       
     } catch (error) {
-      console.error('Unexpected error in fetchData:', error);
       setError(`Unexpected error: ${error.message}`);
     } finally {
       setLoading(false);
@@ -179,7 +175,7 @@ const ProductSales = ({ navigation }) => {
     return sales.reduce((sum, sale) => sum + (sale.product.points * sale.quantity), 0);
   };
 
-  // Get available sizes for selected product
+  
   const getAvailableSizes = () => {
     const product = getSelectedProduct();
     return product ? product.inventory.filter(inv => inv.quantity > 0) : [];
@@ -190,13 +186,13 @@ const ProductSales = ({ navigation }) => {
     setSaleForm(prev => {
       const newForm = { ...prev, [field]: value };
       
-      // Reset size and quantity when product changes
+      
       if (field === 'productId') {
         newForm.size = '';
         newForm.quantity = 1;
       }
       
-      // Reset quantity when size changes
+      
       if (field === 'size') {
         newForm.quantity = 1;
       }
@@ -206,7 +202,7 @@ const ProductSales = ({ navigation }) => {
   };
 
   const handleNewSale = (productId = null) => {
-    // If a specific product is selected, pre-populate the form
+    
     if (productId) {
       setSaleForm(prev => ({
         ...prev,
@@ -215,7 +211,7 @@ const ProductSales = ({ navigation }) => {
         quantity: 1
       }));
     } else {
-      // Reset form for generic new sale
+      
       setSaleForm({
         productId: '',
         size: '',
@@ -227,12 +223,12 @@ const ProductSales = ({ navigation }) => {
         externalCustomerEmail: ''
       });
     }
-    setError(''); // Clear any existing errors
+    setError(''); 
     setShowSaleModal(true);
   };
 
   const handleSubmitSale = async () => {
-    // Comprehensive validation checks
+    
     if (saleForm.isExternalSale) {
       if (!saleForm.externalCustomerName.trim()) {
         setError('Please enter external customer name');
@@ -265,7 +261,7 @@ const ProductSales = ({ navigation }) => {
       return;
     }
 
-    // Check inventory availability
+    
     const selectedProduct = getSelectedProduct();
     if (selectedProduct) {
       const sizeInventory = selectedProduct.inventory.find(inv => inv.size === saleForm.size);
@@ -319,7 +315,7 @@ const ProductSales = ({ navigation }) => {
 
       const saleData = await response.json();
 
-      // Store sale details for confirmation
+      
       const customerName = saleForm.isExternalSale 
         ? saleForm.externalCustomerName 
         : (students.find(s => s.id == saleForm.studentId)?.name || 'Unknown Student');
@@ -338,14 +334,14 @@ const ProductSales = ({ navigation }) => {
         isExternalSale: saleForm.isExternalSale
       });
 
-      // Show confirmation modal
+      
       setShowConfirmation(true);
       setShowSaleModal(false);
 
-      // Refresh data
+      
       await fetchData();
 
-      // Reset form
+      
       setSaleForm({
         productId: '',
         size: '',
@@ -359,13 +355,6 @@ const ProductSales = ({ navigation }) => {
 
       setSuccess('Sale completed successfully!');
     } catch (err) {
-      console.error('🛍️ PRODUCT SALE - Error creating sale:', err);
-      console.error('🛍️ PRODUCT SALE - Error message:', err.message);
-      console.error('🛍️ PRODUCT SALE - Error stack:', err.stack);
-      console.error('🛍️ PRODUCT SALE - Sale API URL:', API_ROUTES.productSales.sell);
-      console.error('🛍️ PRODUCT SALE - Sale form data:', saleForm);
-      console.error('🛍️ PRODUCT SALE - Token present:', !!token);
-      console.error('🛍️ PRODUCT SALE - Selected product:', selectedProduct);
       setError(err.message || 'Failed to complete sale');
     } finally {
       setLoading(false);
@@ -400,14 +389,13 @@ const ProductSales = ({ navigation }) => {
                 throw new Error(errorData.message || 'Failed to delete sale');
               }
 
-              // Remove from sales array after successful API call
+              
               setSales(prevSales => prevSales.filter(sale => sale.id !== saleId));
               setSuccess('Sale deleted successfully! Inventory has been restored.');
               
-              // Refresh data to ensure everything is up to date
+              
               await fetchData();
             } catch (err) {
-              console.error('Error deleting sale:', err);
               setError(err.message || 'Failed to delete sale');
             } finally {
               setLoading(false);
@@ -762,7 +750,7 @@ const ProductSales = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     handleSaleFormChange('isExternalSale', false);
-                    // Clear external customer fields when switching to internal
+                    
                     handleSaleFormChange('externalCustomerName', '');
                     handleSaleFormChange('externalCustomerEmail', '');
                   }}
@@ -787,7 +775,7 @@ const ProductSales = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     handleSaleFormChange('isExternalSale', true);
-                    // Clear student selection when switching to external
+                    
                     handleSaleFormChange('studentId', '');
                   }}
                 >
@@ -1375,7 +1363,7 @@ const styles = StyleSheet.create({
     color: Colors.mutedForeground,
   },
   
-  // Header Styles
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1402,7 +1390,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   headerSpacer: {
-    width: 44, // Same width as back button to center the title
+    width: 44, 
   },
   newSaleButton: {
     flexDirection: 'row',
@@ -1419,7 +1407,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Message Styles
+  
   errorContainer: {
     margin: 16,
     padding: 12,
@@ -1447,7 +1435,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Summary Styles
+  
   summarySection: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -1482,7 +1470,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Tab Styles
+  
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -1519,7 +1507,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Product Card Styles
+  
   productCard: {
     backgroundColor: '#ffffff',
     padding: 16,
@@ -1633,7 +1621,7 @@ const styles = StyleSheet.create({
     color: '#dc2626',
   },
   
-  // Sale Card Styles
+  
   saleCard: {
     backgroundColor: '#ffffff',
     padding: 16,
@@ -1738,7 +1726,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // Empty State
+  
   emptyState: {
     alignItems: 'center',
     padding: 32,
@@ -1756,7 +1744,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   
-  // Modal Styles
+  
   modalContainer: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -1812,7 +1800,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Product Preview Styles
+  
   productPreview: {
     backgroundColor: '#f8fafc',
     borderRadius: 12,
@@ -1878,7 +1866,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // Form Styles (Modern like ManagePoints)
+  
   formGroup: {
     marginBottom: 20,
   },
@@ -1979,7 +1967,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   
-  // Dropdown Styles (Like ManagePoints)
+  
   dropdownContainer: {
     backgroundColor: '#ffffff',
     borderRadius: 10,
@@ -2034,7 +2022,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Student Option Styles
+  
   studentOptionAvatar: {
     width: 32,
     height: 32,
@@ -2060,7 +2048,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   
-  // Product Option Styles
+  
   productOptionIcon: {
     width: 32,
     height: 32,
@@ -2098,7 +2086,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   
-  // Size Option Styles
+  
   sizeOptionIcon: {
     width: 32,
     height: 32,
@@ -2119,7 +2107,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   
-  // Payment Option Styles
+  
   paymentOptionIcon: {
     width: 32,
     height: 32,
@@ -2129,7 +2117,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   
-  // Venmo QR Code Styles
+  
   venmoQRContainer: {
     marginTop: 16,
     backgroundColor: '#f8fafc',
@@ -2176,7 +2164,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // Full Size QR Modal Styles
+  
   qrModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -2245,7 +2233,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   
-  // No Results
+  
   noResultsContainer: {
     alignItems: 'center',
     paddingVertical: 20,
@@ -2258,7 +2246,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // Order Summary
+  
   orderSummaryContainer: {
     backgroundColor: '#f8fafc',
     borderRadius: 10,
@@ -2307,7 +2295,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   
-  // Submit Button
+  
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2328,7 +2316,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Confirmation Modal
+  
   confirmationOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

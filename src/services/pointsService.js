@@ -2,7 +2,7 @@ const { prisma } = require('../config/lambdaDatabase');
 
 const POINTS_CONFIG = {
     DONATION_MULTIPLIER: 1,
-    SHIRT_SALE_POINTS: 10, // Default fallback
+    SHIRT_SALE_POINTS: 10, 
     PHOTO_POINTS: 50,
 };
 
@@ -55,12 +55,12 @@ const updateTeamPoints = async (teamId) => {
             return null;
         }
 
-        // Get current shirt points configuration
+        
         const shirtConfig = await getShirtPointsConfig();
 
         const donationPoints = team.donations.reduce((sum, d) => sum + d.amount, 0) * POINTS_CONFIG.DONATION_MULTIPLIER;
         
-        // Calculate shirt points from team shirt sales
+        
         const shirtPoints = team.shirtSales.reduce((sum, sale) => sum + (sale.quantity * shirtConfig), 0);
         
         const photoPoints = team.photos.length * POINTS_CONFIG.PHOTO_POINTS;
@@ -72,7 +72,6 @@ const updateTeamPoints = async (teamId) => {
             data: {totalPoints}
         });
 
-        console.log(`Updated team ${team.name} points to ${totalPoints} (shirt points: ${shirtPoints})`);
         return updatedTeam;
     } catch (error) {
         console.error('Error updating team points:' + error);

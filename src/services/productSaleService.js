@@ -1,10 +1,6 @@
 const { prisma } = require('../config/lambdaDatabase');
 
-/**
- * Product Sale Service - Handles all product sale-related database operations
- */
 
-// Get all sales for a specific coach
 const getCoachSales = async (coachId) => {
   const sales = await prisma.productSale.findMany({
     where: { coachId },
@@ -27,7 +23,7 @@ const getCoachSales = async (coachId) => {
     orderBy: { soldAt: 'desc' }
   });
 
-  // Format sales to include customer info for both internal and external sales
+  
   return sales.map(sale => ({
     ...sale,
     customerName: sale.isExternalSale ? sale.externalCustomerName : sale.user?.name,
@@ -36,7 +32,7 @@ const getCoachSales = async (coachId) => {
   }));
 };
 
-// Get all product sales (admin view)
+
 const getAllProductSales = async () => {
   return await prisma.productSale.findMany({
     include: {
@@ -55,7 +51,7 @@ const getAllProductSales = async () => {
   });
 };
 
-// Get user by ID with team
+
 const getUserWithTeam = async (userId) => {
   return await prisma.user.findUnique({
     where: { id: userId },
@@ -63,7 +59,7 @@ const getUserWithTeam = async (userId) => {
   });
 };
 
-// Get user by email with team
+
 const getUserByEmailWithTeam = async (email) => {
   return await prisma.user.findUnique({
     where: { email },
@@ -71,10 +67,10 @@ const getUserByEmailWithTeam = async (email) => {
   });
 };
 
-// Create internal sale (with donation and points)
+
 const createInternalSale = async (saleData) => {
   return await prisma.$transaction(async (tx) => {
-    // Get product details
+    
     const product = await tx.product.findUnique({
       where: { id: saleData.productId }
     });
@@ -83,7 +79,7 @@ const createInternalSale = async (saleData) => {
       throw new Error('Product not found or inactive');
     }
 
-    // Get user and their team
+    
     const user = await tx.user.findUnique({
       where: { id: saleData.userId },
       include: { team: true }
@@ -95,7 +91,7 @@ const createInternalSale = async (saleData) => {
 
     const teamId = user.team?.id || null;
 
-    // Check inventory
+    
     const inventory = await tx.productInventory.findUnique({
       where: {
         productId_size: {
@@ -109,7 +105,7 @@ const createInternalSale = async (saleData) => {
       throw new Error('Insufficient inventory');
     }
 
-    // Update inventory
+    
     await tx.productInventory.update({
       where: {
         productId_size: {
@@ -122,7 +118,7 @@ const createInternalSale = async (saleData) => {
       }
     });
 
-    // Create sale record
+    
     const sale = await tx.productSale.create({
       data: {
         productId: saleData.productId,
@@ -142,7 +138,7 @@ const createInternalSale = async (saleData) => {
       }
     });
 
-    // Create donation record
+    
     const donationData = {
       amount: parseFloat(saleData.amountPaid),
       userId: user.id,
@@ -157,7 +153,7 @@ const createInternalSale = async (saleData) => {
       data: donationData
     });
 
-    // Award points to team if user belongs to a team
+    
     let totalPoints = 0;
     if (teamId) {
       totalPoints = product.points * saleData.quantity;
@@ -173,10 +169,10 @@ const createInternalSale = async (saleData) => {
   });
 };
 
-// Create external sale (with donation tracking)
+
 const createExternalSale = async (saleData) => {
   return await prisma.$transaction(async (tx) => {
-    // Get product details
+    
     const product = await tx.product.findUnique({
       where: { id: saleData.productId }
     });
@@ -185,7 +181,7 @@ const createExternalSale = async (saleData) => {
       throw new Error('Product not found or inactive');
     }
 
-    // Check inventory
+    
     const inventory = await tx.productInventory.findUnique({
       where: {
         productId_size: {
@@ -199,7 +195,7 @@ const createExternalSale = async (saleData) => {
       throw new Error('Insufficient inventory');
     }
 
-    // Update inventory
+    
     await tx.productInventory.update({
       where: {
         productId_size: {
@@ -212,7 +208,7 @@ const createExternalSale = async (saleData) => {
       }
     });
 
-    // Create sale record
+    
     const sale = await tx.productSale.create({
       data: {
         productId: saleData.productId,
@@ -230,7 +226,7 @@ const createExternalSale = async (saleData) => {
       }
     });
 
-    // Create donation record linked to the product sale
+    
     await tx.donation.create({
       data: {
         amount: parseFloat(saleData.amountPaid),
@@ -243,10 +239,10 @@ const createExternalSale = async (saleData) => {
   });
 };
 
-// Create ticket sale (online purchase)
+
 const createTicketSale = async (saleData) => {
   return await prisma.$transaction(async (tx) => {
-    // Get ticket details
+    
     const ticket = await tx.product.findUnique({
       where: { id: saleData.ticketId },
       include: { inventory: true }
@@ -256,7 +252,7 @@ const createTicketSale = async (saleData) => {
       throw new Error('Ticket not found or inactive');
     }
 
-    // Find user by email
+    
     const user = await tx.user.findUnique({
       where: { email: saleData.email },
       include: { team: true }
@@ -270,7 +266,7 @@ const createTicketSale = async (saleData) => {
       throw new Error('User does not belong to a team');
     }
 
-    // Check ticket inventory (tickets use ONESIZE)
+    
     const inventory = await tx.productInventory.findUnique({
       where: {
         productId_size: {
@@ -284,7 +280,7 @@ const createTicketSale = async (saleData) => {
       throw new Error('Ticket sold out');
     }
 
-    // Update inventory
+    
     await tx.productInventory.update({
       where: {
         productId_size: {
@@ -297,7 +293,7 @@ const createTicketSale = async (saleData) => {
       }
     });
 
-    // Create sale record
+    
     const sale = await tx.productSale.create({
       data: {
         productId: saleData.ticketId,
@@ -307,7 +303,7 @@ const createTicketSale = async (saleData) => {
         teamId: user.team.id,
         paymentMethod: 'ONLINE',
         amountPaid: parseFloat(ticket.price),
-        coachId: null // No coach for online ticket purchases
+        coachId: null 
       },
       include: {
         product: true,
@@ -316,7 +312,7 @@ const createTicketSale = async (saleData) => {
       }
     });
 
-    // Create donation record
+    
     await tx.donation.create({
       data: {
         amount: parseFloat(ticket.price),
@@ -326,7 +322,7 @@ const createTicketSale = async (saleData) => {
       }
     });
 
-    // Award points to team
+    
     const totalPoints = ticket.points * 1;
     await tx.team.update({
       where: { id: user.team.id },
@@ -339,7 +335,7 @@ const createTicketSale = async (saleData) => {
   });
 };
 
-// Get sale by ID with related data
+
 const getSaleById = async (saleId) => {
   return await prisma.productSale.findUnique({
     where: { id: saleId },
@@ -350,10 +346,10 @@ const getSaleById = async (saleId) => {
   });
 };
 
-// Delete sale and restore inventory/points
+
 const deleteSale = async (saleId, coachId) => {
   return await prisma.$transaction(async (tx) => {
-    // Get the sale details
+    
     const sale = await tx.productSale.findUnique({
       where: { id: saleId },
       include: {
@@ -366,12 +362,12 @@ const deleteSale = async (saleId, coachId) => {
       throw new Error('Sale not found');
     }
 
-    // Check if this coach made the sale
+    
     if (sale.coachId !== coachId) {
       throw new Error('You can only delete sales you made');
     }
 
-    // Restore inventory
+    
     await tx.productInventory.upsert({
       where: {
         productId_size: {
@@ -389,7 +385,7 @@ const deleteSale = async (saleId, coachId) => {
       }
     });
 
-    // Remove points from team (only for internal sales)
+    
     let pointsRemoved = 0;
     if (sale.teamId && sale.userId) {
       pointsRemoved = sale.product.points * sale.quantity;
@@ -401,17 +397,17 @@ const deleteSale = async (saleId, coachId) => {
       });
     }
 
-    // Remove the corresponding donation record
+    
     if (sale.userId && sale.teamId) {
-      // Internal sale - find donation with user and team
+      
       const donationToDelete = await tx.donation.findFirst({
         where: {
           userId: sale.userId,
           teamId: sale.teamId,
           amount: sale.amountPaid,
           createdAt: {
-            gte: new Date(sale.soldAt.getTime() - 60000), // 1 minute before
-            lte: new Date(sale.soldAt.getTime() + 60000)  // 1 minute after
+            gte: new Date(sale.soldAt.getTime() - 60000), 
+            lte: new Date(sale.soldAt.getTime() + 60000)  
           }
         }
       });
@@ -422,7 +418,7 @@ const deleteSale = async (saleId, coachId) => {
         });
       }
     } else if (sale.isExternalSale) {
-      // External sale - delete linked donation
+      
       const donationToDelete = await tx.donation.findFirst({
         where: {
           productSaleId: sale.id
@@ -436,7 +432,7 @@ const deleteSale = async (saleId, coachId) => {
       }
     }
 
-    // Delete the sale
+    
     await tx.productSale.delete({
       where: { id: saleId }
     });

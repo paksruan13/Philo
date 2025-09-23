@@ -68,7 +68,7 @@ const createGlobal = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Only allow ADMIN users to create global announcements
+    
     if (req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Only administrators can create global announcements' });
     }

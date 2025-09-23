@@ -26,7 +26,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
-  // Load custom font
+  
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -34,9 +34,8 @@ const LoginScreen = ({ navigation }) => {
           'BitcountGridDouble': require('../../../assets/fonts/BitcountGridDouble-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf'),
         });
         setFontLoaded(true);
-        console.log('BitcountGridDouble font loaded successfully in LoginScreen!');
       } catch (error) {
-        console.error('Error loading BitcountGridDouble font:', error);
+        
       }
     }
     loadFonts();
@@ -53,8 +52,8 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(email.toLowerCase().trim(), password);
       
       if (result.success) {
-        // Navigation will be handled automatically by AppNavigator
-        // when the user state changes in AuthContext
+        
+        
       } else {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
       }
@@ -68,7 +67,7 @@ const LoginScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <LinearGradient 
-        colors={['#faf5ff', '#f3e8ff', '#e9d5ff']} // light purple gradient
+        colors={['#faf5ff', '#f3e8ff', '#e9d5ff']} 
         style={styles.backgroundGradient}
       >
         {/* Subtle Pattern Overlay */}
@@ -201,7 +200,7 @@ const LoginScreen = ({ navigation }) => {
                     disabled={loading || !email || !password}
                   >
                     <LinearGradient
-                      colors={loading ? ['#94a3b8', '#64748b'] : ['#8b5cf6', '#7c3aed']} // purple gradient
+                      colors={loading ? ['#94a3b8', '#64748b'] : ['#8b5cf6', '#7c3aed']} 
                       style={styles.loginButtonGradient}
                     >
                       {loading ? (
@@ -284,7 +283,7 @@ const styles = {
     padding: 24,
   },
 
-  // Header Section
+  
   header: {
     alignItems: 'center',
     marginTop: 40,
@@ -294,9 +293,9 @@ const styles = {
     fontSize: 48,
     fontWeight: '700',
     textAlign: 'center',
-    color: '#8b5cf6', // purple color
+    color: '#8b5cf6', 
     marginBottom: 8,
-    // Shadow properties
+    
     textShadowColor: 'rgba(139, 92, 246, 0.3)',
     textShadowOffset: { width: 2, height: 3 },
     textShadowRadius: 6,
@@ -308,7 +307,7 @@ const styles = {
     fontWeight: '500',
   },
 
-  // Form Section
+  
   formContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -324,7 +323,7 @@ const styles = {
     shadowRadius: 12,
   },
 
-  // Input Styles
+  
   inputGroup: {
     marginBottom: 24,
   },
@@ -364,7 +363,7 @@ const styles = {
     padding: 8,
   },
 
-  // Button Styles
+  
   loginButton: {
     marginTop: 8,
     borderRadius: 12,
@@ -392,7 +391,7 @@ const styles = {
     letterSpacing: 0.5,
   },
 
-  // Footer Section
+  
   footer: {
     marginTop: 32,
     marginBottom: 16,

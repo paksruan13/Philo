@@ -56,7 +56,6 @@ const TeamManagement = ({ navigation }) => {
         setError('Failed to fetch teams');
       }
     } catch (error) {
-      console.error('Error fetching teams:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -77,11 +76,9 @@ const TeamManagement = ({ navigation }) => {
         const data = await response.json();
         setCoaches(Array.isArray(data) ? data : []);
       } else {
-        console.warn('Failed to fetch coaches, continuing without coach data');
         setCoaches([]);
       }
     } catch (error) {
-      console.warn('Error fetching coaches, continuing without coach data:', error);
       setCoaches([]);
     }
   };
@@ -148,7 +145,6 @@ const TeamManagement = ({ navigation }) => {
         Alert.alert('Error', error.message || `Failed to ${action.toLowerCase()} team`);
       }
     } catch (error) {
-      console.error(`Error ${action.toLowerCase()}ing team:`, error);
       Alert.alert('Error', 'Network error. Please try again.');
     }
   };
@@ -182,7 +178,6 @@ const TeamManagement = ({ navigation }) => {
       }
     } catch (error) {
       setError('Error creating team');
-      console.error('Error:', error);
     }
   };
 
@@ -220,7 +215,6 @@ const TeamManagement = ({ navigation }) => {
       }
     } catch (error) {
       setError('Error resetting points');
-      console.error('Error:', error);
     }
   };
 
@@ -232,7 +226,7 @@ const TeamManagement = ({ navigation }) => {
     });
     setEditModalVisible(true);
     
-    // Fade in animation
+    
     Animated.timing(editModalOpacity, {
       toValue: 1,
       duration: 300,
@@ -280,17 +274,16 @@ const TeamManagement = ({ navigation }) => {
       }
     } catch (error) {
       setError('Error updating team');
-      console.error('Error:', error);
     }
   };
 
   const TeamCard = ({ team }) => {
     const isActive = team.isActive !== false;
     
-    // Try multiple ways to get member count
+    
     const memberCount = team.members?.length || team._count?.members || 0;
     
-    // Try multiple ways to get donation total
+    
     let totalDonations = 0;
     if (team.stats?.totalDonations) {
       totalDonations = team.stats.totalDonations;
@@ -1330,7 +1323,7 @@ const styles = {
     height: Spacing.xl,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1398,7 +1391,7 @@ const styles = {
     maxHeight: '70%',
   },
 
-  // Info Cards
+  
   infoCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 16,
@@ -1446,7 +1439,7 @@ const styles = {
     textAlign: 'right',
   },
 
-  // Members List
+  
   membersList: {
     gap: Spacing.sm,
   },
@@ -1488,7 +1481,7 @@ const styles = {
     fontWeight: '400',
   },
 
-  // Timestamp Card
+  
   timestampCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1504,7 +1497,7 @@ const styles = {
     marginLeft: Spacing.sm,
   },
 
-  // Form Sections
+  
   formSection: {
     marginBottom: Spacing.lg,
   },
@@ -1516,7 +1509,7 @@ const styles = {
     marginBottom: Spacing.sm,
   },
 
-  // Text Input
+  
   textInput: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
@@ -1529,7 +1522,7 @@ const styles = {
     minHeight: 50,
   },
 
-  // Code Display
+  
   codeDisplayContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1548,7 +1541,7 @@ const styles = {
     marginLeft: Spacing.sm,
   },
 
-  // Dropdown Styles
+  
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1614,7 +1607,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Toggle Switch
+  
   toggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1667,7 +1660,7 @@ const styles = {
     transform: [{ translateX: 22 }],
   },
 
-  // Info Container
+  
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1686,7 +1679,7 @@ const styles = {
     flex: 1,
   },
 
-  // Success/Error Containers
+  
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1723,7 +1716,7 @@ const styles = {
     marginLeft: Spacing.sm,
   },
 
-  // Action Buttons
+  
   modalActions: {
     flexDirection: 'row',
     padding: Spacing.lg,

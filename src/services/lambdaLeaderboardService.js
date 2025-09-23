@@ -57,7 +57,6 @@ const leaderboard = teams.map((team, index) => {
   };
 });
 
-// Sort by total score and assign ranks
 leaderboard.sort((a, b) => b.totalScore - a.totalScore);
 leaderboard.forEach((team, index) => {
   team.rank = index + 1;
@@ -66,54 +65,40 @@ leaderboard.forEach((team, index) => {
 return leaderboard;
 };
 
-// Lambda-compatible version - no Socket.io emission
-// Controllers can call this but it won't emit real-time updates
 const emitLeaderboardUpdate = async (io = null) => {
   try {
-    // Calculate leaderboard but don't emit since we're in Lambda
     const leaderboard = await calculateLeaderboard();
-    
-    // Log for debugging in Lambda
-    console.log('📊 Leaderboard updated (Lambda mode - no real-time emission)');
-    
-    // Return the leaderboard data instead of emitting
     return leaderboard;
   } catch (err) {
-    console.error('❌ Error calculating leaderboard update:', err);
+    console.error(' Error calculating leaderboard update:', err);
     throw err;
   }
 };
 
 const getStatistics = async () => {
   try {
-    // Get total donations (now includes both regular donations and external sales)
     const totalDonationsResult = await prisma.donation.aggregate({
       _sum: {
         amount: true
       }
     });
 
-    // Get total product sales amount
     const totalProductSalesResult = await prisma.productSale.aggregate({
       _sum: {
         amountPaid: true
       }
     });
 
-    // Get total shirt sales
     const totalShirtSalesResult = await prisma.shirtSale.aggregate({
       _sum: {
         quantity: true
       }
     });
 
-    // Get total teams
     const totalTeams = await prisma.team.count();
 
-    // Get total members
     const totalMembers = await prisma.user.count();
 
-    // Get total approved photos
     const totalPhotos = await prisma.photo.count({
       where: {
         approved: true
@@ -131,14 +116,14 @@ const getStatistics = async () => {
       totalDonations: totalDonationsResult._sum.amount || 0,
       totalProductSales: totalProductSalesResult._sum.amountPaid || 0,
       totalShirtSales: totalShirtSalesResult._sum.quantity || 0,
-      totalRaised: totalDonationsResult._sum.amount || 0, // Total raised from donations table
+      totalRaised: totalDonationsResult._sum.amount || 0, 
       totalTeams,
       totalMembers,
       totalPhotos,
-      donationGoal: donationGoalConfig ? parseInt(donationGoalConfig.value) : 50000 // Default to 50000 if not set
+      donationGoal: donationGoalConfig ? parseInt(donationGoalConfig.value) : 50000
     };
   } catch (error) {
-    console.error('❌ Error fetching statistics:', error);
+    console.error(' Error fetching statistics:', error);
     throw error;
   }
 };

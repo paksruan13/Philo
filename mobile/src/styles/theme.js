@@ -2,57 +2,57 @@ import { Dimensions } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Design System - Light Red Purple Gold Theme (matching webapp)
+
 export const Colors = {
-  // Main theme colors - Light background like webapp
-  background: '#FAF7F2', // warm cream background (hsl(45, 20%, 98%))
-  foreground: '#1A1A1A', // very dark text
   
-  // Primary colors - Rich purple
-  primary: '#A855F7', // rich purple (hsl(270, 85%, 65%))
+  background: '#FAF7F2', 
+  foreground: '#1A1A1A', 
+  
+  
+  primary: '#A855F7', 
   primaryForeground: '#FFFFFF',
   
-  // Secondary colors - Bright gold
-  secondary: '#FFD700', // bright gold (hsl(45, 100%, 50%))
+  
+  secondary: '#FFD700', 
   secondaryForeground: '#1A1A1A',
   
-  // Accent colors - Vibrant red
-  accent: '#EF4444', // vibrant red (hsl(0, 85%, 60%))
+  
+  accent: '#EF4444', 
   accentForeground: '#FFFFFF',
   
-  // Status colors
-  success: '#059669', // success green
+  
+  success: '#059669', 
   successForeground: '#FFFFFF',
-  warning: '#F59E0B', // warning gold
+  warning: '#F59E0B', 
   warningForeground: '#1A1A1A',
-  error: '#DC2626', // error red
+  error: '#DC2626', 
   errorForeground: '#FFFFFF',
   
-  // Ranking colors - matching webapp
-  gold: '#FFD700', // winner gold
-  silver: '#A6A6A6', // second place silver
-  bronze: '#CD853F', // third place bronze
   
-  // Utility colors
+  gold: '#FFD700', 
+  silver: '#A6A6A6', 
+  bronze: '#CD853F', 
+  
+  
   destructive: '#DC2626',
   destructiveForeground: '#FFFFFF',
   
-  // Light muted colors
-  muted: '#F3F4F6', // light gray
-  mutedForeground: '#6B7280', // medium gray text
   
-  // Card and border colors - Light theme
-  card: '#FFFFFF', // white cards with slight transparency
+  muted: '#F3F4F6', 
+  mutedForeground: '#6B7280', 
+  
+  
+  card: '#FFFFFF', 
   cardForeground: '#1A1A1A',
   popover: '#FFFFFF',
   popoverForeground: '#1A1A1A',
   
-  border: '#E5E7EB', // light border
-  input: '#F9FAFB', // very light input background
-  ring: '#A855F7', // purple focus ring
+  border: '#E5E7EB', 
+  input: '#F9FAFB', 
+  ring: '#A855F7', 
   
-  // Light shadow color
-  shadow: '#9333EA', // purple shadow for glow effects
+  
+  shadow: '#9333EA', 
 };
 
 export const Spacing = {
@@ -69,7 +69,7 @@ export const FontSizes = {
   xs: 12,
   sm: 14,
   base: 16,
-  lg: 16,  // Reduced from 18 to 16 for thinner headers
+  lg: 16,  
   xl: 20,
   '2xl': 24,
   '3xl': 30,
@@ -86,7 +86,7 @@ export const BorderRadius = {
 };
 
 export const BorderWidths = {
-  thin: 0.5,  // Very thin borders for headers
+  thin: 0.5,  
   sm: 1,
   md: 2,
   lg: 3,
@@ -94,14 +94,14 @@ export const BorderWidths = {
 
 export const Shadows = {
   soft: {
-    shadowColor: '#9333EA', // purple shadow
+    shadowColor: '#9333EA', 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   card: {
-    shadowColor: '#9333EA', // purple glow
+    shadowColor: '#9333EA', 
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -116,7 +116,7 @@ export const Shadows = {
   },
 };
 
-// Screen Dimensions
+
 export const Layout = {
   screenWidth: SCREEN_WIDTH,
   screenHeight: SCREEN_HEIGHT,
@@ -125,9 +125,9 @@ export const Layout = {
   contentHeight: SCREEN_HEIGHT - 90 - 80,
 };
 
-// Common Style Objects
+
 export const Styles = {
-  // Container Styles
+  
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -138,7 +138,7 @@ export const Styles = {
     backgroundColor: Colors.background,
   },
   
-  // Card Styles
+  
   cardBase: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
@@ -149,7 +149,7 @@ export const Styles = {
     ...Shadows.card,
   },
   
-  // Button Styles
+  
   buttonPrimary: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
@@ -170,7 +170,7 @@ export const Styles = {
     ...Shadows.soft,
   },
   
-  // Text Styles
+  
   heading1: {
     fontSize: FontSizes['4xl'],
     fontWeight: 'bold',
@@ -210,7 +210,7 @@ export const Styles = {
     lineHeight: FontSizes.sm * 1.4,
   },
   
-  // Input Styles
+  
   textInput: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -222,7 +222,7 @@ export const Styles = {
     backgroundColor: Colors.card,
   },
   
-  // Layout Helpers
+  
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -241,13 +241,13 @@ export const Styles = {
     justifyContent: 'space-between',
   },
   
-  // Gradient Colors (for LinearGradient component) - Calm Blue-Gray Theme
-  gradientPrimary: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], // light blue-gray gradient
-  gradientSecondary: ['#ffffff', '#94a3b8'], // white to gray gradient  
-  gradientAccent: ['#64748b', '#94a3b8', '#cbd5e1'], // slate gray gradient
-  gradientRoyal: ['#f8fafc', '#e2e8f0', '#cbd5e1'], // subtle light gradient
-  gradientBackground: ['#f8fafc', '#f1f5f9', '#e2e8f0'], // light background gradient
-  gradientHero: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], // hero background gradient
-  gradientCard: ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.8)', 'rgba(241, 245, 249, 0.9)'], // card background
-  gradientTitleDark: ['#1e293b', '#475569', '#64748b'], // dark slate for titles
+  
+  gradientPrimary: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], 
+  gradientSecondary: ['#ffffff', '#94a3b8'], 
+  gradientAccent: ['#64748b', '#94a3b8', '#cbd5e1'], 
+  gradientRoyal: ['#f8fafc', '#e2e8f0', '#cbd5e1'], 
+  gradientBackground: ['#f8fafc', '#f1f5f9', '#e2e8f0'], 
+  gradientHero: ['#f1f5f9', '#e2e8f0', '#cbd5e1'], 
+  gradientCard: ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.8)', 'rgba(241, 245, 249, 0.9)'], 
+  gradientTitleDark: ['#1e293b', '#475569', '#64748b'], 
 };
