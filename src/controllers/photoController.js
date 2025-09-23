@@ -25,7 +25,7 @@ const uploadPhoto = async (req, res) => {
 };
 
 const uploadProductImage = async (req, res) => {
-  // Check if user is admin or coach
+  
   if (!['ADMIN', 'COACH'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Only admins and coaches can upload product images' });
   }
@@ -33,16 +33,16 @@ const uploadProductImage = async (req, res) => {
   try {
     let file = null;
     
-    // Check if we're in Lambda environment and need to parse multipart data
+    
     if (req.apiGateway && req.apiGateway.event) {
       const event = req.apiGateway.event;
       
-      // Parse multipart data using busboy
+      
       file = await new Promise((resolve, reject) => {
         try {
           let fileData = null;
           
-          // Get content-type header
+          
           const contentType = event.headers['content-type'] || event.headers['Content-Type'];
           
           if (!contentType || !contentType.includes('multipart/form-data')) {
@@ -50,7 +50,7 @@ const uploadProductImage = async (req, res) => {
             return;
           }
           
-          // Decode base64 body if needed
+          
           let body = event.body;
           if (event.isBase64Encoded) {
             body = Buffer.from(event.body, 'base64');
@@ -60,7 +60,7 @@ const uploadProductImage = async (req, res) => {
           
           const busboy = Busboy({ 
             headers: { 'content-type': contentType },
-            limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+            limits: { fileSize: 10 * 1024 * 1024 } 
           });
           
           busboy.on('file', (fieldname, file, info) => {
@@ -90,7 +90,7 @@ const uploadProductImage = async (req, res) => {
             resolve(fileData);
           });
           
-          // Write the body to busboy
+          
           busboy.write(body);
           busboy.end();
           
@@ -99,7 +99,7 @@ const uploadProductImage = async (req, res) => {
         }
       });
     } else if (req.file) {
-      // Regular Express environment with multer
+      
       file = req.file;
     }
     

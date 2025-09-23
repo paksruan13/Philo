@@ -17,7 +17,7 @@ const AnnouncementsCard = ({ teamId }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const { token } = useAuth();
   
-  // Animation values
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -30,7 +30,7 @@ const AnnouncementsCard = ({ teamId }) => {
       setLoading(true);
       setError('');
       
-      // Fetch both global and team announcements
+      
       const [globalResponse, teamResponse] = await Promise.all([
         fetchWithTimeout(API_ROUTES.announcements.global, {
           headers: {
@@ -49,12 +49,12 @@ const AnnouncementsCard = ({ teamId }) => {
       const globalData = globalResponse.ok ? await globalResponse.json() : [];
       const teamData = teamResponse.ok ? await teamResponse.json() : [];
       
-      // Combine and sort announcements by creation date
+      
       const allAnnouncements = [...globalData, ...teamData].sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       );
 
-      setAnnouncements(allAnnouncements.slice(0, 5)); // Show latest 5
+      setAnnouncements(allAnnouncements.slice(0, 5)); 
     } catch (err) {
       setError('Failed to load announcements');
     } finally {
@@ -100,13 +100,13 @@ const AnnouncementsCard = ({ teamId }) => {
   };
 
   const getTypeColor = (announcement) => {
-    if (announcement.isGlobal) return '#000000'; // Black for admin
-    return '#000000'; // Black for coach
+    if (announcement.isGlobal) return '#000000'; 
+    return '#000000'; 
   };
 
   const getTypeBgColor = (announcement) => {
-    if (announcement.isGlobal) return 'rgba(220, 38, 38, 0.1)'; // Light red background
-    return 'rgba(5, 150, 105, 0.1)'; // Light emerald background
+    if (announcement.isGlobal) return 'rgba(220, 38, 38, 0.1)'; 
+    return 'rgba(5, 150, 105, 0.1)'; 
   };
 
   const handleAnnouncementPress = (announcement) => {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     marginVertical: Spacing.sm,
-    // Modern shadow
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // Modal Styles (Same as TeamMembersCard)
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

@@ -35,7 +35,7 @@ const UserManagement = ({ navigation }) => {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
   
-  // Animation values
+  
   const modalAnimation = useRef(new Animated.Value(0)).current;
   const roleDropdownAnimation = useRef(new Animated.Value(0)).current;
   const teamDropdownAnimation = useRef(new Animated.Value(0)).current;
@@ -51,7 +51,7 @@ const UserManagement = ({ navigation }) => {
 
       if (response.ok) {
         const data = await response.json();
-        // Ensure each user has a donations array for calculation
+        
         const usersWithDonations = (Array.isArray(data) ? data : data.users || []).map(user => ({
           ...user,
           donations: user.donations || []
@@ -61,7 +61,6 @@ const UserManagement = ({ navigation }) => {
         setError('Failed to fetch users');
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -83,7 +82,7 @@ const UserManagement = ({ navigation }) => {
         setTeams(Array.isArray(data) ? data : data.teams || []);
       }
     } catch (error) {
-      console.error('Error fetching teams:', error);
+      
     }
   };
 
@@ -100,11 +99,9 @@ const UserManagement = ({ navigation }) => {
         const data = await response.json();
         setCoaches(Array.isArray(data) ? data : data.coaches || []);
       } else {
-        console.warn('Failed to fetch coaches, continuing without coach data');
         setCoaches([]);
       }
     } catch (error) {
-      console.warn('Error fetching coaches, continuing without coach data:', error);
       setCoaches([]);
     }
   };
@@ -127,7 +124,7 @@ const UserManagement = ({ navigation }) => {
     });
     setEditModalVisible(true);
     
-    // Animate modal in
+    
     Animated.timing(modalAnimation, {
       toValue: 1,
       duration: 300,
@@ -147,18 +144,18 @@ const UserManagement = ({ navigation }) => {
       });
 
       if (response.ok) {
-        // Close dropdowns immediately without animation to prevent useInsertionEffect warning
+        
         setShowRoleDropdown(false);
         setShowTeamDropdown(false);
         roleDropdownAnimation.setValue(0);
         teamDropdownAnimation.setValue(0);
         
-        // Close modal immediately
+        
         setEditModalVisible(false);
         setEditingUser(null);
         modalAnimation.setValue(0);
         
-        // Fetch updated data
+        
         await fetchUsers();
         await fetchTeams();
         
@@ -170,14 +167,13 @@ const UserManagement = ({ navigation }) => {
         setError(errorData.message || 'Failed to update user');
       }
     } catch (error) {
-      console.error('Error updating user:', error);
       setError('Network error. Please try again.');
     }
   };
 
   const handleSaveUser = () => {
     if (editingUser) {
-      // Immediately close dropdowns to prevent timing issues
+      
       setShowRoleDropdown(false);
       setShowTeamDropdown(false);
       
@@ -190,13 +186,13 @@ const UserManagement = ({ navigation }) => {
   };
 
   const handleCloseModal = () => {
-    // Close dropdowns immediately
+    
     setShowRoleDropdown(false);
     setShowTeamDropdown(false);
     roleDropdownAnimation.setValue(0);
     teamDropdownAnimation.setValue(0);
     
-    // Animate modal out
+    
     Animated.timing(modalAnimation, {
       toValue: 0,
       duration: 250,
@@ -209,7 +205,7 @@ const UserManagement = ({ navigation }) => {
   const toggleRoleDropdown = () => {
     const isOpen = showRoleDropdown;
     
-    // Close team dropdown first if open
+    
     if (showTeamDropdown) {
       Animated.timing(teamDropdownAnimation, {
         toValue: 0,
@@ -222,14 +218,14 @@ const UserManagement = ({ navigation }) => {
     
     if (!isOpen) {
       setShowRoleDropdown(true);
-      // Use setTimeout instead of requestAnimationFrame to avoid useInsertionEffect warning
+      
       setTimeout(() => {
         Animated.timing(roleDropdownAnimation, {
           toValue: 1,
           duration: 250,
           useNativeDriver: true,
         }).start();
-      }, 16); // Single frame delay
+      }, 16); 
     } else {
       Animated.timing(roleDropdownAnimation, {
         toValue: 0,
@@ -244,7 +240,7 @@ const UserManagement = ({ navigation }) => {
   const toggleTeamDropdown = () => {
     const isOpen = showTeamDropdown;
     
-    // Close role dropdown first if open
+    
     if (showRoleDropdown) {
       Animated.timing(roleDropdownAnimation, {
         toValue: 0,
@@ -257,14 +253,14 @@ const UserManagement = ({ navigation }) => {
     
     if (!isOpen) {
       setShowTeamDropdown(true);
-      // Use setTimeout instead of requestAnimationFrame to avoid useInsertionEffect warning
+      
       setTimeout(() => {
         Animated.timing(teamDropdownAnimation, {
           toValue: 1,
           duration: 250,
           useNativeDriver: true,
         }).start();
-      }, 16); // Single frame delay
+      }, 16); 
     } else {
       Animated.timing(teamDropdownAnimation, {
         toValue: 0,
@@ -459,11 +455,11 @@ const UserManagement = ({ navigation }) => {
                             index === roles.length - 1 && styles.dropdownItemLast
                           ]}
                           onPress={() => {
-                            // Update state first
+                            
                             const newUser = { ...editingUser, role };
                             setEditingUser(newUser);
                             
-                            // Animate close with delay to prevent useInsertionEffect warning
+                            
                             setTimeout(() => {
                               Animated.timing(roleDropdownAnimation, {
                                 toValue: 0,
@@ -553,11 +549,11 @@ const UserManagement = ({ navigation }) => {
                           !editingUser.teamId && styles.dropdownItemSelected
                         ]}
                         onPress={() => {
-                          // Update state first
+                          
                           const newUser = { ...editingUser, teamId: '' };
                           setEditingUser(newUser);
                           
-                          // Animate close with delay to prevent useInsertionEffect warning
+                          
                           setTimeout(() => {
                             Animated.timing(teamDropdownAnimation, {
                               toValue: 0,
@@ -590,11 +586,11 @@ const UserManagement = ({ navigation }) => {
                             index === teams.length - 1 && styles.dropdownItemLast
                           ]}
                           onPress={() => {
-                            // Update state first
+                            
                             const newUser = { ...editingUser, teamId: team.id };
                             setEditingUser(newUser);
                             
-                            // Animate close with delay to prevent useInsertionEffect warning
+                            
                             setTimeout(() => {
                               Animated.timing(teamDropdownAnimation, {
                                 toValue: 0,
@@ -1003,7 +999,7 @@ const styles = {
     height: Spacing.xl,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1071,7 +1067,7 @@ const styles = {
     maxHeight: '70%',
   },
 
-  // Info Card
+  
   infoCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 16,
@@ -1113,7 +1109,7 @@ const styles = {
     flex: 1,
   },
 
-  // Form Sections
+  
   formSection: {
     marginBottom: Spacing.lg,
   },
@@ -1125,7 +1121,7 @@ const styles = {
     marginBottom: Spacing.sm,
   },
 
-  // Dropdown Styles
+  
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1215,7 +1211,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Toggle Switch
+  
   toggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1268,7 +1264,7 @@ const styles = {
     transform: [{ translateX: 22 }],
   },
 
-  // Action Buttons
+  
   modalActions: {
     flexDirection: 'row',
     padding: Spacing.lg,

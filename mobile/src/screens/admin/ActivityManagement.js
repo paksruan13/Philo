@@ -19,7 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_ROUTES } from '../../services/api';
 
-// Modern Date Picker Component
+
 const DatePickerDropdown = ({ 
   label, 
   value, 
@@ -185,7 +185,6 @@ const ActivityManagement = ({ navigation }) => {
         setError('Failed to fetch activities');
       }
     } catch (error) {
-      console.error('Error fetching activities:', error);
       setError('Error fetching activities');
     } finally {
       setLoading(false);
@@ -224,7 +223,6 @@ const ActivityManagement = ({ navigation }) => {
                 setError(data.error || 'Failed to delete activity');
               }
             } catch (error) {
-              console.error('Error deleting activity:', error);
               setError('Error deleting activity');
             }
           }
@@ -466,7 +464,7 @@ const ActivityManagement = ({ navigation }) => {
   );
 };
 
-// Activity Categories - matching web app
+
 const ACTIVITY_CATEGORIES = [
   { value: 'PHOTO', label: 'Photo' },
   { value: 'PURCHASE', label: 'Purchase' },
@@ -474,7 +472,7 @@ const ACTIVITY_CATEGORIES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-// Activity Detail Modal Component
+
 const ActivityDetailModal = ({ activity, visible, onClose }) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
@@ -580,7 +578,7 @@ const ActivityDetailModal = ({ activity, visible, onClose }) => {
   );
 };
 
-// Activity Form Component - matching web app fields
+
 const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -597,7 +595,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Update form data when activity changes
+  
   useEffect(() => {
     if (activity) {
       setFormData({
@@ -613,7 +611,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
         endDate: activity.endDate || ''
       });
     } else {
-      // Reset form for new activity
+      
       setFormData({
         title: '',
         description: '',
@@ -627,7 +625,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
         endDate: ''
       });
     }
-    // Clear any previous errors when activity changes
+    
     setError('');
   }, [activity]);
 
@@ -636,7 +634,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
     setError('');
 
     try {
-      // Validate required fields
+      
       if (!formData.title.trim()) {
         setError('Title is required');
         setLoading(false);
@@ -649,7 +647,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
         return;
       }
 
-      // Validate date range
+      
       if (formData.startDate && formData.endDate) {
         const startDate = new Date(formData.startDate);
         const endDate = new Date(formData.endDate);
@@ -666,7 +664,7 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
 
       const method = activity ? 'PUT' : 'POST';
 
-      // Prepare form data with proper date formatting
+      
       const submitData = {
         ...formData,
         points: parseInt(formData.points),
@@ -694,7 +692,6 @@ const ActivityForm = ({ activity, visible, onClose, onSave, token }) => {
         setError(data.error || 'Failed to save activity');
       }
     } catch (error) {
-      console.error('Error saving activity:', error);
       setError('Error saving activity');
     } finally {
       setLoading(false);
@@ -892,7 +889,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
 
-  // Header Styles
+  
   header: {
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -958,7 +955,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Activity Card Styles
+  
   scrollView: {
     flex: 1,
   },
@@ -1098,7 +1095,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
 
-  // Loading & Error Styles
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1135,7 +1132,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Empty State
+  
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -1155,7 +1152,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1307,7 +1304,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Form Styles
+  
   formScrollView: {
     flex: 1,
     backgroundColor: 'white',
@@ -1452,7 +1449,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
 
-  // Date Picker Dropdown Styles
+  
   datePickerContainer: {
     marginBottom: 16,
   },

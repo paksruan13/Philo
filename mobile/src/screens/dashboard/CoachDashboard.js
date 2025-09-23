@@ -33,46 +33,37 @@ const CoachDashboard = ({ navigation }) => {
 
   const fetchTeamData = async () => {
     try {
-      console.log('🔄 CoachDashboard: Starting fetchTeamData...');
-      
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       };
 
-      console.log('🔑 CoachDashboard: Using token, length:', token?.length);
-      console.log('📡 CoachDashboard: Fetching team data from:', API_ROUTES.teams.myTeam);
-
-      // Use the my-team endpoint which returns complete team data including stats and members
+      
       const teamResponse = await fetchWithTimeout(API_ROUTES.teams.myTeam, { headers }, 15000);
       
       if (!teamResponse.ok) {
         const errorText = await teamResponse.text();
-        console.error('❌ CoachDashboard: Team data fetch failed:', teamResponse.status, errorText);
         throw new Error(`Failed to fetch team data: ${teamResponse.status} - ${errorText}`);
       }
       
       const teamData = await teamResponse.json();
-      console.log('✅ CoachDashboard: Complete team data received:', teamData);
       
-      // Set team basic info
+      
       setTeamData(teamData.team);
       
-      // Set team stats from the API response (already calculated)
+      
       const stats = {
         totalStudents: teamData.stats?.memberCount || 0,
         totalPoints: teamData.stats?.totalPoints || 0,
         totalDonations: teamData.stats?.totalDonations || 0,
       };
       
-      console.log('📊 CoachDashboard: Setting team stats:', stats);
       setTeamStats(stats);
       
-      // Filter team members to show only students with their contribution data
-      const studentMembers = teamData.team?.members?.filter(member => member.role === 'STUDENT') || [];
-      console.log('👥 CoachDashboard: Student members found:', studentMembers.length, 'students');
       
-      // Map students with their donation amounts (already included in contributions)
+      const studentMembers = teamData.team?.members?.filter(member => member.role === 'STUDENT') || [];
+      
+      
       const studentsWithDonations = studentMembers.map(student => ({
         ...student,
         donations: student.contributions?.donations || 0
@@ -81,7 +72,6 @@ const CoachDashboard = ({ navigation }) => {
       setStudents(studentsWithDonations);
       
     } catch (error) {
-      console.error('❌ CoachDashboard: fetchTeamData error:', error);
       setTeamStats({
         totalStudents: 0,
         totalPoints: 0,
@@ -123,7 +113,7 @@ const CoachDashboard = ({ navigation }) => {
   };
 
   const handleActionPress = (action) => {
-    // Add a subtle scale animation to the pressed button
+    
     const scaleValue = new Animated.Value(1);
     
     Animated.sequence([
@@ -652,7 +642,7 @@ const styles = {
     height: Spacing.xl,
   },
 
-  // Modal Styles
+  
   modalContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',

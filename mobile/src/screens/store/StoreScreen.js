@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_ROUTES } from '../../services/api';
 
 const { width: screenWidth } = Dimensions.get('window');
-const itemWidth = (screenWidth - 48) / 2; // 2 items per row with padding
+const itemWidth = (screenWidth - 48) / 2; 
 
 const StoreScreen = () => {
   const [products, setProducts] = useState([]);
@@ -43,7 +43,7 @@ const StoreScreen = () => {
       if (response.ok) {
         const data = await response.json();
         
-        // Separate tickets from other products
+        
         const productList = data.filter(product => product.type !== 'TICKET');
         const ticketList = data.filter(product => product.type === 'TICKET');
         
@@ -53,7 +53,6 @@ const StoreScreen = () => {
         setError('Failed to fetch products');
       }
     } catch (err) {
-      console.error("Error fetching products:", err);
       setError('Failed to load products');
     } finally {
       setLoading(false);
@@ -93,8 +92,6 @@ const StoreScreen = () => {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
               resizeMode="cover"
-              onLoad={() => console.log('Image loaded successfully:', item.name)}
-              onError={(error) => console.log('Image load error for', item.name, ':', error.nativeEvent.error)}
             />
           ) : (
             <View style={styles.placeholderImage}>
@@ -144,8 +141,6 @@ const StoreScreen = () => {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
               resizeMode="cover"
-              onLoad={() => console.log('Ticket image loaded successfully:', item.name)}
-              onError={(error) => console.log('Ticket image load error for', item.name, ':', error.nativeEvent.error)}
             />
           ) : (
             <View style={[styles.placeholderImage, { backgroundColor: '#fef3c7' }]}>
@@ -333,8 +328,6 @@ const StoreScreen = () => {
                             source={{ uri: selectedProduct.imageUrl }}
                             style={styles.modalImage}
                             resizeMode="cover"
-                            onLoad={() => console.log('Modal image loaded successfully:', selectedProduct.name)}
-                            onError={(error) => console.log('Modal image load error for', selectedProduct.name, ':', error.nativeEvent.error)}
                           />
                         </View>
                       ) : (
@@ -397,7 +390,7 @@ const styles = {
     flex: 1,
   },
 
-  // Loading States
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -420,7 +413,7 @@ const styles = {
     fontWeight: '600',
   },
 
-  // Header Styles
+  
   header: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
@@ -464,7 +457,7 @@ const styles = {
     marginTop: 2,
   },
 
-  // Scroll View
+  
   scrollView: {
     flex: 1,
   },
@@ -473,7 +466,7 @@ const styles = {
     paddingBottom: 20,
   },
 
-  // Error Container
+  
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -491,7 +484,7 @@ const styles = {
     marginLeft: 8,
   },
 
-  // Section Styles
+  
   section: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -520,7 +513,7 @@ const styles = {
     marginLeft: 28,
   },
 
-  // Grid Styles
+  
   gridContainer: {
     paddingTop: 8,
   },
@@ -529,7 +522,7 @@ const styles = {
     justifyContent: 'space-between',
   },
 
-  // Product Card Styles
+  
   productCard: {
     width: itemWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -627,7 +620,7 @@ const styles = {
     marginLeft: 2,
   },
 
-  // Empty State
+  
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
@@ -653,7 +646,7 @@ const styles = {
     height: 20,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -948,7 +941,7 @@ const styles = {
     lineHeight: 18,
   },
 
-  // Ticket Purchase Modal Styles
+  
   ticketName: {
     fontSize: 18,
     fontWeight: '800',

@@ -31,7 +31,6 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       }
       return true;
     } catch (error) {
-      console.error('Error requesting permissions:', error);
       Alert.alert('Error', 'Failed to request permissions');
       return false;
     }
@@ -54,7 +53,6 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
         uploadImage(result.assets[0]);
       }
     } catch (error) {
-      console.error('Error in pickImage:', error);
       Alert.alert('Error', `Failed to open image picker: ${error.message}`);
     }
   };
@@ -81,7 +79,6 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
         uploadImage(result.assets[0]);
       }
     } catch (error) {
-      console.error('Error in takePhoto:', error);
       Alert.alert('Error', `Failed to open camera: ${error.message}`);
     }
   };
@@ -116,10 +113,10 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
       }
 
       if (response.ok) {
-        // Pass both the display URL and S3 key to the parent component
+        
         onChange({
-          displayUrl: result.url,   // For immediate preview
-          s3Key: result.s3Key,      // For database storage
+          displayUrl: result.url,   
+          s3Key: result.s3Key,      
           fileName: result.fileName
         });
       } else {
@@ -151,7 +148,7 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     setError('');
   };
 
-  // Helper function to get the display URL from the value
+  
   const getDisplayUrl = () => {
     if (!value) return null;
     if (typeof value === 'string') return value;
@@ -159,7 +156,7 @@ const PhotoUpload = ({ value, onChange, required = false }) => {
     return null;
   };
 
-  // Helper function to check if we have a value
+  
   const hasValue = () => {
     const displayUrl = getDisplayUrl();
     return displayUrl && displayUrl.length > 0;

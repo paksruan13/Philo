@@ -3,14 +3,14 @@ const { prisma } = require('../config/lambdaDatabase');
 
 const getLeaderboard = async (req, res) => {
   try {
-    // Try to get cached leaderboard snapshot first
+    
     const latestSnapshot = await prisma.leaderboardSnapshot.findFirst({
       orderBy: { calculatedAt: 'desc' },
       where: { period: 'daily' }
     });
 
     if (latestSnapshot) {
-      // Return cached leaderboard with metadata
+      
       res.json({
         leaderboard: latestSnapshot.rankings,
         lastUpdated: latestSnapshot.calculatedAt,
@@ -19,8 +19,7 @@ const getLeaderboard = async (req, res) => {
         period: latestSnapshot.period
       });
     } else {
-      // Fallback: calculate on-demand if no snapshot exists
-      console.log('⚠️ No leaderboard snapshot found, calculating on-demand...');
+      
       const leaderboard = await calculateLeaderboard();
       
       res.json({
@@ -32,7 +31,7 @@ const getLeaderboard = async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('❌ Error fetching leaderboard:', err);
+    console.error(' Error fetching leaderboard:', err);
     res.status(500).json({ 
       error: err.message,
       message: 'Failed to fetch leaderboard data'
@@ -40,7 +39,7 @@ const getLeaderboard = async (req, res) => {
   }
 };
 
-// Helper function to calculate next midnight UTC
+
 const getNextMidnight = () => {
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -53,7 +52,7 @@ const getStatisticsData = async (req, res) => {
     const statistics = await getStatistics();
     res.json(statistics);
   } catch (err) {
-    console.error('❌ Error fetching statistics:', err);
+    console.error(' Error fetching statistics:', err);
     res.status(500).json({ error: err.message });
   }
 };

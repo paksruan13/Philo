@@ -19,7 +19,7 @@ const createSale = async (req, res) => {
   }
 
   try {
-    // Get the user and their team
+    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { team: true }
@@ -33,7 +33,7 @@ const createSale = async (req, res) => {
       return res.status(400).json({ error: 'User is not assigned to a team' });
     }
 
-    // No team restriction - coaches can sell to any user
+    
     const sale = await saleService.processSale(shirtSize, quantity, userId, user.team.id, paymentMethod, coachId);
     res.status(201).json(sale);
   } catch (error) {
@@ -127,7 +127,7 @@ const updateShirtConfig = async (req, res) => {
   }
   
   try {
-    // Get current config to use as defaults
+    
     const currentConfig = await saleService.getCurrentShirtConfig();
     const finalPrice = price !== undefined ? parseFloat(price) : currentConfig.price;
     const finalPoints = pointsPerShirt !== undefined ? pointsPerShirt : currentConfig.pointsPerShirt;

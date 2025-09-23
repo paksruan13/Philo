@@ -35,7 +35,6 @@ const AnnouncementManagement = ({ navigation }) => {
         setError('Failed to fetch announcements');
       }
     } catch (error) {
-      console.error('Error fetching announcements:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -78,7 +77,6 @@ const AnnouncementManagement = ({ navigation }) => {
         setError(errorData.error || 'Failed to create announcement');
       }
     } catch (error) {
-      console.error('Error creating announcement:', error);
       setError('Failed to create announcement');
     } finally {
       setSubmitting(false);
@@ -113,7 +111,6 @@ const AnnouncementManagement = ({ navigation }) => {
                 setError(errorData.error || 'Failed to delete announcement');
               }
             } catch (error) {
-              console.error('Error deleting announcement:', error);
               setError('Failed to delete announcement');
             }
           }
@@ -591,7 +588,7 @@ const styles = {
     height: Spacing.xl,
   },
 
-  // Modal Styles
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

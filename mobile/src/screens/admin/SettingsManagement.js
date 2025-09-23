@@ -40,7 +40,6 @@ const SettingsManagement = ({ navigation }) => {
         setError('Failed to fetch configuration');
       }
     } catch (error) {
-      console.error('Error fetching config:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -86,7 +85,6 @@ const SettingsManagement = ({ navigation }) => {
         setError(errorData.message || 'Failed to update donation goal');
       }
     } catch (error) {
-      console.error('Error updating donation goal:', error);
       setError('Failed to update donation goal');
     } finally {
       setSaving(false);

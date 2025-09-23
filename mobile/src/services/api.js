@@ -1,10 +1,5 @@
-// Mobile API Configuration - React Native Version
-// Adapted from web frontend API service
-
 import { API_BASE_URL } from '../config/apiEndpoints';
 
-// Use centralized API endpoint configuration
-// Switch between EC2 and Lambda in apiEndpoints.js
 
 export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   const controller = new AbortController();
@@ -34,7 +29,6 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
   }
 };
 
-// Network connectivity test function
 export const testNetworkConnectivity = async () => {
   try {
     const response = await fetchWithTimeout(`${API_BASE_URL}/health`, {}, 5000);
@@ -44,10 +38,8 @@ export const testNetworkConnectivity = async () => {
   }
 };
 
-// API Endpoints organized by domain (same as web frontend)
 export const API_ROUTES = {
   base: API_BASE_URL,
-  // Authentication endpoints
   AUTH: {
     LOGIN: `${API_BASE_URL}/auth/login`,
     REGISTER: `${API_BASE_URL}/auth/register`,
@@ -58,7 +50,7 @@ export const API_ROUTES = {
     ME: `${API_BASE_URL}/auth/me`,
   },
 
-  // Keep lowercase for backward compatibility
+  
   auth: {
     login: `${API_BASE_URL}/auth/login`,
     register: `${API_BASE_URL}/auth/register`,
@@ -69,7 +61,7 @@ export const API_ROUTES = {
     me: `${API_BASE_URL}/auth/me`,
   },
 
-  // Team endpoints  
+  
   teams: {
     list: `${API_BASE_URL}/teams`,
     myTeam: `${API_BASE_URL}/teams/my-team`,
@@ -85,7 +77,7 @@ export const API_ROUTES = {
     resetPoints: (teamId) => `${API_BASE_URL}/admin/teams/${teamId}/reset-points`,
   },
 
-  // User endpoints
+  
   users: {
     list: `${API_BASE_URL}/users`,
     profile: (userId) => `${API_BASE_URL}/users/${userId}`,
@@ -95,7 +87,7 @@ export const API_ROUTES = {
     coaches: `${API_BASE_URL}/users/coaches`,
   },
 
-  // Activity endpoints
+  
   activities: {
     list: `${API_BASE_URL}/activities`,
     detail: (activityId) => `${API_BASE_URL}/activities/${activityId}`,
@@ -106,7 +98,7 @@ export const API_ROUTES = {
     delete: (activityId) => `${API_BASE_URL}/activities/${activityId}`,
   },
 
-  // Product endpoints
+  
   products: {
     list: `${API_BASE_URL}/products`,
     public: `${API_BASE_URL}/products/public`,
@@ -118,7 +110,7 @@ export const API_ROUTES = {
     sales: `${API_BASE_URL}/products/sales`,
   },
 
-  // Product Sales endpoints
+  
   productSales: {
     sell: `${API_BASE_URL}/products/sell`,
     mySales: `${API_BASE_URL}/product-sales/my-sales`,
@@ -127,20 +119,20 @@ export const API_ROUTES = {
     coachSales: `${API_BASE_URL}/products/sales/coach`,
   },
 
-  // Donation endpoints
+  
   donations: {
     create: `${API_BASE_URL}/donations`,
     list: `${API_BASE_URL}/donations`,
     webhook: `${API_BASE_URL}/donations/webhook`,
   },
 
-  // Photos endpoints
+  
   photos: {
     upload: `${API_BASE_URL}/photos/`,
     productUpload: `${API_BASE_URL}/photos/product`,
   },
 
-  // Leaderboard endpoints  
+  
   LEADERBOARD: {
     GET: `${API_BASE_URL}/leaderboard`,
     LIST: `${API_BASE_URL}/leaderboard`, 
@@ -149,7 +141,7 @@ export const API_ROUTES = {
     STATISTICS: `${API_BASE_URL}/leaderboard/statistics`,
   },
   
-  // Keep lowercase for backward compatibility
+  
   leaderboard: {
     teams: `${API_BASE_URL}/leaderboard/teams`,
     students: `${API_BASE_URL}/leaderboard/students`,
@@ -157,20 +149,20 @@ export const API_ROUTES = {
     statistics: `${API_BASE_URL}/leaderboard/statistics`,
   },
 
-  // Dashboard endpoints (using existing backend routes for now)
+  
   DASHBOARD: {
-    STUDENT: `${API_BASE_URL}/auth/me`, // Student dashboard uses user profile
-    COACH: `${API_BASE_URL}/auth/me`, // For now, use user profile (could expand later)
-    ADMIN: `${API_BASE_URL}/auth/me`, // For now, use user profile (could expand later)
-    STAFF: `${API_BASE_URL}/auth/me`, // For now, use user profile (could expand later)
+    STUDENT: `${API_BASE_URL}/auth/me`, 
+    COACH: `${API_BASE_URL}/auth/me`, 
+    ADMIN: `${API_BASE_URL}/auth/me`, 
+    STAFF: `${API_BASE_URL}/auth/me`, 
   },
 
-  // Staff endpoints
+  
   STAFF: {
     REVIEW_SUBMISSION: `${API_BASE_URL}/staff/review-submission`,
   },
 
-  // Announcements endpoints
+  
   announcements: {
     global: `${API_BASE_URL}/announcements/global`,
     createGlobal: `${API_BASE_URL}/announcements/global`,
@@ -180,7 +172,7 @@ export const API_ROUTES = {
     deleteGlobal: (announcementId) => `${API_BASE_URL}/announcements/global/${announcementId}`,
   },
 
-  // Coach endpoints
+  
   coach: {
     dashboard: `${API_BASE_URL}/coach/dashboard`,
     teams: `${API_BASE_URL}/coach/teams`,
@@ -198,7 +190,7 @@ export const API_ROUTES = {
     deleteSubmission: (submissionId) => `${API_BASE_URL}/coach/submissions/${submissionId}`,
   },
 
-  // Admin endpoints
+  
   admin: {
     dashboard: `${API_BASE_URL}/admin/dashboard`,
     users: `${API_BASE_URL}/admin/users`,
@@ -212,7 +204,7 @@ export const API_ROUTES = {
   },
 };
 
-// HTTP Client Configuration for React Native
+
 export const apiConfig = {
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -222,7 +214,7 @@ export const apiConfig = {
   },
 };
 
-// Helper function to create authenticated headers
+
 export const createAuthHeaders = (token) => ({
   'Authorization': `Bearer ${token}`,
   'Content-Type': 'application/json',

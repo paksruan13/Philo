@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontSizes } from '../styles/theme';
 
-// Import screens
+
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
@@ -19,7 +19,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import GroupMeScreen from '../screens/groupme/GroupMeScreen';
 import StoreScreen from '../screens/store/StoreScreen';
 
-// Import admin management screens
+
 import UserManagement from '../screens/admin/UserManagement';
 import TeamManagement from '../screens/admin/TeamManagement';
 import ActivityManagement from '../screens/admin/ActivityManagement';
@@ -27,7 +27,7 @@ import InventoryManagement from '../screens/admin/InventoryManagement';
 import AnnouncementManagement from '../screens/admin/AnnouncementManagement';
 import SettingsManagement from '../screens/admin/SettingsManagement';
 
-// Import coach management screens
+
 import ProductSales from '../screens/coach/ProductSales';
 import ManagePoints from '../screens/coach/ManagePoints';
 import Announcements from '../screens/coach/Announcements';
@@ -84,7 +84,7 @@ const MainTabNavigator = () => {
           paddingBottom: 25,
           height: 70,
         },
-        tabBarShowLabel: false, // Remove labels
+        tabBarShowLabel: false, 
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.mutedForeground,
         headerShown: false,
