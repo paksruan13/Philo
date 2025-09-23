@@ -1,16 +1,13 @@
 const { PrismaClient } = require('@prisma/client');
-
-// Global variable to cache the Prisma client across Lambda invocations
 let cachedPrisma = null;
 
-// Enhanced Prisma configuration optimized for Lambda
 const createLambdaPrismaClient = () => {
   const prismaOptions = {
     log: process.env.NODE_ENV === 'development' 
       ? ['query', 'info', 'warn', 'error']
       : ['warn', 'error'],
     
-    // Optimize for Lambda cold starts
+    // cold starts
     datasources: {
       db: {
         url: process.env.DATABASE_URL,
@@ -27,7 +24,7 @@ const createLambdaPrismaClient = () => {
     },
   };
 
-  // Add connection pooling configuration if using Prisma with connection pooling
+  // Connection pooling configuration for Prisma with connection pooling
   if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('pgbouncer')) {
     prismaOptions.datasources.db.url = process.env.DATABASE_URL + '?pgbouncer=true&connection_limit=1';
   }
@@ -37,8 +34,8 @@ const createLambdaPrismaClient = () => {
   // Query monitoring for performance
   if (process.env.ENABLE_QUERY_MONITORING === 'true') {
     prisma.$on('query', (e) => {
-      if (e.duration > 1000) { // Log slow queries (>1s for Lambda)
-        console.warn(`⚠️ Slow query in Lambda: ${e.duration}ms`);
+      if (e.duration > 1000) { 
+        console.warn(`Slow query in Lambda: ${e.duration}ms`);
       }
     });
   }
@@ -46,9 +43,7 @@ const createLambdaPrismaClient = () => {
   return prisma;
 };
 
-// Get or create Prisma client (Lambda-optimized with caching)
 const getPrismaClient = () => {
-  // Return cached client if available
   if (cachedPrisma) {
     return cachedPrisma;
   }
@@ -65,7 +60,7 @@ const checkDatabaseHealth = async (prismaClient = null) => {
     await client.$queryRaw`SELECT 1`;
     return { status: 'healthy', timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error('❌ Database health check failed:', error);
+    console.error(' Database health check failed:', error);
     return { 
       status: 'unhealthy', 
       error: error.message,
@@ -74,27 +69,23 @@ const checkDatabaseHealth = async (prismaClient = null) => {
   }
 };
 
-// Lambda-optimized cleanup (don't disconnect, just return)
 const lambdaCleanup = async () => {
-  // In Lambda, we don't want to disconnect since the container might be reused
   return;
 };
 
-// Graceful shutdown (for non-Lambda environments)
 const gracefulShutdown = async (prismaClient = null) => {
   const client = prismaClient || cachedPrisma;
   if (!client) return;
 
   try {
     await client.$disconnect();
-    cachedPrisma = null; // Clear cache
+    cachedPrisma = null; 
   } catch (error) {
-    console.error('❌ Error during database disconnect:', error);
+    console.error(' Error during database disconnect:', error);
     process.exit(1);
   }
 };
 
-// Export the Lambda-optimized client
 const prisma = getPrismaClient();
 
 module.exports = { 
