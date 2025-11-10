@@ -1,6 +1,6 @@
 # Philo: Event Overflow Management Application
 
-It is designed and created using **React Native** (Frontend) and **NodeJs** (Backend), along with cloud infrastructure using **AWS Lambda** and **RDS PostgreSQL**.
+Designed and created using **React Native** (Frontend) and **NodeJs** (Backend), along with cloud infrastructure using **AWS Lambda** and **RDS PostgreSQL**.
 ---
 # Features
 - Manage event overflow seamlessly.
