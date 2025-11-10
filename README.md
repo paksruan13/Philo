@@ -1,8 +1,8 @@
 # Philo: Event Overflow Management Application
-Philo is an application used to manage event overflow.  
+
 It is designed and created using **React Native** (Frontend) and **NodeJs** (Backend), along with cloud infrastructure using **AWS Lambda** and **RDS PostgreSQL**.
 ---
-## Features
+# Features
 - Manage event overflow seamlessly.
 - Built with modern frontend and backend frameworks.
 - Cloud-powered with AWS services for better scalability.
